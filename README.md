@@ -61,6 +61,31 @@ cd .\mobile
 npm run refresh-data
 ```
 
+## Build iOS And Android
+
+Expo Go is for fast testing. For installable builds, sign in to Expo and use EAS Build:
+
+```powershell
+cd .\mobile
+npx eas-cli login
+npx eas-cli build:configure
+```
+
+Create an Android APK for internal testing:
+
+```powershell
+npm run build:android:preview
+```
+
+Create production store builds:
+
+```powershell
+npm run build:android
+npm run build:ios
+```
+
+iOS production builds require an Apple Developer Program account. Android store submission requires a Google Play Console account. EAS can manage signing credentials during the build prompts.
+
 ## GitHub Setup
 
 This repository includes `.github/workflows/mobile.yml`, which runs `npm ci` and `npx tsc --noEmit` for the Expo app on pushes and pull requests.
