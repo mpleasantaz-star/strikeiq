@@ -48,6 +48,15 @@ npm install
 npm start
 ```
 
+The mobile app currently includes:
+
+- oil-pattern library search and detail views
+- add-your-own oil pattern entries
+- bowling ball database
+- spare count log with conversion rate
+- shot tracker tied to the selected pattern
+- local lane-coach chat that uses the selected pattern, ball database, spare log, and recent shots
+
 Install Expo Go on your iPhone or Android phone, then scan the QR code from the Expo terminal. If your phone cannot reach the computer on the same Wi-Fi network, use:
 
 ```powershell
