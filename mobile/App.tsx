@@ -139,6 +139,9 @@ type MobileData = {
 
 const data = mobileData as MobileData;
 const logo = require("./assets/strikeiq-logo-lockup.png");
+const backendBaseUrl = String(
+  (globalThis as { process?: { env?: { EXPO_PUBLIC_API_BASE_URL?: string } } }).process?.env?.EXPO_PUBLIC_API_BASE_URL ?? "",
+).replace(/\/$/, "");
 const storageKeys = {
   patterns: "strikeiq.customPatterns",
   balls: "strikeiq.balls",
@@ -255,6 +258,35 @@ function coachReply(input: string, pattern: Pattern | undefined, balls: Ball[], 
   return `${pattern.name}: start from the ${pattern.pattern_type} plan and watch breakpoint shape. Right side: ${pattern.suggested_line_right} Left side: ${pattern.suggested_line_left}`;
 }
 
+async function fetchAiCoachReply(
+  question: string,
+  pattern: Pattern | undefined,
+  balls: Ball[],
+  shots: ShotLog[],
+  spares: SpareLog[],
+) {
+  if (!backendBaseUrl) {
+    throw new Error("Backend URL is not configured");
+  }
+
+  const response = await fetch(`${backendBaseUrl}/api/coach/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      question,
+      pattern,
+      balls,
+      shots,
+      spares,
+    }),
+  });
+  const data = (await response.json()) as { reply?: string; error?: string };
+  if (!response.ok || !data.reply) {
+    throw new Error(data.error || "AI coach request failed");
+  }
+  return data.reply;
+}
+
 function InfoRow({ label, value }: { label: string; value: string | number | null }) {
   return (
     <View style={styles.infoRow}>
@@ -361,6 +393,7 @@ export default function App() {
   const [spareForm, setSpareForm] = useState(emptySpare);
   const [shotForm, setShotForm] = useState(emptyShot);
   const [chatInput, setChatInput] = useState("");
+  const [chatStatus, setChatStatus] = useState("");
 
   useEffect(() => {
     async function loadSavedData() {
@@ -512,17 +545,29 @@ export default function App() {
     setShotForm(emptyShot);
   }
 
-  function sendChat() {
+  async function sendChat() {
     const text = chatInput.trim();
     if (!text) return;
     const userMessage: ChatMessage = { id: nowId(), role: "user", text };
-    const coachMessage: ChatMessage = {
-      id: nowId(),
-      role: "coach",
-      text: coachReply(text, selectedPattern, balls, shots, spares),
-    };
-    setChat((current) => [userMessage, coachMessage, ...current].slice(0, 40));
+    setChat((current) => [userMessage, ...current].slice(0, 40));
     setChatInput("");
+    setChatStatus(backendBaseUrl ? "Asking AI coach..." : "Using local coach. Set EXPO_PUBLIC_API_BASE_URL to enable AI.");
+
+    try {
+      const reply = await fetchAiCoachReply(text, selectedPattern, balls, shots, spares);
+      const coachMessage: ChatMessage = { id: nowId(), role: "coach", text: reply };
+      setChat((current) => [coachMessage, ...current].slice(0, 40));
+      setChatStatus("AI coach connected.");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Backend request failed";
+      const coachMessage: ChatMessage = {
+        id: nowId(),
+        role: "coach",
+        text: `${coachReply(text, selectedPattern, balls, shots, spares)}\n\nLocal fallback used: ${detail}`,
+      };
+      setChat((current) => [coachMessage, ...current]);
+      setChatStatus("Local fallback used.");
+    }
   }
 
   return (
@@ -836,6 +881,10 @@ export default function App() {
               <Pressable accessibilityRole="button" onPress={sendChat} style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>Ask Coach</Text>
               </Pressable>
+              <Text style={styles.statusText}>
+                {backendBaseUrl ? `Backend: ${backendBaseUrl}` : "Backend not configured. Local coach fallback is active."}
+              </Text>
+              {chatStatus ? <Text style={styles.statusText}>{chatStatus}</Text> : null}
             </View>
             {chat.map((message) => (
               <View key={message.id} style={[styles.chatBubble, message.role === "user" && styles.userBubble]}>
@@ -1079,6 +1128,11 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "900",
+  },
+  statusText: {
+    color: "#51616d",
+    fontSize: 13,
+    lineHeight: 18,
   },
   detailSummary: {
     color: "#253440",

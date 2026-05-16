@@ -2,6 +2,8 @@ from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 import json
 import os
 import subprocess
@@ -12,6 +14,7 @@ import sqlite3
 ROOT = Path(__file__).resolve().parent
 DB_PATH = ROOT / "data" / "bowling_oil_patterns.sqlite"
 STATIC_DIR = ROOT / "web"
+OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 
 
 class ApiError(Exception):
@@ -623,6 +626,109 @@ def update_kegel_reference(slug: str, payload: dict) -> dict:
     return dict(updated)
 
 
+def compact_items(items: object, allowed_keys: set[str], limit: int) -> list[dict]:
+    if not isinstance(items, list):
+        return []
+
+    compacted = []
+    for item in items[:limit]:
+        if isinstance(item, dict):
+            compacted.append({key: item.get(key) for key in allowed_keys if item.get(key) not in (None, "")})
+    return compacted
+
+
+def extract_response_text(response_data: dict) -> str:
+    output_text = response_data.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text.strip()
+
+    parts = []
+    for item in response_data.get("output", []):
+        if not isinstance(item, dict):
+            continue
+        for content in item.get("content", []):
+            if isinstance(content, dict) and isinstance(content.get("text"), str):
+                parts.append(content["text"])
+    return "\n".join(parts).strip()
+
+
+def create_ai_coach_reply(payload: dict) -> dict:
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        raise ApiError(HTTPStatus.SERVICE_UNAVAILABLE, "OPENAI_API_KEY is not configured on the backend")
+
+    question = str(payload.get("question", "")).strip()
+    if not question:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "question is required")
+
+    pattern = payload.get("pattern") if isinstance(payload.get("pattern"), dict) else {}
+    context = {
+        "selected_pattern": {
+            "name": pattern.get("name"),
+            "type": pattern.get("pattern_type"),
+            "length_ft": pattern.get("length_ft"),
+            "ratio": pattern.get("ratio"),
+            "difficulty": pattern.get("difficulty"),
+            "summary": pattern.get("summary"),
+            "right_line": pattern.get("suggested_line_right"),
+            "left_line": pattern.get("suggested_line_left"),
+            "equipment": pattern.get("recommended_equipment"),
+            "adjustments": pattern.get("common_adjustments"),
+        },
+        "balls": compact_items(payload.get("balls"), {"name", "cover", "surface", "layout", "motion", "notes"}, 12),
+        "recent_shots": compact_items(
+            payload.get("shots"),
+            {"date", "ball", "target", "breakpoint", "result", "adjustment", "notes"},
+            12,
+        ),
+        "recent_spares": compact_items(payload.get("spares"), {"date", "leave", "attempts", "makes", "ball", "notes"}, 12),
+    }
+
+    prompt = (
+        "You are StrikeIQ Lane Coach, a practical bowling coach for oil-pattern strategy. "
+        "Use the provided pattern, arsenal, spare, and shot-tracker context. "
+        "Give concise, actionable advice. Do not claim official lane-machine settings unless supplied. "
+        "If the user asks for medical, legal, gambling, or unrelated advice, redirect to bowling context.\n\n"
+        f"Context JSON:\n{json.dumps(context, ensure_ascii=True)}\n\n"
+        f"Bowler question:\n{question}"
+    )
+
+    request_body = json.dumps(
+        {
+            "model": os.environ.get("OPENAI_MODEL", "gpt-5.2"),
+            "input": prompt,
+        }
+    ).encode("utf-8")
+    request = Request(
+        OPENAI_RESPONSES_URL,
+        data=request_body,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=45) as response:
+            response_data = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        error_body = error.read().decode("utf-8", errors="replace")
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"OpenAI request failed: {error_body}") from error
+    except URLError as error:
+        raise ApiError(HTTPStatus.BAD_GATEWAY, f"OpenAI request failed: {error.reason}") from error
+
+    reply = extract_response_text(response_data)
+    if not reply:
+        raise ApiError(HTTPStatus.BAD_GATEWAY, "OpenAI response did not include text")
+
+    return {
+        "reply": reply,
+        "model": response_data.get("model"),
+        "response_id": response_data.get("id"),
+    }
+
+
 class AppHandler(SimpleHTTPRequestHandler):
     def translate_path(self, path: str) -> str:
         parsed = urlparse(path)
@@ -659,11 +765,17 @@ class AppHandler(SimpleHTTPRequestHandler):
         except sqlite3.Error as error:
             self.send_error_json(HTTPStatus.INTERNAL_SERVER_ERROR, str(error))
 
+    def do_OPTIONS(self) -> None:
+        self.send_response(HTTPStatus.NO_CONTENT)
+        self.end_headers()
+
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         try:
             if parsed.path == "/api/sync/run":
                 self.send_json(run_external_ref_sync(), HTTPStatus.CREATED)
+            elif parsed.path == "/api/coach/chat":
+                self.send_json(create_ai_coach_reply(self.read_json()))
             elif parsed.path.startswith("/api/imports/") and parsed.path.endswith("/status"):
                 import_id_text = parsed.path.removeprefix("/api/imports/").removesuffix("/status")
                 self.send_json(update_import_status(int(import_id_text), self.read_json()))
@@ -700,14 +812,21 @@ class AppHandler(SimpleHTTPRequestHandler):
     def send_error_json(self, status: HTTPStatus, message: str) -> None:
         self.send_json({"error": message}, status)
 
+    def end_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        super().end_headers()
+
 
 def main() -> None:
     if not DB_PATH.exists():
         raise SystemExit("Database not found. Run: python scripts/build_database.py")
 
+    host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8000"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), AppHandler)
-    print(f"Serving Bowling Oil Patterns at http://127.0.0.1:{port}")
+    server = ThreadingHTTPServer((host, port), AppHandler)
+    print(f"Serving Bowling Oil Patterns at http://{host}:{port}")
     server.serve_forever()
 
 

@@ -55,13 +55,41 @@ The mobile app currently includes:
 - bowling ball database
 - spare count log with conversion rate
 - shot tracker tied to the selected pattern
-- local lane-coach chat that uses the selected pattern, ball database, spare log, and recent shots
+- AI-backed lane-coach chat with a local fallback
 
 Install Expo Go on your iPhone or Android phone, then scan the QR code from the Expo terminal. If your phone cannot reach the computer on the same Wi-Fi network, use:
 
 ```powershell
 npx expo start --tunnel
 ```
+
+## Enable The AI Coach Backend
+
+The mobile chat keeps your OpenAI API key on the Python backend. Set the key on the machine running `app.py`:
+
+```powershell
+$env:OPENAI_API_KEY = "your_api_key_here"
+$env:OPENAI_MODEL = "gpt-5.2"
+$env:HOST = "0.0.0.0"
+$env:PORT = "8000"
+python .\app.py
+```
+
+Find your computer's LAN IP address:
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4
+```
+
+Then start Expo with the backend URL available to the mobile app:
+
+```powershell
+cd .\mobile
+$env:EXPO_PUBLIC_API_BASE_URL = "http://YOUR_LAN_IP:8000"
+npm start
+```
+
+If `EXPO_PUBLIC_API_BASE_URL` is not set, the chat tab uses the local offline coach fallback.
 
 Refresh the bundled mobile data after changing the SQLite database:
 
