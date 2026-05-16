@@ -16,7 +16,7 @@ import {
 
 import mobileData from "./src/data/patterns.json";
 
-type AppSection = "patterns" | "addPattern" | "balls" | "spares" | "shots" | "chat" | "sync";
+type AppSection = "home" | "patterns" | "addPattern" | "balls" | "spares" | "shots" | "chat" | "sync";
 type PatternType = "house" | "sport" | "challenge" | "pba" | "custom";
 type Handedness = "right" | "left";
 
@@ -415,7 +415,11 @@ function LaneVisual({ zones }: { zones: Zone[] }) {
 }
 
 export default function App() {
-  const [section, setSection] = useState<AppSection>("patterns");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loginName, setLoginName] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [section, setSection] = useState<AppSection>("home");
   const [query, setQuery] = useState("");
   const [selectedType, setSelectedType] = useState<PatternType | "all">("all");
   const [selectedSlug, setSelectedSlug] = useState(data.patterns[0]?.slug ?? "");
@@ -737,6 +741,60 @@ export default function App() {
     }
   }
 
+  function handleLogin() {
+    if (!loginName.trim()) {
+      setLoginError("Enter your name or email to continue.");
+      return;
+    }
+
+    if (loginPin.trim() && loginPin.trim().length < 4) {
+      setLoginError("PIN must be at least 4 digits, or leave it blank for now.");
+      return;
+    }
+
+    setLoginError("");
+    setIsLoggedIn(true);
+    setSection("home");
+  }
+
+  function openProject(nextSection: AppSection) {
+    setSection(nextSection);
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <View style={styles.loginScreen}>
+          <View style={styles.loginPanel}>
+            <Image source={logo} resizeMode="contain" style={styles.loginLogo} />
+            <Text style={styles.eyebrow}>Bowl smarter. Strike more.</Text>
+            <Text style={styles.loginTitle}>Log In</Text>
+            <Text style={styles.loginSubtitle}>Access your StrikeIQ projects, tracking tools, and lane-coach workspace.</Text>
+            <Field label="Name or email" value={loginName} onChangeText={setLoginName} placeholder="michael@example.com" />
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>PIN</Text>
+              <TextInput
+                keyboardType="numeric"
+                onChangeText={setLoginPin}
+                placeholder="Optional local PIN"
+                placeholderTextColor="#78848f"
+                secureTextEntry
+                style={styles.input}
+                value={loginPin}
+              />
+            </View>
+            {loginError ? <Text style={styles.errorText}>{loginError}</Text> : null}
+            <Pressable accessibilityRole="button" onPress={handleLogin} style={styles.primaryButton}>
+              <Text style={styles.primaryButtonText}>Enter StrikeIQ</Text>
+            </Pressable>
+            <Text style={styles.statusText}>This is a local app login. Cloud accounts can be added later.</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -754,10 +812,21 @@ export default function App() {
             <Text style={styles.headerStatNumber}>{allPatterns.length}</Text>
             <Text style={styles.headerStatLabel}>patterns</Text>
           </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setIsLoggedIn(false);
+              setLoginPin("");
+            }}
+            style={styles.logoutButton}
+          >
+            <Text style={styles.logoutButtonText}>Log Out</Text>
+          </Pressable>
         </View>
 
         <View style={styles.navBar}>
           <View style={styles.navGrid}>
+            <Chip label="Home" selected={section === "home"} onPress={() => setSection("home")} />
             <Chip label="Patterns" selected={section === "patterns"} onPress={() => setSection("patterns")} />
             <Chip label="Add Pattern" selected={section === "addPattern"} onPress={() => setSection("addPattern")} />
             <Chip label="Balls" selected={section === "balls"} onPress={() => setSection("balls")} />
@@ -767,6 +836,55 @@ export default function App() {
             <Chip label="Sync" selected={section === "sync"} onPress={() => setSection("sync")} />
           </View>
         </View>
+
+        {section === "home" ? (
+          <View style={styles.layout}>
+            <View style={styles.formPanel}>
+              <Text style={styles.detailTitle}>Project Hub</Text>
+              <Text style={styles.detailSubtitle}>
+                Welcome{loginName.trim() ? `, ${loginName.trim()}` : ""}. Open a project below to work in that area.
+              </Text>
+            </View>
+
+            <View style={styles.projectGrid}>
+              <Pressable accessibilityRole="button" onPress={() => openProject("patterns")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Oil Pattern Library</Text>
+                <Text style={styles.projectMeta}>{allPatterns.length} patterns</Text>
+                <Text style={styles.projectDescription}>Search pattern strategy, lane reads, equipment notes, and source links.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("addPattern")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Add Oil Pattern</Text>
+                <Text style={styles.projectMeta}>{customPatterns.length} custom</Text>
+                <Text style={styles.projectDescription}>Create and manage your own pattern records.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("balls")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Bowling Ball Database</Text>
+                <Text style={styles.projectMeta}>{balls.length} balls</Text>
+                <Text style={styles.projectDescription}>Track cover, surface, layout, motion, and notes.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("spares")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Spare Count Log</Text>
+                <Text style={styles.projectMeta}>{spareStats.rate}% conversion</Text>
+                <Text style={styles.projectDescription}>Log spare leaves, attempts, makes, and spare-ball choices.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("shots")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Shot Tracker</Text>
+                <Text style={styles.projectMeta}>{shots.length} shots</Text>
+                <Text style={styles.projectDescription}>Record target, breakpoint, result, and adjustment history.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("chat")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>AI Lane Coach</Text>
+                <Text style={styles.projectMeta}>{backendBaseUrl ? "backend ready" : "local fallback"}</Text>
+                <Text style={styles.projectDescription}>Ask for ball choice, line choice, spare trends, and adjustments.</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => openProject("sync")} style={styles.projectCard}>
+                <Text style={styles.projectTitle}>Sync</Text>
+                <Text style={styles.projectMeta}>{backendBaseUrl ? "connected" : "not configured"}</Text>
+                <Text style={styles.projectDescription}>Upload or download app-created records through the backend.</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {section === "patterns" ? (
           <View style={styles.layout}>
@@ -1203,6 +1321,36 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 32,
   },
+  loginScreen: {
+    flex: 1,
+    backgroundColor: "#05070a",
+    justifyContent: "center",
+    padding: 18,
+  },
+  loginPanel: {
+    backgroundColor: "rgba(16, 24, 39, 0.92)",
+    borderColor: "rgba(76, 201, 240, 0.28)",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+  },
+  loginLogo: {
+    height: 58,
+    width: 190,
+  },
+  loginTitle: {
+    color: "#ffffff",
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: 0,
+    textTransform: "uppercase",
+  },
+  loginSubtitle: {
+    color: "#a7b0c0",
+    fontSize: 15,
+    lineHeight: 22,
+  },
   header: {
     alignItems: "center",
     backgroundColor: "#05070a",
@@ -1264,6 +1412,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "900",
     textTransform: "uppercase",
+  },
+  logoutButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(26, 34, 51, 0.78)",
+    borderColor: "rgba(76, 201, 240, 0.34)",
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 38,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  logoutButtonText: {
+    color: "#4cc9f0",
+    fontSize: 13,
+    fontWeight: "900",
   },
   navBar: {
     backgroundColor: "#05070a",
@@ -1341,6 +1504,34 @@ const styles = StyleSheet.create({
   },
   listColumn: {
     gap: 10,
+  },
+  projectGrid: {
+    gap: 12,
+  },
+  projectCard: {
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 8,
+    padding: 16,
+  },
+  projectTitle: {
+    color: "#ffffff",
+    fontSize: 19,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  projectMeta: {
+    color: "#4cc9f0",
+    fontSize: 13,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  projectDescription: {
+    color: "#a7b0c0",
+    fontSize: 14,
+    lineHeight: 20,
   },
   formPanel: {
     backgroundColor: "rgba(16, 24, 39, 0.88)",
@@ -1514,6 +1705,12 @@ const styles = StyleSheet.create({
   statusText: {
     color: "#a7b0c0",
     fontSize: 13,
+    lineHeight: 18,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 13,
+    fontWeight: "800",
     lineHeight: 18,
   },
   detailSummary: {
