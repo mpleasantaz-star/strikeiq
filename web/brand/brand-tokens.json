@@ -1,0 +1,42 @@
+{
+  "brand": {
+    "name": "StrikeIQ",
+    "tagline": "Bowl smarter. Strike more."
+  },
+  "colors": {
+    "primary": {
+      "electricBlue": "#0A84FF",
+      "neonBlue": "#4CC9F0",
+      "deepNavy": "#0B0F1A"
+    },
+    "neutral": {
+      "trueBlack": "#05070A",
+      "darkSlate": "#1A2233",
+      "white": "#FFFFFF"
+    },
+    "status": {
+      "success": "#22C55E",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    }
+  },
+  "gradients": {
+    "primary": "linear-gradient(90deg, #0A84FF 0%, #4CC9F0 55%, #0B0F1A 100%)",
+    "button": "linear-gradient(90deg, #0A84FF 0%, #4CC9F0 100%)"
+  },
+  "typography": {
+    "ui": {
+      "family": "Inter",
+      "weights": [300, 400, 500, 600, 700],
+      "usage": "UI text, body copy, labels, dashboard metrics, and readable content."
+    },
+    "brand": {
+      "family": "Orbitron",
+      "weights": [400, 500, 700, 900],
+      "usage": "Headlines, logo-adjacent text, brand titles, and high-impact display moments."
+    }
+  },
+  "assets": {
+    "logoPackage": "assets/strikeiq-logo-package.png"
+  }
+}

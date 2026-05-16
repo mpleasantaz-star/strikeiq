@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>StrikeIQ Oil Patterns</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="brand-lockup" aria-label="StrikeIQ">
+        <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
+      </div>
+      <div class="hero-copy">
+        <p class="eyebrow">Oil Pattern Intelligence</p>
+        <h1>Pattern Library</h1>
+        <p class="hero-subtitle">Lane-play references, starting lines, equipment reads, and bowler notes in one focused dashboard.</p>
+      </div>
+      <div class="header-stat">
+        <span id="pattern-count">0</span>
+        <small>patterns</small>
+      </div>
+    </header>
+
+    <nav class="mobile-tabs" aria-label="Mobile app sections">
+      <a href="#patterns-panel">Patterns</a>
+      <a href="#pattern-detail">Details</a>
+      <a href="#lane-visual">Lane</a>
+    </nav>
+
+    <main class="layout">
+      <aside class="filters" aria-label="Pattern filters">
+        <details class="filter-drawer" open>
+          <summary>
+            <span>Filters</span>
+            <b>Tap to refine</b>
+          </summary>
+          <div class="filter-body">
+            <div class="panel-heading">
+              <h2>Filters</h2>
+              <span>Live</span>
+            </div>
+
+            <label>
+              Library source
+              <select id="source-filter">
+                <option value="">All sources</option>
+              </select>
+            </label>
+
+            <label>
+              Lane type
+              <select id="type-filter">
+                <option value="">All types</option>
+                <option value="house">House</option>
+                <option value="sport">Sport</option>
+                <option value="challenge">Challenge</option>
+                <option value="pba">PBA-style</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            <label>
+              Length
+              <select id="length-filter">
+                <option value="">All lengths</option>
+                <option value="short">Short, 36 ft or less</option>
+                <option value="medium">Medium, 37-42 ft</option>
+                <option value="long">Long, 43 ft or more</option>
+              </select>
+            </label>
+
+            <label>
+              Difficulty
+              <select id="difficulty-filter">
+                <option value="">Any difficulty</option>
+                <option value="1">1 - forgiving</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5 - demanding</option>
+              </select>
+            </label>
+
+            <label>
+              Tag
+              <select id="tag-filter">
+                <option value="">All tags</option>
+              </select>
+            </label>
+
+            <button id="reset-filters" type="button">Reset filters</button>
+          </div>
+        </details>
+
+        <details class="sync-panel utility-panel" aria-label="Kegel sync status">
+          <summary>
+              <span>Source Sync</span>
+            <b id="sync-state">Idle</b>
+          </summary>
+          <div class="utility-body">
+            <div class="panel-heading sr-only-heading">
+            <h2>Kegel Sync</h2>
+            </div>
+            <div id="sync-summary" class="sync-summary">
+              <p class="empty-state">Sync status loading.</p>
+            </div>
+            <button id="run-sync" type="button">Check updates</button>
+          </div>
+        </details>
+
+        <details class="sync-panel utility-panel" aria-label="Official import review">
+          <summary>
+            <span>Import Review</span>
+            <b id="import-state">0 pending</b>
+          </summary>
+          <div class="utility-body">
+            <div class="panel-heading sr-only-heading">
+            <h2>Import Review</h2>
+            </div>
+            <div id="import-summary" class="sync-summary">
+              <p class="empty-state">No imported files queued.</p>
+            </div>
+          </div>
+        </details>
+
+        <details class="sync-panel utility-panel" aria-label="Catalog coverage">
+          <summary>
+            <span>Catalog Coverage</span>
+            <b id="catalog-state">Loading</b>
+          </summary>
+          <div class="utility-body">
+            <div id="catalog-summary" class="sync-summary">
+              <p class="empty-state">Catalog status loading.</p>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <section class="pattern-list" id="patterns-panel" aria-label="Oil patterns">
+        <div class="toolbar">
+          <div>
+            <p class="eyebrow">Browse</p>
+            <h2>Oil Patterns</h2>
+          </div>
+        </div>
+        <div id="patterns" class="cards"></div>
+      </section>
+
+      <section class="detail" aria-live="polite">
+        <div id="pattern-detail" class="detail-shell">
+          <p class="empty-state">Select an oil pattern to view lane strategy, equipment notes, oil zones, and your own notes.</p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

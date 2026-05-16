@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+tmp/
+.env
+data/*.err
+data/*.out
+data/*.zip
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/

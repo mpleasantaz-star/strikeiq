@@ -1,0 +1,68 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap");
+
+:root {
+  --strikeiq-electric-blue: #0a84ff;
+  --strikeiq-neon-blue: #4cc9f0;
+  --strikeiq-deep-navy: #0b0f1a;
+  --strikeiq-true-black: #05070a;
+  --strikeiq-dark-slate: #1a2233;
+  --strikeiq-success: #22c55e;
+  --strikeiq-warning: #f59e0b;
+  --strikeiq-error: #ef4444;
+
+  --strikeiq-gradient-primary: linear-gradient(90deg, #0a84ff 0%, #4cc9f0 55%, #0b0f1a 100%);
+  --strikeiq-glow-blue: 0 0 24px rgba(10, 132, 255, 0.42), 0 0 48px rgba(76, 201, 240, 0.18);
+
+  --strikeiq-font-ui: "Inter", Arial, sans-serif;
+  --strikeiq-font-brand: "Orbitron", "Inter", Arial, sans-serif;
+}
+
+.strikeiq-surface {
+  background: var(--strikeiq-true-black);
+  color: #ffffff;
+  font-family: var(--strikeiq-font-ui);
+}
+
+.strikeiq-heading {
+  color: #ffffff;
+  font-family: var(--strikeiq-font-brand);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.strikeiq-accent {
+  color: var(--strikeiq-electric-blue);
+}
+
+.strikeiq-tagline {
+  color: var(--strikeiq-neon-blue);
+  font-family: var(--strikeiq-font-brand);
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.strikeiq-button-primary {
+  align-items: center;
+  background: linear-gradient(90deg, #0a84ff 0%, #4cc9f0 100%);
+  border: 0;
+  border-radius: 8px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--strikeiq-font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  text-decoration: none;
+}
+
+.strikeiq-card {
+  background: color-mix(in srgb, var(--strikeiq-dark-slate) 72%, transparent);
+  border: 1px solid rgba(76, 201, 240, 0.22);
+  border-radius: 8px;
+  box-shadow: var(--strikeiq-glow-blue);
+}
