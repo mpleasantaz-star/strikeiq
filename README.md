@@ -91,6 +91,17 @@ npm start
 
 If `EXPO_PUBLIC_API_BASE_URL` is not set, the chat tab uses the local offline coach fallback.
 
+## Sync App Data
+
+GitHub stores the project source code. App-created bowling data should sync through the backend, not GitHub.
+
+Use the mobile app's `Sync` tab to:
+
+- upload custom oil patterns, bowling balls, spare logs, shot logs, and chat history to the Python backend
+- download the latest backend copy onto another Expo Go device
+
+The backend stores this data in `data/bowling_oil_patterns.sqlite` in the `mobile_sync_records` table. For local network testing, run the backend with `HOST=0.0.0.0` and start Expo with `EXPO_PUBLIC_API_BASE_URL` pointing to your computer's LAN IP.
+
 Refresh the bundled mobile data after changing the SQLite database:
 
 ```powershell

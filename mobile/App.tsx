@@ -16,7 +16,7 @@ import {
 
 import mobileData from "./src/data/patterns.json";
 
-type AppSection = "patterns" | "addPattern" | "balls" | "spares" | "shots" | "chat";
+type AppSection = "patterns" | "addPattern" | "balls" | "spares" | "shots" | "chat" | "sync";
 type PatternType = "house" | "sport" | "challenge" | "pba" | "custom";
 type Handedness = "right" | "left";
 
@@ -135,6 +135,19 @@ type MobileData = {
   generated_at: string;
   patterns: Pattern[];
   pattern_types: { pattern_type: PatternType; label: string; pattern_count: number }[];
+};
+
+type MobileSyncPayload = {
+  customPatterns: Pattern[];
+  balls: Ball[];
+  spares: SpareLog[];
+  shots: ShotLog[];
+  chat: ChatMessage[];
+};
+
+type MobileSyncResponse = {
+  payload: MobileSyncPayload;
+  updated_at: string | null;
 };
 
 const data = mobileData as MobileData;
@@ -287,6 +300,36 @@ async function fetchAiCoachReply(
   return data.reply;
 }
 
+async function postMobileSync(payload: MobileSyncPayload) {
+  if (!backendBaseUrl) {
+    throw new Error("Backend URL is not configured");
+  }
+
+  const response = await fetch(`${backendBaseUrl}/api/mobile-sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ payload }),
+  });
+  const data = (await response.json()) as { payload?: MobileSyncPayload; updated_at?: string | null; error?: string };
+  if (!response.ok || !data.payload) {
+    throw new Error(data.error || "Sync upload failed");
+  }
+  return { payload: data.payload, updated_at: data.updated_at ?? null } satisfies MobileSyncResponse;
+}
+
+async function getMobileSync() {
+  if (!backendBaseUrl) {
+    throw new Error("Backend URL is not configured");
+  }
+
+  const response = await fetch(`${backendBaseUrl}/api/mobile-sync`);
+  const data = (await response.json()) as { payload?: MobileSyncPayload; updated_at?: string | null; error?: string };
+  if (!response.ok || !data.payload) {
+    throw new Error(data.error || "Sync download failed");
+  }
+  return { payload: data.payload, updated_at: data.updated_at ?? null } satisfies MobileSyncResponse;
+}
+
 function InfoRow({ label, value }: { label: string; value: string | number | null }) {
   return (
     <View style={styles.infoRow}>
@@ -394,6 +437,7 @@ export default function App() {
   const [shotForm, setShotForm] = useState(emptyShot);
   const [chatInput, setChatInput] = useState("");
   const [chatStatus, setChatStatus] = useState("");
+  const [syncStatus, setSyncStatus] = useState("");
 
   useEffect(() => {
     async function loadSavedData() {
@@ -570,6 +614,43 @@ export default function App() {
     }
   }
 
+  function currentSyncPayload(): MobileSyncPayload {
+    return {
+      customPatterns,
+      balls,
+      spares,
+      shots,
+      chat,
+    };
+  }
+
+  async function uploadMobileData() {
+    setSyncStatus(backendBaseUrl ? "Uploading app data..." : "Set EXPO_PUBLIC_API_BASE_URL before syncing.");
+    try {
+      const result = await postMobileSync(currentSyncPayload());
+      setSyncStatus(`Uploaded to backend${result.updated_at ? ` at ${result.updated_at}` : ""}.`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Upload failed";
+      setSyncStatus(detail);
+    }
+  }
+
+  async function downloadMobileData() {
+    setSyncStatus(backendBaseUrl ? "Downloading app data..." : "Set EXPO_PUBLIC_API_BASE_URL before syncing.");
+    try {
+      const result = await getMobileSync();
+      setCustomPatterns(result.payload.customPatterns ?? []);
+      setBalls(result.payload.balls ?? []);
+      setSpares(result.payload.spares ?? []);
+      setShots(result.payload.shots ?? []);
+      setChat(result.payload.chat?.length ? result.payload.chat : chat);
+      setSyncStatus(`Downloaded from backend${result.updated_at ? ` at ${result.updated_at}` : ""}.`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Download failed";
+      setSyncStatus(detail);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
@@ -593,6 +674,7 @@ export default function App() {
             <Chip label="Spares" selected={section === "spares"} onPress={() => setSection("spares")} />
             <Chip label="Shots" selected={section === "shots"} onPress={() => setSection("shots")} />
             <Chip label="Chat" selected={section === "chat"} onPress={() => setSection("chat")} />
+            <Chip label="Sync" selected={section === "sync"} onPress={() => setSection("sync")} />
           </ScrollView>
         </View>
 
@@ -894,6 +976,34 @@ export default function App() {
             ))}
           </View>
         ) : null}
+
+        {section === "sync" ? (
+          <View style={styles.layout}>
+            <View style={styles.formPanel}>
+              <Text style={styles.detailTitle}>Sync App Data</Text>
+              <Text style={styles.detailSubtitle}>
+                Source code goes to GitHub with git commits. Bowling logs created in Expo Go sync to your Python backend.
+              </Text>
+              <View style={styles.statsGrid}>
+                <InfoRow label="Custom Patterns" value={customPatterns.length} />
+                <InfoRow label="Balls" value={balls.length} />
+                <InfoRow label="Spares" value={spares.length} />
+                <InfoRow label="Shots" value={shots.length} />
+                <InfoRow label="Chat Messages" value={chat.length} />
+              </View>
+              <Pressable accessibilityRole="button" onPress={uploadMobileData} style={styles.primaryButton}>
+                <Text style={styles.primaryButtonText}>Upload To Backend</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={downloadMobileData} style={styles.secondaryButton}>
+                <Text style={styles.secondaryButtonText}>Download From Backend</Text>
+              </Pressable>
+              <Text style={styles.statusText}>
+                {backendBaseUrl ? `Backend: ${backendBaseUrl}` : "Backend not configured. Set EXPO_PUBLIC_API_BASE_URL."}
+              </Text>
+              {syncStatus ? <Text style={styles.statusText}>{syncStatus}</Text> : null}
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -1126,6 +1236,21 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  secondaryButton: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderColor: "#126b8f",
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 46,
+    justifyContent: "center",
+    paddingHorizontal: 14,
+  },
+  secondaryButtonText: {
+    color: "#126b8f",
     fontSize: 15,
     fontWeight: "900",
   },

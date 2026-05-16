@@ -212,6 +212,12 @@ CREATE TABLE IF NOT EXISTS user_pattern_notes (
   FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS mobile_sync_records (
+  sync_key TEXT PRIMARY KEY,
+  payload_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_length ON oil_patterns(length_ft);
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_type ON oil_patterns(pattern_type);
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_difficulty ON oil_patterns(difficulty);

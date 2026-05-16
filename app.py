@@ -34,6 +34,75 @@ def get_connection() -> sqlite3.Connection:
     return connection
 
 
+def ensure_mobile_sync_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mobile_sync_records (
+          sync_key TEXT PRIMARY KEY,
+          payload_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def get_mobile_sync() -> dict:
+    with get_connection() as connection:
+        ensure_mobile_sync_table(connection)
+        row = connection.execute(
+            """
+            SELECT payload_json, updated_at
+            FROM mobile_sync_records
+            WHERE sync_key = 'default'
+            """
+        ).fetchone()
+
+    if row is None:
+        return {
+            "updated_at": None,
+            "payload": {
+                "customPatterns": [],
+                "balls": [],
+                "spares": [],
+                "shots": [],
+                "chat": [],
+            },
+        }
+
+    return {"updated_at": row["updated_at"], "payload": json.loads(row["payload_json"])}
+
+
+def update_mobile_sync(payload: dict) -> dict:
+    sync_payload = payload.get("payload")
+    if not isinstance(sync_payload, dict):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "payload object is required")
+
+    allowed_keys = {"customPatterns", "balls", "spares", "shots", "chat"}
+    clean_payload = {}
+    for key in allowed_keys:
+        value = sync_payload.get(key, [])
+        if not isinstance(value, list):
+            raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a list")
+        clean_payload[key] = value
+
+    payload_json = json.dumps(clean_payload, ensure_ascii=True)
+    with get_connection() as connection:
+        ensure_mobile_sync_table(connection)
+        connection.execute(
+            """
+            INSERT INTO mobile_sync_records (sync_key, payload_json, updated_at)
+            VALUES ('default', ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(sync_key) DO UPDATE SET
+              payload_json = excluded.payload_json,
+              updated_at = CURRENT_TIMESTAMP
+            """,
+            (payload_json,),
+        )
+        connection.commit()
+
+    return get_mobile_sync()
+
+
 def get_patterns(query: dict[str, list[str]]) -> list[dict]:
     conditions = []
     params = []
@@ -749,6 +818,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_import_queue())
             elif parsed.path == "/api/catalog/status":
                 self.send_json(get_catalog_status())
+            elif parsed.path == "/api/mobile-sync":
+                self.send_json(get_mobile_sync())
             elif parsed.path == "/api/tags":
                 self.send_json(get_tags())
             elif parsed.path == "/api/sources":
@@ -776,6 +847,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(run_external_ref_sync(), HTTPStatus.CREATED)
             elif parsed.path == "/api/coach/chat":
                 self.send_json(create_ai_coach_reply(self.read_json()))
+            elif parsed.path == "/api/mobile-sync":
+                self.send_json(update_mobile_sync(self.read_json()))
             elif parsed.path.startswith("/api/imports/") and parsed.path.endswith("/status"):
                 import_id_text = parsed.path.removeprefix("/api/imports/").removesuffix("/status")
                 self.send_json(update_import_status(int(import_id_text), self.read_json()))
