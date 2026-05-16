@@ -7,6 +7,28 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
+    <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
+      <div class="login-panel">
+        <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
+        <p class="eyebrow">Bowl smarter. Strike more.</p>
+        <h1>Log In</h1>
+        <p class="hero-subtitle">Open your StrikeIQ project hub, lane-play tools, and tracking workspace.</p>
+        <form id="login-form" class="login-form">
+          <label>
+            Name or email
+            <input id="login-name" name="login_name" autocomplete="username" placeholder="michael@example.com" required>
+          </label>
+          <label>
+            PIN
+            <input id="login-pin" name="login_pin" autocomplete="current-password" inputmode="numeric" placeholder="Optional local PIN" type="password">
+          </label>
+          <p id="login-error" class="login-error" role="alert"></p>
+          <button type="submit">Enter StrikeIQ</button>
+        </form>
+      </div>
+    </section>
+
+    <div id="app-shell" class="app-shell is-hidden">
     <header class="app-header">
       <div class="brand-lockup" aria-label="StrikeIQ">
         <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
@@ -20,15 +42,66 @@
         <span id="pattern-count">0</span>
         <small>patterns</small>
       </div>
+      <button id="logout-button" class="logout-button" type="button">Log Out</button>
     </header>
 
-    <nav class="mobile-tabs" aria-label="Mobile app sections">
-      <a href="#patterns-panel">Patterns</a>
-      <a href="#pattern-detail">Details</a>
-      <a href="#lane-visual">Lane</a>
+    <nav class="project-tabs" aria-label="Project sections">
+      <button type="button" data-project-nav="hub">Home</button>
+      <button type="button" data-project-nav="patterns">Patterns</button>
+      <button type="button" data-project-nav="add-pattern">Add Pattern</button>
+      <button type="button" data-project-nav="balls">Balls</button>
+      <button type="button" data-project-nav="spares">Spares</button>
+      <button type="button" data-project-nav="shots">Shots</button>
+      <button type="button" data-project-nav="chat">Chat</button>
+      <button type="button" data-project-nav="sync">Sync</button>
     </nav>
 
-    <main class="layout">
+    <main id="project-hub" class="project-hub" aria-label="Project hub">
+      <section class="hub-intro">
+        <p class="eyebrow">Project Hub</p>
+        <h2>Choose A Project</h2>
+        <p>Each project opens as its own workspace. Expo Go and the browser now load this same frontend.</p>
+      </section>
+      <section class="project-grid">
+        <button type="button" class="project-card" data-project="patterns">
+          <span>Oil Pattern Library</span>
+          <b id="hub-pattern-count">0 patterns</b>
+          <small>Search strategy, sources, lane reads, and notes.</small>
+        </button>
+        <button type="button" class="project-card" data-project="add-pattern">
+          <span>Add Oil Pattern</span>
+          <b>Custom record</b>
+          <small>Create new pattern entries and strategy notes.</small>
+        </button>
+        <button type="button" class="project-card" data-project="balls">
+          <span>Bowling Ball Database</span>
+          <b>Arsenal</b>
+          <small>Track cover, surface, layout, and motion.</small>
+        </button>
+        <button type="button" class="project-card" data-project="spares">
+          <span>Spare Count Log</span>
+          <b>Conversion</b>
+          <small>Log leaves, attempts, makes, and spare balls.</small>
+        </button>
+        <button type="button" class="project-card" data-project="shots">
+          <span>Shot Tracker</span>
+          <b>Adjustments</b>
+          <small>Capture target, breakpoint, result, and move history.</small>
+        </button>
+        <button type="button" class="project-card" data-project="chat">
+          <span>AI Lane Coach</span>
+          <b>Backend AI</b>
+          <small>Ask for ball choice, line choice, and transition moves.</small>
+        </button>
+        <button type="button" class="project-card" data-project="sync">
+          <span>Sync / Admin Tools</span>
+          <b>Backend</b>
+          <small>Check sources, imports, catalog coverage, and mobile sync.</small>
+        </button>
+      </section>
+    </main>
+
+    <main id="pattern-workspace" class="layout is-hidden">
       <aside class="filters" aria-label="Pattern filters">
         <details class="filter-drawer" open>
           <summary>
@@ -153,6 +226,16 @@
         </div>
       </section>
     </main>
+
+    <main id="tool-workspace" class="tool-workspace is-hidden" aria-live="polite">
+      <section class="tool-panel">
+        <p class="eyebrow" id="tool-eyebrow">Project</p>
+        <h2 id="tool-title">Project</h2>
+        <p id="tool-description">Select a project from the hub.</p>
+        <div id="tool-content" class="tool-content"></div>
+      </section>
+    </main>
+    </div>
 
     <script src="/app.js" type="module"></script>
   </body>

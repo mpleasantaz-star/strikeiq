@@ -6,9 +6,26 @@ const state = {
   laneVisual: null,
   handedness: "right",
   targetPath: null,
+  project: "hub",
+  userName: "",
 };
 
 const elements = {
+  loginScreen: document.querySelector("#login-screen"),
+  loginForm: document.querySelector("#login-form"),
+  loginName: document.querySelector("#login-name"),
+  loginPin: document.querySelector("#login-pin"),
+  loginError: document.querySelector("#login-error"),
+  appShell: document.querySelector("#app-shell"),
+  logout: document.querySelector("#logout-button"),
+  projectHub: document.querySelector("#project-hub"),
+  patternWorkspace: document.querySelector("#pattern-workspace"),
+  toolWorkspace: document.querySelector("#tool-workspace"),
+  toolEyebrow: document.querySelector("#tool-eyebrow"),
+  toolTitle: document.querySelector("#tool-title"),
+  toolDescription: document.querySelector("#tool-description"),
+  toolContent: document.querySelector("#tool-content"),
+  hubPatternCount: document.querySelector("#hub-pattern-count"),
   source: document.querySelector("#source-filter"),
   type: document.querySelector("#type-filter"),
   length: document.querySelector("#length-filter"),
@@ -27,6 +44,105 @@ const elements = {
   catalogState: document.querySelector("#catalog-state"),
 };
 
+const projectDetails = {
+  "add-pattern": {
+    eyebrow: "Custom Pattern",
+    title: "Add Oil Pattern",
+    description: "Create custom pattern records here. The current backend already supports user notes; full custom pattern persistence is the next backend endpoint.",
+    content: `
+      <form class="note-form project-form">
+        <div class="form-row">
+          <label>Pattern name<input placeholder="My league shot"></label>
+          <label>Length<input inputmode="numeric" placeholder="40"></label>
+        </div>
+        <label>Ratio<input placeholder="House, sport, or custom ratio"></label>
+        <label>Strategy<textarea placeholder="Starting line, breakpoint, surface, and adjustment notes"></textarea></label>
+        <p class="empty-state">This project is staged in the shared frontend. Persisting custom patterns to SQLite is the next backend step.</p>
+      </form>
+    `,
+  },
+  balls: {
+    eyebrow: "Arsenal",
+    title: "Bowling Ball Database",
+    description: "Track ball cover, surface, layout, and motion. This is ready for a backend table so browser and Expo share one arsenal.",
+    content: `
+      <form class="note-form project-form">
+        <div class="form-row">
+          <label>Ball name<input placeholder="Benchmark solid"></label>
+          <label>Surface<input placeholder="3000, 2000, polish"></label>
+        </div>
+        <div class="form-row">
+          <label>Cover<input placeholder="Solid reactive"></label>
+          <label>Layout<input placeholder="Pin up, control, etc."></label>
+        </div>
+        <label>Motion<textarea placeholder="Early, smooth, angular, controllable"></textarea></label>
+        <p class="empty-state">Next backend step: create ball records and connect this form to SQLite.</p>
+      </form>
+    `,
+  },
+  spares: {
+    eyebrow: "Spare Tracking",
+    title: "Spare Count Log",
+    description: "Log spare leaves, attempts, makes, and ball choices.",
+    content: `
+      <form class="note-form project-form">
+        <div class="form-row">
+          <label>Leave<input placeholder="10 pin"></label>
+          <label>Ball<input placeholder="Spare ball"></label>
+        </div>
+        <div class="form-row">
+          <label>Attempts<input inputmode="numeric" placeholder="5"></label>
+          <label>Makes<input inputmode="numeric" placeholder="4"></label>
+        </div>
+        <label>Notes<textarea placeholder="Miss direction, target, setup"></textarea></label>
+        <p class="empty-state">Next backend step: store spare logs in SQLite and chart conversion rate.</p>
+      </form>
+    `,
+  },
+  shots: {
+    eyebrow: "Shot Tracking",
+    title: "Shot Tracker",
+    description: "Capture ball, target, breakpoint, result, and adjustment history by selected pattern.",
+    content: `
+      <form class="note-form project-form">
+        <div class="form-row">
+          <label>Ball<input placeholder="Benchmark solid"></label>
+          <label>Result<input placeholder="Strike, high, light"></label>
+        </div>
+        <div class="form-row">
+          <label>Target<input placeholder="15 at arrows"></label>
+          <label>Breakpoint<input placeholder="8 downlane"></label>
+        </div>
+        <label>Adjustment<textarea placeholder="2 left with feet, slower speed, ball change"></textarea></label>
+        <p class="empty-state">Next backend step: attach shot logs to patterns and sessions.</p>
+      </form>
+    `,
+  },
+  chat: {
+    eyebrow: "AI Coach",
+    title: "AI Lane Coach",
+    description: "The backend already exposes /api/coach/chat. This shared frontend needs the chat panel wired to that route next.",
+    content: `
+      <form class="note-form project-form">
+        <label>Question<textarea placeholder="What ball should I start with on this pattern?"></textarea></label>
+        <button type="button">Ask Coach</button>
+        <p class="empty-state">Next frontend step: send this question to /api/coach/chat with selected pattern context.</p>
+      </form>
+    `,
+  },
+  sync: {
+    eyebrow: "Admin",
+    title: "Sync / Admin Tools",
+    description: "Use the existing sidebar tools for source sync, import review, and catalog coverage.",
+    content: `
+      <div class="project-actions">
+        <button type="button" data-project="patterns">Open Pattern Dashboard</button>
+      </div>
+      <p class="empty-state">Source Sync, Import Review, and Catalog Coverage are available in the pattern dashboard sidebar.</p>
+    `,
+  },
+};
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -34,6 +150,78 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function requireLogin() {
+  const savedName = window.localStorage.getItem("strikeiq.loginName");
+  if (savedName) {
+    state.userName = savedName;
+    elements.loginScreen.classList.add("is-hidden");
+    elements.appShell.classList.remove("is-hidden");
+    setProject("hub");
+  } else {
+    elements.loginScreen.classList.remove("is-hidden");
+    elements.appShell.classList.add("is-hidden");
+  }
+}
+
+function handleLogin(event) {
+  event.preventDefault();
+  const name = elements.loginName.value.trim();
+  const pin = elements.loginPin.value.trim();
+
+  if (!name) {
+    elements.loginError.textContent = "Enter your name or email.";
+    return;
+  }
+
+  if (pin && pin.length < 4) {
+    elements.loginError.textContent = "PIN must be at least 4 digits, or leave it blank.";
+    return;
+  }
+
+  window.localStorage.setItem("strikeiq.loginName", name);
+  state.userName = name;
+  elements.loginError.textContent = "";
+  elements.loginScreen.classList.add("is-hidden");
+  elements.appShell.classList.remove("is-hidden");
+  setProject("hub");
+}
+
+function handleLogout() {
+  window.localStorage.removeItem("strikeiq.loginName");
+  state.userName = "";
+  elements.loginPin.value = "";
+  elements.appShell.classList.add("is-hidden");
+  elements.loginScreen.classList.remove("is-hidden");
+}
+
+function setProject(project) {
+  state.project = project;
+  elements.projectHub.classList.toggle("is-hidden", project !== "hub");
+  elements.patternWorkspace.classList.toggle("is-hidden", project !== "patterns");
+  elements.toolWorkspace.classList.toggle("is-hidden", project === "hub" || project === "patterns");
+
+  document.querySelectorAll("[data-project-nav]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.projectNav === project);
+  });
+
+  if (project === "patterns") {
+    return;
+  }
+
+  if (project !== "hub") {
+    renderToolProject(project);
+  }
+}
+
+function renderToolProject(project) {
+  const details = projectDetails[project];
+  if (!details) return;
+  elements.toolEyebrow.textContent = details.eyebrow;
+  elements.toolTitle.textContent = details.title;
+  elements.toolDescription.textContent = details.description;
+  elements.toolContent.innerHTML = details.content;
 }
 
 function externalSearchUrl(ref, pattern) {
@@ -144,6 +332,7 @@ async function loadPatterns() {
   const query = params.toString() ? `?${params}` : "";
   state.patterns = await api(`/api/patterns${query}`);
   elements.count.textContent = state.patterns.length;
+  elements.hubPatternCount.textContent = `${state.patterns.length} patterns`;
   renderCards();
 
   if (state.patterns.length && !state.patterns.some((pattern) => pattern.slug === state.selectedSlug)) {
@@ -1990,6 +2179,22 @@ async function updateImportStatus(importId, reviewStatus) {
 }
 
 function bindEvents() {
+  elements.loginForm.addEventListener("submit", handleLogin);
+  elements.logout.addEventListener("click", handleLogout);
+
+  document.addEventListener("click", (event) => {
+    const projectButton = event.target.closest("[data-project]");
+    if (projectButton) {
+      setProject(projectButton.dataset.project);
+      return;
+    }
+
+    const navButton = event.target.closest("[data-project-nav]");
+    if (navButton) {
+      setProject(navButton.dataset.projectNav);
+    }
+  });
+
   [elements.source, elements.type, elements.length, elements.difficulty, elements.tag].forEach((element) => {
     element.addEventListener("input", loadPatterns);
   });
@@ -2021,6 +2226,7 @@ async function init() {
   syncMobileFilterState();
   window.addEventListener("resize", syncMobileFilterState);
   bindEvents();
+  requireLogin();
   await loadSources();
   await loadPatternTypes();
   await loadTags();
