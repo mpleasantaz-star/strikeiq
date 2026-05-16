@@ -438,6 +438,10 @@ export default function App() {
   const [chatInput, setChatInput] = useState("");
   const [chatStatus, setChatStatus] = useState("");
   const [syncStatus, setSyncStatus] = useState("");
+  const [editingPatternSlug, setEditingPatternSlug] = useState<string | null>(null);
+  const [editingBallId, setEditingBallId] = useState<string | null>(null);
+  const [editingSpareId, setEditingSpareId] = useState<string | null>(null);
+  const [editingShotId, setEditingShotId] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadSavedData() {
@@ -503,7 +507,7 @@ export default function App() {
   function savePattern() {
     if (!patternForm.name.trim()) return;
     const pattern: Pattern = {
-      slug: `custom-${slugify(patternForm.name)}-${Date.now()}`,
+      slug: editingPatternSlug ?? `custom-${slugify(patternForm.name)}-${Date.now()}`,
       name: patternForm.name.trim(),
       organization: "User-defined",
       pattern_type: "custom",
@@ -527,16 +531,40 @@ export default function App() {
       equipment_options: [],
       external_refs: [],
     };
-    setCustomPatterns((current) => [pattern, ...current]);
+    setCustomPatterns((current) =>
+      editingPatternSlug
+        ? current.map((item) => (item.slug === editingPatternSlug ? pattern : item))
+        : [pattern, ...current],
+    );
     setSelectedSlug(pattern.slug);
     setPatternForm(emptyPattern);
+    setEditingPatternSlug(null);
     setSection("patterns");
+  }
+
+  function editPattern(pattern: Pattern) {
+    setPatternForm({
+      name: pattern.name,
+      length: String(pattern.length_ft),
+      ratio: pattern.ratio ?? "",
+      difficulty: String(pattern.difficulty),
+      summary: pattern.summary,
+      strategy: pattern.play_strategy,
+    });
+    setEditingPatternSlug(pattern.slug);
+    setSection("addPattern");
+  }
+
+  function deletePattern(slug: string) {
+    setCustomPatterns((current) => current.filter((pattern) => pattern.slug !== slug));
+    if (selectedSlug === slug) {
+      setSelectedSlug(data.patterns[0]?.slug ?? "");
+    }
   }
 
   function saveBall() {
     if (!ballForm.name.trim()) return;
-    setBalls((current) => [
-      {
+    const ball: Ball = {
         id: nowId(),
         name: ballForm.name.trim(),
         cover: ballForm.cover.trim(),
@@ -545,18 +573,37 @@ export default function App() {
         motion: ballForm.motion.trim(),
         notes: ballForm.notes.trim(),
         createdAt: today(),
-      },
-      ...current,
-    ]);
+    };
+    setBalls((current) =>
+      editingBallId
+        ? current.map((item) => (item.id === editingBallId ? { ...ball, id: item.id, createdAt: item.createdAt } : item))
+        : [ball, ...current],
+    );
     setBallForm(emptyBall);
+    setEditingBallId(null);
+  }
+
+  function editBall(ball: Ball) {
+    setBallForm({
+      name: ball.name,
+      cover: ball.cover,
+      surface: ball.surface,
+      layout: ball.layout,
+      motion: ball.motion,
+      notes: ball.notes,
+    });
+    setEditingBallId(ball.id);
+  }
+
+  function deleteBall(id: string) {
+    setBalls((current) => current.filter((ball) => ball.id !== id));
   }
 
   function saveSpare() {
     if (!spareForm.leave.trim()) return;
     const attempts = Math.max(1, numberFromText(spareForm.attempts, 1));
     const makes = Math.min(attempts, Math.max(0, numberFromText(spareForm.makes, 0)));
-    setSpares((current) => [
-      {
+    const spare: SpareLog = {
         id: nowId(),
         date: today(),
         leave: spareForm.leave.trim(),
@@ -564,16 +611,34 @@ export default function App() {
         makes,
         ball: spareForm.ball.trim(),
         notes: spareForm.notes.trim(),
-      },
-      ...current,
-    ]);
+    };
+    setSpares((current) =>
+      editingSpareId
+        ? current.map((item) => (item.id === editingSpareId ? { ...spare, id: item.id, date: item.date } : item))
+        : [spare, ...current],
+    );
     setSpareForm(emptySpare);
+    setEditingSpareId(null);
+  }
+
+  function editSpare(spare: SpareLog) {
+    setSpareForm({
+      leave: spare.leave,
+      attempts: String(spare.attempts),
+      makes: String(spare.makes),
+      ball: spare.ball,
+      notes: spare.notes,
+    });
+    setEditingSpareId(spare.id);
+  }
+
+  function deleteSpare(id: string) {
+    setSpares((current) => current.filter((spare) => spare.id !== id));
   }
 
   function saveShot() {
     if (!selectedPattern || !shotForm.result.trim()) return;
-    setShots((current) => [
-      {
+    const shot: ShotLog = {
         id: nowId(),
         date: today(),
         patternSlug: selectedPattern.slug,
@@ -583,10 +648,31 @@ export default function App() {
         result: shotForm.result.trim(),
         adjustment: shotForm.adjustment.trim(),
         notes: shotForm.notes.trim(),
-      },
-      ...current,
-    ]);
+    };
+    setShots((current) =>
+      editingShotId
+        ? current.map((item) => (item.id === editingShotId ? { ...shot, id: item.id, date: item.date } : item))
+        : [shot, ...current],
+    );
     setShotForm(emptyShot);
+    setEditingShotId(null);
+  }
+
+  function editShot(shot: ShotLog) {
+    setSelectedSlug(shot.patternSlug);
+    setShotForm({
+      ball: shot.ball,
+      target: shot.target,
+      breakpoint: shot.breakpoint,
+      result: shot.result,
+      adjustment: shot.adjustment,
+      notes: shot.notes,
+    });
+    setEditingShotId(shot.id);
+  }
+
+  function deleteShot(id: string) {
+    setShots((current) => current.filter((shot) => shot.id !== id));
   }
 
   async function sendChat() {
@@ -671,7 +757,7 @@ export default function App() {
         </View>
 
         <View style={styles.navBar}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          <View style={styles.navGrid}>
             <Chip label="Patterns" selected={section === "patterns"} onPress={() => setSection("patterns")} />
             <Chip label="Add Pattern" selected={section === "addPattern"} onPress={() => setSection("addPattern")} />
             <Chip label="Balls" selected={section === "balls"} onPress={() => setSection("balls")} />
@@ -679,7 +765,7 @@ export default function App() {
             <Chip label="Shots" selected={section === "shots"} onPress={() => setSection("shots")} />
             <Chip label="Chat" selected={section === "chat"} onPress={() => setSection("chat")} />
             <Chip label="Sync" selected={section === "sync"} onPress={() => setSection("sync")} />
-          </ScrollView>
+          </View>
         </View>
 
         {section === "patterns" ? (
@@ -728,6 +814,16 @@ export default function App() {
                   <Text numberOfLines={2} style={styles.patternSummary}>
                     {pattern.summary}
                   </Text>
+                  {pattern.organization === "User-defined" ? (
+                    <View style={styles.actionRow}>
+                      <Pressable accessibilityRole="button" onPress={() => editPattern(pattern)} style={styles.smallButton}>
+                        <Text style={styles.smallButtonText}>Edit</Text>
+                      </Pressable>
+                      <Pressable accessibilityRole="button" onPress={() => deletePattern(pattern.slug)} style={styles.dangerButton}>
+                        <Text style={styles.dangerButtonText}>Delete</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </Pressable>
               ))}
               {filteredPatterns.length > 80 ? (
@@ -804,7 +900,7 @@ export default function App() {
         {section === "addPattern" ? (
           <View style={styles.layout}>
             <View style={styles.formPanel}>
-              <Text style={styles.detailTitle}>Add Oil Pattern</Text>
+              <Text style={styles.detailTitle}>{editingPatternSlug ? "Edit Oil Pattern" : "Add Oil Pattern"}</Text>
               <Field label="Pattern name" value={patternForm.name} onChangeText={(name) => setPatternForm({ ...patternForm, name })} />
               <Field
                 label="Length"
@@ -833,8 +929,20 @@ export default function App() {
                 onChangeText={(strategy) => setPatternForm({ ...patternForm, strategy })}
               />
               <Pressable accessibilityRole="button" onPress={savePattern} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Save Pattern</Text>
+                <Text style={styles.primaryButtonText}>{editingPatternSlug ? "Update Pattern" : "Save Pattern"}</Text>
               </Pressable>
+              {editingPatternSlug ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setEditingPatternSlug(null);
+                    setPatternForm(emptyPattern);
+                  }}
+                  style={styles.secondaryButton}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel Edit</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         ) : null}
@@ -842,7 +950,7 @@ export default function App() {
         {section === "balls" ? (
           <View style={styles.layout}>
             <View style={styles.formPanel}>
-              <Text style={styles.detailTitle}>Bowling Ball Database</Text>
+              <Text style={styles.detailTitle}>{editingBallId ? "Edit Bowling Ball" : "Bowling Ball Database"}</Text>
               <Field label="Ball name" value={ballForm.name} onChangeText={(name) => setBallForm({ ...ballForm, name })} />
               <Field label="Cover" value={ballForm.cover} onChangeText={(cover) => setBallForm({ ...ballForm, cover })} />
               <Field label="Surface" value={ballForm.surface} onChangeText={(surface) => setBallForm({ ...ballForm, surface })} />
@@ -850,8 +958,20 @@ export default function App() {
               <Field label="Motion" value={ballForm.motion} onChangeText={(motion) => setBallForm({ ...ballForm, motion })} />
               <Field label="Notes" multiline value={ballForm.notes} onChangeText={(notes) => setBallForm({ ...ballForm, notes })} />
               <Pressable accessibilityRole="button" onPress={saveBall} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Save Ball</Text>
+                <Text style={styles.primaryButtonText}>{editingBallId ? "Update Ball" : "Save Ball"}</Text>
               </Pressable>
+              {editingBallId ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setEditingBallId(null);
+                    setBallForm(emptyBall);
+                  }}
+                  style={styles.secondaryButton}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel Edit</Text>
+                </Pressable>
+              ) : null}
             </View>
             {balls.map((ball) => (
               <View key={ball.id} style={styles.patternCard}>
@@ -862,6 +982,14 @@ export default function App() {
                 <Text style={styles.patternMeta}>{ball.cover || "Cover not set"} | {ball.layout || "Layout not set"}</Text>
                 <Text style={styles.patternSummary}>{ball.motion || "Motion not set"}</Text>
                 {ball.notes ? <Text style={styles.bodyText}>{ball.notes}</Text> : null}
+                <View style={styles.actionRow}>
+                  <Pressable accessibilityRole="button" onPress={() => editBall(ball)} style={styles.smallButton}>
+                    <Text style={styles.smallButtonText}>Edit</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => deleteBall(ball.id)} style={styles.dangerButton}>
+                    <Text style={styles.dangerButtonText}>Delete</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
           </View>
@@ -875,7 +1003,7 @@ export default function App() {
               <InfoRow label="Conversion" value={`${spareStats.rate}%`} />
             </View>
             <View style={styles.formPanel}>
-              <Text style={styles.detailTitle}>Spare Count Log</Text>
+              <Text style={styles.detailTitle}>{editingSpareId ? "Edit Spare Log" : "Spare Count Log"}</Text>
               <Field label="Leave" value={spareForm.leave} onChangeText={(leave) => setSpareForm({ ...spareForm, leave })} placeholder="10 pin" />
               <Field
                 label="Attempts"
@@ -892,8 +1020,20 @@ export default function App() {
               <Field label="Ball" value={spareForm.ball} onChangeText={(ball) => setSpareForm({ ...spareForm, ball })} />
               <Field label="Notes" multiline value={spareForm.notes} onChangeText={(notes) => setSpareForm({ ...spareForm, notes })} />
               <Pressable accessibilityRole="button" onPress={saveSpare} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Log Spare</Text>
+                <Text style={styles.primaryButtonText}>{editingSpareId ? "Update Spare" : "Log Spare"}</Text>
               </Pressable>
+              {editingSpareId ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setEditingSpareId(null);
+                    setSpareForm(emptySpare);
+                  }}
+                  style={styles.secondaryButton}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel Edit</Text>
+                </Pressable>
+              ) : null}
             </View>
             {spares.map((spare) => (
               <View key={spare.id} style={styles.patternCard}>
@@ -902,6 +1042,14 @@ export default function App() {
                   {spare.makes}/{spare.attempts} on {spare.date} | {spare.ball || "Ball not set"}
                 </Text>
                 {spare.notes ? <Text style={styles.bodyText}>{spare.notes}</Text> : null}
+                <View style={styles.actionRow}>
+                  <Pressable accessibilityRole="button" onPress={() => editSpare(spare)} style={styles.smallButton}>
+                    <Text style={styles.smallButtonText}>Edit</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" onPress={() => deleteSpare(spare.id)} style={styles.dangerButton}>
+                    <Text style={styles.dangerButtonText}>Delete</Text>
+                  </Pressable>
+                </View>
               </View>
             ))}
           </View>
@@ -910,7 +1058,7 @@ export default function App() {
         {section === "shots" ? (
           <View style={styles.layout}>
             <View style={styles.formPanel}>
-              <Text style={styles.detailTitle}>Shot Tracker</Text>
+              <Text style={styles.detailTitle}>{editingShotId ? "Edit Shot" : "Shot Tracker"}</Text>
               <Text style={styles.detailSubtitle}>Current pattern: {selectedPattern?.name ?? "None"}</Text>
               <Field label="Ball" value={shotForm.ball} onChangeText={(ball) => setShotForm({ ...shotForm, ball })} />
               <Field label="Target" value={shotForm.target} onChangeText={(target) => setShotForm({ ...shotForm, target })} placeholder="15 at arrows" />
@@ -929,8 +1077,20 @@ export default function App() {
               />
               <Field label="Notes" multiline value={shotForm.notes} onChangeText={(notes) => setShotForm({ ...shotForm, notes })} />
               <Pressable accessibilityRole="button" onPress={saveShot} style={styles.primaryButton}>
-                <Text style={styles.primaryButtonText}>Log Shot</Text>
+                <Text style={styles.primaryButtonText}>{editingShotId ? "Update Shot" : "Log Shot"}</Text>
               </Pressable>
+              {editingShotId ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setEditingShotId(null);
+                    setShotForm(emptyShot);
+                  }}
+                  style={styles.secondaryButton}
+                >
+                  <Text style={styles.secondaryButtonText}>Cancel Edit</Text>
+                </Pressable>
+              ) : null}
             </View>
             {shots.map((shot) => {
               const pattern = allPatterns.find((item) => item.slug === shot.patternSlug);
@@ -946,6 +1106,14 @@ export default function App() {
                   </Text>
                   {shot.adjustment ? <Text style={styles.bodyText}>Adjustment: {shot.adjustment}</Text> : null}
                   {shot.notes ? <Text style={styles.bodyText}>{shot.notes}</Text> : null}
+                  <View style={styles.actionRow}>
+                    <Pressable accessibilityRole="button" onPress={() => editShot(shot)} style={styles.smallButton}>
+                      <Text style={styles.smallButtonText}>Edit</Text>
+                    </Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => deleteShot(shot.id)} style={styles.dangerButton}>
+                      <Text style={styles.dangerButtonText}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               );
             })}
@@ -966,6 +1134,16 @@ export default function App() {
               />
               <Pressable accessibilityRole="button" onPress={sendChat} style={styles.primaryButton}>
                 <Text style={styles.primaryButtonText}>Ask Coach</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setChat([]);
+                  setChatStatus("Chat history cleared on this device.");
+                }}
+                style={styles.secondaryButton}
+              >
+                <Text style={styles.secondaryButtonText}>Clear Chat</Text>
               </Pressable>
               <Text style={styles.statusText}>
                 {backendBaseUrl ? `Backend: ${backendBaseUrl}` : "Backend not configured. Local coach fallback is active."}
@@ -1093,6 +1271,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     padding: 12,
   },
+  navGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   searchPanel: {
     backgroundColor: "rgba(16, 24, 39, 0.88)",
     borderColor: "rgba(76, 201, 240, 0.18)",
@@ -1137,6 +1320,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     minHeight: 34,
     justifyContent: "center",
+    minWidth: 86,
     paddingHorizontal: 12,
   },
   chipSelected: {
@@ -1289,6 +1473,42 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#4cc9f0",
     fontSize: 15,
+    fontWeight: "900",
+  },
+  actionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 4,
+  },
+  smallButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(10, 132, 255, 0.18)",
+    borderColor: "rgba(76, 201, 240, 0.34)",
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  smallButtonText: {
+    color: "#4cc9f0",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  dangerButton: {
+    alignItems: "center",
+    backgroundColor: "rgba(239, 68, 68, 0.14)",
+    borderColor: "rgba(239, 68, 68, 0.42)",
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  dangerButtonText: {
+    color: "#ef4444",
+    fontSize: 13,
     fontWeight: "900",
   },
   statusText: {
