@@ -658,11 +658,15 @@ export default function App() {
         <View style={styles.header}>
           <Image source={logo} resizeMode="contain" style={styles.logo} />
           <View style={styles.headerText}>
-            <Text style={styles.eyebrow}>Bowling Intelligence</Text>
-            <Text style={styles.title}>StrikeIQ</Text>
+            <Text style={styles.eyebrow}>Oil Pattern Intelligence</Text>
+            <Text style={styles.title}>Pattern Library</Text>
             <Text style={styles.subtitle}>
-              Patterns, arsenal notes, spares, shot tracking, and lane-coach chat in one Expo app.
+              Lane-play references, starting lines, equipment reads, bowler notes, and tracking tools in one focused dashboard.
             </Text>
+          </View>
+          <View style={styles.headerStat}>
+            <Text style={styles.headerStatNumber}>{allPatterns.length}</Text>
+            <Text style={styles.headerStatLabel}>patterns</Text>
           </View>
         </View>
 
@@ -1012,31 +1016,38 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#08141d",
+    backgroundColor: "#05070a",
   },
   screen: {
     flex: 1,
-    backgroundColor: "#eef2f4",
+    backgroundColor: "#05070a",
   },
   content: {
     paddingBottom: 32,
   },
   header: {
-    backgroundColor: "#08141d",
+    alignItems: "center",
+    backgroundColor: "#05070a",
+    borderBottomColor: "rgba(76, 201, 240, 0.18)",
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 14,
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 22,
-    gap: 16,
+    paddingBottom: 16,
   },
   logo: {
-    height: 44,
-    width: 160,
+    height: 48,
+    width: 170,
   },
   headerText: {
+    flex: 1,
     gap: 6,
+    minWidth: 190,
   },
   eyebrow: {
-    color: "#e0b653",
+    color: "#4cc9f0",
     fontSize: 12,
     fontWeight: "800",
     letterSpacing: 0,
@@ -1047,32 +1058,55 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "900",
     letterSpacing: 0,
+    lineHeight: 34,
+    textTransform: "uppercase",
   },
   subtitle: {
-    color: "#c8d4dc",
+    color: "#a7b0c0",
     fontSize: 15,
     lineHeight: 21,
   },
+  headerStat: {
+    alignItems: "center",
+    backgroundColor: "rgba(26, 34, 51, 0.78)",
+    borderColor: "rgba(76, 201, 240, 0.34)",
+    borderRadius: 8,
+    borderWidth: 1,
+    minWidth: 104,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  headerStatNumber: {
+    color: "#4cc9f0",
+    fontSize: 26,
+    fontWeight: "900",
+  },
+  headerStatLabel: {
+    color: "#a7b0c0",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
   navBar: {
-    backgroundColor: "#ffffff",
-    borderBottomColor: "#d4dde4",
+    backgroundColor: "#05070a",
+    borderBottomColor: "rgba(76, 201, 240, 0.18)",
     borderBottomWidth: 1,
     padding: 12,
   },
   searchPanel: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     padding: 14,
     gap: 12,
   },
   input: {
-    backgroundColor: "#f4f7f9",
-    borderColor: "#cbd6de",
+    backgroundColor: "#05070a",
+    borderColor: "rgba(76, 201, 240, 0.26)",
     borderRadius: 8,
     borderWidth: 1,
-    color: "#101820",
+    color: "#ffffff",
     fontSize: 16,
     minHeight: 46,
     paddingHorizontal: 14,
@@ -1086,9 +1120,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   fieldLabel: {
-    color: "#253440",
+    color: "#a7b0c0",
     fontSize: 13,
     fontWeight: "900",
+    textTransform: "uppercase",
   },
   chipRow: {
     gap: 8,
@@ -1096,7 +1131,8 @@ const styles = StyleSheet.create({
   },
   chip: {
     alignItems: "center",
-    borderColor: "#cbd6de",
+    backgroundColor: "rgba(26, 34, 51, 0.74)",
+    borderColor: "rgba(76, 201, 240, 0.28)",
     borderRadius: 8,
     borderWidth: 1,
     minHeight: 34,
@@ -1104,11 +1140,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   chipSelected: {
-    backgroundColor: "#126b8f",
-    borderColor: "#126b8f",
+    backgroundColor: "#0a84ff",
+    borderColor: "#4cc9f0",
   },
   chipText: {
-    color: "#253440",
+    color: "#ffffff",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -1123,29 +1159,30 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   formPanel: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     gap: 12,
     padding: 16,
   },
   sectionTitle: {
-    color: "#15222c",
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "900",
     marginTop: 4,
+    textTransform: "uppercase",
   },
   patternCard: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     padding: 14,
     gap: 7,
   },
   patternCardSelected: {
-    borderColor: "#126b8f",
+    borderColor: "#4cc9f0",
     borderWidth: 2,
   },
   cardHeader: {
@@ -1155,39 +1192,39 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   patternName: {
-    color: "#101820",
+    color: "#ffffff",
     flex: 1,
     fontSize: 18,
     fontWeight: "900",
   },
   lengthBadge: {
-    backgroundColor: "#e7f0f4",
+    backgroundColor: "rgba(10, 132, 255, 0.18)",
     borderRadius: 6,
-    color: "#126b8f",
+    color: "#4cc9f0",
     fontSize: 13,
     fontWeight: "900",
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   patternMeta: {
-    color: "#51616d",
+    color: "#a7b0c0",
     fontSize: 13,
     lineHeight: 18,
   },
   patternSummary: {
-    color: "#253440",
+    color: "#ffffff",
     fontSize: 14,
     lineHeight: 20,
   },
   moreText: {
-    color: "#51616d",
+    color: "#a7b0c0",
     fontSize: 13,
     lineHeight: 18,
     paddingHorizontal: 4,
   },
   detailColumn: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     gap: 14,
@@ -1204,18 +1241,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   detailTitle: {
-    color: "#101820",
+    color: "#ffffff",
     fontSize: 24,
     fontWeight: "900",
     letterSpacing: 0,
   },
   detailSubtitle: {
-    color: "#51616d",
+    color: "#a7b0c0",
     fontSize: 14,
     lineHeight: 20,
   },
   sourceButton: {
-    backgroundColor: "#d9573f",
+    backgroundColor: "#0a84ff",
     borderRadius: 8,
     minHeight: 38,
     justifyContent: "center",
@@ -1228,7 +1265,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: "#126b8f",
+    backgroundColor: "#0a84ff",
     borderRadius: 8,
     minHeight: 46,
     justifyContent: "center",
@@ -1241,8 +1278,8 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "#ffffff",
-    borderColor: "#126b8f",
+    backgroundColor: "rgba(26, 34, 51, 0.78)",
+    borderColor: "#4cc9f0",
     borderRadius: 8,
     borderWidth: 1,
     minHeight: 46,
@@ -1250,42 +1287,42 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   secondaryButtonText: {
-    color: "#126b8f",
+    color: "#4cc9f0",
     fontSize: 15,
     fontWeight: "900",
   },
   statusText: {
-    color: "#51616d",
+    color: "#a7b0c0",
     fontSize: 13,
     lineHeight: 18,
   },
   detailSummary: {
-    color: "#253440",
+    color: "#ffffff",
     fontSize: 16,
     lineHeight: 23,
   },
   statsGrid: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(26, 34, 51, 0.72)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     overflow: "hidden",
   },
   infoRow: {
-    borderBottomColor: "#e4ebef",
+    borderBottomColor: "rgba(76, 201, 240, 0.12)",
     borderBottomWidth: 1,
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   infoLabel: {
-    color: "#62727d",
+    color: "#a7b0c0",
     fontSize: 12,
     fontWeight: "800",
     textTransform: "uppercase",
   },
   infoValue: {
-    color: "#101820",
+    color: "#ffffff",
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1297,13 +1334,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   bodyText: {
-    color: "#253440",
+    color: "#ffffff",
     fontSize: 15,
     lineHeight: 22,
   },
   lane: {
-    backgroundColor: "#d9b579",
-    borderColor: "#b98747",
+    backgroundColor: "#101827",
+    borderColor: "rgba(76, 201, 240, 0.34)",
     borderRadius: 8,
     borderWidth: 1,
     height: 360,
@@ -1314,7 +1351,7 @@ const styles = StyleSheet.create({
     position: "absolute",
   },
   breakpointLine: {
-    backgroundColor: "rgba(217, 87, 63, 0.85)",
+    backgroundColor: "rgba(245, 158, 11, 0.92)",
     height: 2,
     left: 0,
     position: "absolute",
@@ -1322,9 +1359,9 @@ const styles = StyleSheet.create({
     top: "52%",
   },
   laneLabel: {
-    backgroundColor: "rgba(255, 255, 255, 0.75)",
+    backgroundColor: "rgba(5, 7, 10, 0.75)",
     borderRadius: 5,
-    color: "#3e2b16",
+    color: "#ffffff",
     fontSize: 11,
     fontWeight: "900",
     left: 8,
@@ -1339,20 +1376,20 @@ const styles = StyleSheet.create({
     top: undefined,
   },
   laneFallback: {
-    backgroundColor: "#f4f7f9",
-    borderColor: "#cbd6de",
+    backgroundColor: "rgba(26, 34, 51, 0.74)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     gap: 6,
     padding: 16,
   },
   laneFallbackTitle: {
-    color: "#101820",
+    color: "#ffffff",
     fontSize: 16,
     fontWeight: "900",
   },
   laneFallbackText: {
-    color: "#51616d",
+    color: "#a7b0c0",
     fontSize: 14,
     lineHeight: 20,
   },
@@ -1362,14 +1399,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chatBubble: {
-    backgroundColor: "#ffffff",
-    borderColor: "#d7e0e6",
+    backgroundColor: "rgba(16, 24, 39, 0.88)",
+    borderColor: "rgba(76, 201, 240, 0.18)",
     borderRadius: 8,
     borderWidth: 1,
     gap: 6,
     padding: 14,
   },
   userBubble: {
-    borderColor: "#126b8f",
+    borderColor: "#4cc9f0",
   },
 });
