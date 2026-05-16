@@ -40,22 +40,35 @@ python .\app.py
 
 ## Run The Expo Mobile App
 
-The React Native/Expo app lives in `mobile` and bundles a JSON export of the same oil-pattern database for Expo Go.
+The Expo app lives in `mobile` and opens the same Python-served web frontend that you see in the Codex/browser view. Start the backend first:
+
+```powershell
+$env:HOST = "0.0.0.0"
+$env:PORT = "8000"
+python .\app.py
+```
+
+Find your computer's LAN IP address:
+
+```powershell
+Get-NetIPAddress -AddressFamily IPv4
+```
+
+Then start Expo with the web app URL:
 
 ```powershell
 cd .\mobile
 npm install
+$env:EXPO_PUBLIC_WEB_APP_URL = "http://YOUR_LAN_IP:8000"
 npm start
 ```
 
-The mobile app currently includes:
+Expo Go shows a local login screen first, then loads:
 
-- oil-pattern library search and detail views
-- add-your-own oil pattern entries
-- bowling ball database
-- spare count log with conversion rate
-- shot tracker tied to the selected pattern
-- AI-backed lane-coach chat with a local fallback
+- `web/index.html`
+- `web/app.js`
+- `web/styles.css`
+- backend routes from `app.py`
 
 Install Expo Go on your iPhone or Android phone, then scan the QR code from the Expo terminal. If your phone cannot reach the computer on the same Wi-Fi network, use:
 
@@ -81,32 +94,12 @@ Find your computer's LAN IP address:
 Get-NetIPAddress -AddressFamily IPv4
 ```
 
-Then start Expo with the backend URL available to the mobile app:
+Then start Expo with the web app URL available to the mobile shell:
 
 ```powershell
 cd .\mobile
-$env:EXPO_PUBLIC_API_BASE_URL = "http://YOUR_LAN_IP:8000"
+$env:EXPO_PUBLIC_WEB_APP_URL = "http://YOUR_LAN_IP:8000"
 npm start
-```
-
-If `EXPO_PUBLIC_API_BASE_URL` is not set, the chat tab uses the local offline coach fallback.
-
-## Sync App Data
-
-GitHub stores the project source code. App-created bowling data should sync through the backend, not GitHub.
-
-Use the mobile app's `Sync` tab to:
-
-- upload custom oil patterns, bowling balls, spare logs, shot logs, and chat history to the Python backend
-- download the latest backend copy onto another Expo Go device
-
-The backend stores this data in `data/bowling_oil_patterns.sqlite` in the `mobile_sync_records` table. For local network testing, run the backend with `HOST=0.0.0.0` and start Expo with `EXPO_PUBLIC_API_BASE_URL` pointing to your computer's LAN IP.
-
-Refresh the bundled mobile data after changing the SQLite database:
-
-```powershell
-cd .\mobile
-npm run refresh-data
 ```
 
 ## Build iOS And Android
