@@ -146,6 +146,16 @@ h1 {
   font-weight: 800;
 }
 
+.auth-toggle {
+  min-height: auto;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2);
+  padding: 2px 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
 .hero-subtitle {
   max-width: 720px;
   line-height: 1.45;

@@ -17,8 +17,12 @@ const state = {
 const elements = {
   loginScreen: document.querySelector("#login-screen"),
   loginForm: document.querySelector("#login-form"),
-  loginName: document.querySelector("#login-name"),
-  loginPin: document.querySelector("#login-pin"),
+  loginEmail: document.querySelector("#login-email"),
+  loginPassword: document.querySelector("#login-password"),
+  authTitle: document.querySelector("#auth-title"),
+  authSubtitle: document.querySelector("#auth-subtitle"),
+  authSubmit: document.querySelector("#auth-submit"),
+  authToggle: document.querySelector("#auth-toggle"),
   loginError: document.querySelector("#login-error"),
   appShell: document.querySelector("#app-shell"),
   logout: document.querySelector("#logout-button"),
@@ -47,6 +51,8 @@ const elements = {
   catalogSummary: document.querySelector("#catalog-summary"),
   catalogState: document.querySelector("#catalog-state"),
 };
+
+let authMode = "create";
 
 const projectDetails = {
   "add-pattern": {
@@ -175,9 +181,9 @@ function escapeHtml(value) {
 }
 
 function requireLogin() {
-  const savedName = window.localStorage.getItem("strikeiq.loginName");
-  if (savedName) {
-    state.userName = savedName;
+  const savedEmail = window.localStorage.getItem("strikeiq.accountEmail");
+  if (savedEmail) {
+    state.userName = savedEmail;
     elements.loginScreen.classList.add("is-hidden");
     elements.appShell.classList.remove("is-hidden");
     setProject("hub");
@@ -187,23 +193,54 @@ function requireLogin() {
   }
 }
 
+function setAuthMode(nextMode) {
+  authMode = nextMode;
+  const isCreate = authMode === "create";
+  elements.authTitle.textContent = isCreate ? "Create Account" : "Log In";
+  elements.authSubtitle.textContent = isCreate
+    ? "Set up your StrikeIQ account to open the project hub, lane-play tools, and tracking workspace."
+    : "Log back in to your StrikeIQ project hub.";
+  elements.authSubmit.textContent = isCreate ? "Create Account" : "Log In";
+  elements.authToggle.textContent = isCreate ? "Already have an account? Log in" : "Need an account? Create one";
+  elements.loginPassword.autocomplete = isCreate ? "new-password" : "current-password";
+  elements.loginError.textContent = "";
+}
+
 function handleLogin(event) {
   event.preventDefault();
-  const name = elements.loginName.value.trim();
-  const pin = elements.loginPin.value.trim();
+  const email = elements.loginEmail.value.trim().toLowerCase();
+  const password = elements.loginPassword.value;
 
-  if (!name) {
-    elements.loginError.textContent = "Enter your name or email.";
+  if (!email) {
+    elements.loginError.textContent = "Email address is required.";
     return;
   }
 
-  if (pin && pin.length < 4) {
-    elements.loginError.textContent = "PIN must be at least 4 digits, or leave it blank.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    elements.loginError.textContent = "Enter a valid email address.";
     return;
   }
 
-  window.localStorage.setItem("strikeiq.loginName", name);
-  state.userName = name;
+  if (!password) {
+    elements.loginError.textContent = "Password is required.";
+    return;
+  }
+
+  if (password.length < 6) {
+    elements.loginError.textContent = "Password must be at least 6 characters.";
+    return;
+  }
+
+  if (authMode === "login") {
+    const savedEmail = window.localStorage.getItem("strikeiq.accountEmail");
+    if (savedEmail && savedEmail !== email) {
+      elements.loginError.textContent = "No local account found for that email. Create an account first.";
+      return;
+    }
+  }
+
+  window.localStorage.setItem("strikeiq.accountEmail", email);
+  state.userName = email;
   elements.loginError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
   elements.appShell.classList.remove("is-hidden");
@@ -211,11 +248,11 @@ function handleLogin(event) {
 }
 
 function handleLogout() {
-  window.localStorage.removeItem("strikeiq.loginName");
   state.userName = "";
-  elements.loginPin.value = "";
+  elements.loginPassword.value = "";
   elements.appShell.classList.add("is-hidden");
   elements.loginScreen.classList.remove("is-hidden");
+  setAuthMode("login");
 }
 
 function setProject(project) {
@@ -2299,7 +2336,9 @@ async function updateImportStatus(importId, reviewStatus) {
 }
 
 function bindEvents() {
+  setAuthMode("create");
   elements.loginForm.addEventListener("submit", handleLogin);
+  elements.authToggle.addEventListener("click", () => setAuthMode(authMode === "create" ? "login" : "create"));
   elements.logout.addEventListener("click", handleLogout);
 
   document.addEventListener("click", (event) => {

@@ -11,19 +11,20 @@
       <div class="login-panel">
         <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
         <p class="eyebrow">Bowl smarter. Strike more.</p>
-        <h1>Log In</h1>
-        <p class="hero-subtitle">Open your StrikeIQ project hub, lane-play tools, and tracking workspace.</p>
+        <h1 id="auth-title">Create Account</h1>
+        <p id="auth-subtitle" class="hero-subtitle">Set up your StrikeIQ account to open the project hub, lane-play tools, and tracking workspace.</p>
         <form id="login-form" class="login-form">
           <label>
-            Name or email
-            <input id="login-name" name="login_name" autocomplete="username" placeholder="michael@example.com" required>
+            Email address
+            <input id="login-email" name="email" autocomplete="email" inputmode="email" placeholder="michael@example.com" type="email" required>
           </label>
           <label>
-            PIN
-            <input id="login-pin" name="login_pin" autocomplete="current-password" inputmode="numeric" placeholder="Optional local PIN" type="password">
+            Password
+            <input id="login-password" name="password" autocomplete="new-password" placeholder="Create a password" type="password" required minlength="6">
           </label>
           <p id="login-error" class="login-error" role="alert"></p>
-          <button type="submit">Enter StrikeIQ</button>
+          <button id="auth-submit" type="submit">Create Account</button>
+          <button id="auth-toggle" class="auth-toggle" type="button">Already have an account? Log in</button>
         </form>
       </div>
     </section>
