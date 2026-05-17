@@ -2,6 +2,10 @@ import * as THREE from "/vendor/three.module.js";
 
 const state = {
   patterns: [],
+  balls: [],
+  spares: { spares: [], attempts: 0, makes: 0, rate: 0 },
+  shots: [],
+  chat: [],
   selectedSlug: null,
   laneVisual: null,
   handedness: "right",
@@ -50,14 +54,24 @@ const projectDetails = {
     title: "Add Oil Pattern",
     description: "Create custom pattern records here. The current backend already supports user notes; full custom pattern persistence is the next backend endpoint.",
     content: `
-      <form class="note-form project-form">
+      <form id="custom-pattern-form" class="note-form project-form">
         <div class="form-row">
-          <label>Pattern name<input placeholder="My league shot"></label>
-          <label>Length<input inputmode="numeric" placeholder="40"></label>
+          <label>Pattern name<input name="name" placeholder="My league shot" required></label>
+          <label>Length<input name="length_ft" inputmode="numeric" placeholder="40" required></label>
         </div>
-        <label>Ratio<input placeholder="House, sport, or custom ratio"></label>
-        <label>Strategy<textarea placeholder="Starting line, breakpoint, surface, and adjustment notes"></textarea></label>
-        <p class="empty-state">This project is staged in the shared frontend. Persisting custom patterns to SQLite is the next backend step.</p>
+        <div class="form-row">
+          <label>Ratio<input name="ratio" placeholder="House, sport, or custom ratio"></label>
+          <label>Difficulty<input name="difficulty" inputmode="numeric" placeholder="3"></label>
+        </div>
+        <label>Summary<textarea name="summary" placeholder="Short description of the pattern"></textarea></label>
+        <label>Strategy<textarea name="play_strategy" placeholder="Starting line, breakpoint, surface, and adjustment notes"></textarea></label>
+        <div class="form-row">
+          <label>Right line<input name="suggested_line_right" placeholder="12 at arrows to 8"></label>
+          <label>Left line<input name="suggested_line_left" placeholder="28 at arrows to 32"></label>
+        </div>
+        <label>Equipment<textarea name="recommended_equipment" placeholder="Benchmark, urethane, surface, or ball change notes"></textarea></label>
+        <button type="submit">Save Pattern</button>
+        <p id="custom-pattern-status" class="empty-state"></p>
       </form>
     `,
   },
@@ -66,18 +80,20 @@ const projectDetails = {
     title: "Bowling Ball Database",
     description: "Track ball cover, surface, layout, and motion. This is ready for a backend table so browser and Expo share one arsenal.",
     content: `
-      <form class="note-form project-form">
+      <form id="ball-form" class="note-form project-form">
         <div class="form-row">
-          <label>Ball name<input placeholder="Benchmark solid"></label>
-          <label>Surface<input placeholder="3000, 2000, polish"></label>
+          <label>Ball name<input name="name" placeholder="Benchmark solid" required></label>
+          <label>Surface<input name="surface" placeholder="3000, 2000, polish"></label>
         </div>
         <div class="form-row">
-          <label>Cover<input placeholder="Solid reactive"></label>
-          <label>Layout<input placeholder="Pin up, control, etc."></label>
+          <label>Cover<input name="cover" placeholder="Solid reactive"></label>
+          <label>Layout<input name="layout" placeholder="Pin up, control, etc."></label>
         </div>
-        <label>Motion<textarea placeholder="Early, smooth, angular, controllable"></textarea></label>
-        <p class="empty-state">Next backend step: create ball records and connect this form to SQLite.</p>
+        <label>Motion<textarea name="motion" placeholder="Early, smooth, angular, controllable"></textarea></label>
+        <label>Notes<textarea name="notes" placeholder="When to use it, lane shape, misses"></textarea></label>
+        <button type="submit">Save Ball</button>
       </form>
+      <div id="ball-list" class="project-list"></div>
     `,
   },
   spares: {
@@ -85,18 +101,20 @@ const projectDetails = {
     title: "Spare Count Log",
     description: "Log spare leaves, attempts, makes, and ball choices.",
     content: `
-      <form class="note-form project-form">
+      <form id="spare-form" class="note-form project-form">
         <div class="form-row">
-          <label>Leave<input placeholder="10 pin"></label>
-          <label>Ball<input placeholder="Spare ball"></label>
+          <label>Leave<input name="leave" placeholder="10 pin" required></label>
+          <label>Ball<input name="ball" placeholder="Spare ball"></label>
         </div>
         <div class="form-row">
-          <label>Attempts<input inputmode="numeric" placeholder="5"></label>
-          <label>Makes<input inputmode="numeric" placeholder="4"></label>
+          <label>Attempts<input name="attempts" inputmode="numeric" placeholder="5" required></label>
+          <label>Makes<input name="makes" inputmode="numeric" placeholder="4" required></label>
         </div>
-        <label>Notes<textarea placeholder="Miss direction, target, setup"></textarea></label>
-        <p class="empty-state">Next backend step: store spare logs in SQLite and chart conversion rate.</p>
+        <label>Notes<textarea name="notes" placeholder="Miss direction, target, setup"></textarea></label>
+        <button type="submit">Log Spare</button>
       </form>
+      <div id="spare-summary" class="project-metric"></div>
+      <div id="spare-list" class="project-list"></div>
     `,
   },
   shots: {
@@ -104,18 +122,21 @@ const projectDetails = {
     title: "Shot Tracker",
     description: "Capture ball, target, breakpoint, result, and adjustment history by selected pattern.",
     content: `
-      <form class="note-form project-form">
+      <form id="shot-form" class="note-form project-form">
         <div class="form-row">
-          <label>Ball<input placeholder="Benchmark solid"></label>
-          <label>Result<input placeholder="Strike, high, light"></label>
+          <label>Ball<input name="ball" placeholder="Benchmark solid"></label>
+          <label>Result<input name="result" placeholder="Strike, high, light" required></label>
         </div>
         <div class="form-row">
-          <label>Target<input placeholder="15 at arrows"></label>
-          <label>Breakpoint<input placeholder="8 downlane"></label>
+          <label>Target<input name="target" placeholder="15 at arrows"></label>
+          <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
         </div>
-        <label>Adjustment<textarea placeholder="2 left with feet, slower speed, ball change"></textarea></label>
-        <p class="empty-state">Next backend step: attach shot logs to patterns and sessions.</p>
+        <input type="hidden" name="pattern_slug" id="shot-pattern-slug">
+        <label>Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
+        <label>Notes<textarea name="notes" placeholder="Reaction, miss, next move"></textarea></label>
+        <button type="submit">Log Shot</button>
       </form>
+      <div id="shot-list" class="project-list"></div>
     `,
   },
   chat: {
@@ -123,11 +144,12 @@ const projectDetails = {
     title: "AI Lane Coach",
     description: "The backend already exposes /api/coach/chat. This shared frontend needs the chat panel wired to that route next.",
     content: `
-      <form class="note-form project-form">
-        <label>Question<textarea placeholder="What ball should I start with on this pattern?"></textarea></label>
-        <button type="button">Ask Coach</button>
-        <p class="empty-state">Next frontend step: send this question to /api/coach/chat with selected pattern context.</p>
+      <form id="coach-form" class="note-form project-form">
+        <label>Question<textarea name="question" placeholder="What ball should I start with on this pattern?" required></textarea></label>
+        <button type="submit">Ask Coach</button>
+        <p id="coach-status" class="empty-state"></p>
       </form>
+      <div id="chat-list" class="project-list"></div>
     `,
   },
   sync: {
@@ -215,6 +237,24 @@ function setProject(project) {
   }
 }
 
+function selectedPatternSummary() {
+  const pattern = state.patterns.find((item) => item.slug === state.selectedSlug);
+  if (!pattern) return null;
+  return {
+    slug: pattern.slug,
+    name: pattern.name,
+    pattern_type: pattern.pattern_type,
+    length_ft: pattern.length_ft,
+    ratio: pattern.ratio,
+    difficulty: pattern.difficulty,
+    summary: pattern.summary,
+    suggested_line_right: pattern.suggested_line_right,
+    suggested_line_left: pattern.suggested_line_left,
+    recommended_equipment: pattern.recommended_equipment,
+    common_adjustments: pattern.common_adjustments,
+  };
+}
+
 function renderToolProject(project) {
   const details = projectDetails[project];
   if (!details) return;
@@ -222,6 +262,86 @@ function renderToolProject(project) {
   elements.toolTitle.textContent = details.title;
   elements.toolDescription.textContent = details.description;
   elements.toolContent.innerHTML = details.content;
+  hydrateToolProject(project);
+}
+
+async function hydrateToolProject(project) {
+  if (project === "balls") {
+    await loadBalls();
+  } else if (project === "spares") {
+    await loadSpares();
+  } else if (project === "shots") {
+    await loadShots();
+  } else if (project === "chat") {
+    renderChat();
+  } else if (project === "add-pattern") {
+    const status = document.querySelector("#custom-pattern-status");
+    if (status) status.textContent = "Saved patterns appear immediately in Oil Pattern Library.";
+  }
+}
+
+function formPayload(form) {
+  return Object.fromEntries(new FormData(form).entries());
+}
+
+function renderProjectList(containerId, items, emptyText, renderItem) {
+  const container = document.querySelector(containerId);
+  if (!container) return;
+  container.innerHTML = items.length ? items.map(renderItem).join("") : `<p class="empty-state">${emptyText}</p>`;
+}
+
+async function loadBalls() {
+  state.balls = await api("/api/balls");
+  renderProjectList("#ball-list", state.balls, "No bowling balls saved yet.", (ball) => `
+    <article class="project-record">
+      <strong>${escapeHtml(ball.name)}</strong>
+      <span>${escapeHtml([ball.cover, ball.surface, ball.layout].filter(Boolean).join(" | ") || "Details pending")}</span>
+      ${ball.motion ? `<p>${escapeHtml(ball.motion)}</p>` : ""}
+      ${ball.notes ? `<small>${escapeHtml(ball.notes)}</small>` : ""}
+    </article>
+  `);
+}
+
+async function loadSpares() {
+  state.spares = await api("/api/spares");
+  const summary = document.querySelector("#spare-summary");
+  if (summary) {
+    summary.innerHTML = `
+      <span><b>${state.spares.makes}</b> makes</span>
+      <span><b>${state.spares.attempts}</b> attempts</span>
+      <span><b>${state.spares.rate}%</b> conversion</span>
+    `;
+  }
+  renderProjectList("#spare-list", state.spares.spares, "No spare logs saved yet.", (spare) => `
+    <article class="project-record">
+      <strong>${escapeHtml(spare.leave)}</strong>
+      <span>${spare.makes}/${spare.attempts} | ${escapeHtml(spare.ball || "Ball not set")}</span>
+      ${spare.notes ? `<p>${escapeHtml(spare.notes)}</p>` : ""}
+      <small>${escapeHtml(spare.created_at)}</small>
+    </article>
+  `);
+}
+
+async function loadShots() {
+  state.shots = await api("/api/shots");
+  renderProjectList("#shot-list", state.shots, "No shots logged yet.", (shot) => `
+    <article class="project-record">
+      <strong>${escapeHtml(shot.result)}</strong>
+      <span>${escapeHtml(shot.pattern_name || "No pattern")} | ${escapeHtml(shot.ball || "Ball not set")}</span>
+      <p>${escapeHtml([shot.target && `Target ${shot.target}`, shot.breakpoint && `Breakpoint ${shot.breakpoint}`].filter(Boolean).join(" | ") || "Target not set")}</p>
+      ${shot.adjustment ? `<p><b>Adjustment:</b> ${escapeHtml(shot.adjustment)}</p>` : ""}
+      ${shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
+    </article>
+  `);
+}
+
+function renderChat() {
+  renderProjectList("#chat-list", state.chat, "No coach messages yet.", (message) => `
+    <article class="project-record ${message.role === "user" ? "is-user" : ""}">
+      <strong>${message.role === "user" ? "You" : "Coach"}</strong>
+      <p>${escapeHtml(message.text)}</p>
+    </article>
+  `);
 }
 
 function externalSearchUrl(ref, pattern) {
@@ -2192,6 +2312,69 @@ function bindEvents() {
     const navButton = event.target.closest("[data-project-nav]");
     if (navButton) {
       setProject(navButton.dataset.projectNav);
+    }
+  });
+
+  document.addEventListener("submit", async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    if (form.id === "custom-pattern-form") {
+      event.preventDefault();
+      const pattern = await api("/api/custom-patterns", { method: "POST", body: JSON.stringify(formPayload(form)) });
+      form.reset();
+      await loadSources();
+      await loadPatternTypes();
+      await loadTags();
+      await loadPatterns();
+      state.selectedSlug = pattern.slug;
+      const status = document.querySelector("#custom-pattern-status");
+      if (status) status.textContent = `${pattern.name} saved. Open Oil Pattern Library to view it.`;
+    } else if (form.id === "ball-form") {
+      event.preventDefault();
+      await api("/api/balls", { method: "POST", body: JSON.stringify(formPayload(form)) });
+      form.reset();
+      await loadBalls();
+    } else if (form.id === "spare-form") {
+      event.preventDefault();
+      await api("/api/spares", { method: "POST", body: JSON.stringify(formPayload(form)) });
+      form.reset();
+      await loadSpares();
+    } else if (form.id === "shot-form") {
+      event.preventDefault();
+      const payload = formPayload(form);
+      payload.pattern_slug = state.selectedSlug || "";
+      await api("/api/shots", { method: "POST", body: JSON.stringify(payload) });
+      form.reset();
+      await loadShots();
+    } else if (form.id === "coach-form") {
+      event.preventDefault();
+      const payload = formPayload(form);
+      const question = String(payload.question || "").trim();
+      if (!question) return;
+      state.chat.unshift({ role: "user", text: question });
+      renderChat();
+      const status = document.querySelector("#coach-status");
+      if (status) status.textContent = "Asking coach...";
+      try {
+        const response = await api("/api/coach/chat", {
+          method: "POST",
+          body: JSON.stringify({
+            question,
+            pattern: selectedPatternSummary(),
+            balls: state.balls,
+            shots: state.shots,
+            spares: state.spares.spares || [],
+          }),
+        });
+        state.chat.unshift({ role: "coach", text: response.reply });
+        form.reset();
+        if (status) status.textContent = "Coach replied.";
+      } catch (error) {
+        state.chat.unshift({ role: "coach", text: `AI coach unavailable: ${error.message}` });
+        if (status) status.textContent = "AI coach unavailable.";
+      }
+      renderChat();
     }
   });
 

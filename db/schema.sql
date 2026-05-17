@@ -218,6 +218,41 @@ CREATE TABLE IF NOT EXISTS mobile_sync_records (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS bowling_balls (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  cover TEXT,
+  surface TEXT,
+  layout TEXT,
+  motion TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS spare_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  leave TEXT NOT NULL,
+  attempts INTEGER NOT NULL CHECK (attempts > 0),
+  makes INTEGER NOT NULL CHECK (makes >= 0),
+  ball TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS shot_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  oil_pattern_id INTEGER,
+  ball TEXT,
+  target TEXT,
+  breakpoint TEXT,
+  result TEXT NOT NULL,
+  adjustment TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_length ON oil_patterns(length_ft);
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_type ON oil_patterns(pattern_type);
 CREATE INDEX IF NOT EXISTS idx_oil_patterns_difficulty ON oil_patterns(difficulty);
@@ -232,6 +267,8 @@ CREATE INDEX IF NOT EXISTS idx_external_checks_review ON external_ref_checks(nee
 CREATE INDEX IF NOT EXISTS idx_official_imports_status ON official_pattern_imports(review_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_sync_runs_source ON sync_runs(source_name, started_at);
 CREATE INDEX IF NOT EXISTS idx_user_notes_pattern ON user_pattern_notes(oil_pattern_id);
+CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at);
 
 CREATE VIEW IF NOT EXISTS oil_pattern_cards AS
 SELECT

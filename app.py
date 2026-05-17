@@ -9,10 +9,11 @@ import os
 import subprocess
 import sys
 import sqlite3
+import re
 
 
 ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "data" / "bowling_oil_patterns.sqlite"
+DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.sqlite"))
 STATIC_DIR = ROOT / "web"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 
@@ -101,6 +102,280 @@ def update_mobile_sync(payload: dict) -> dict:
         connection.commit()
 
     return get_mobile_sync()
+
+
+def slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "custom-pattern"
+
+
+def unique_pattern_slug(connection: sqlite3.Connection, name: str) -> str:
+    base = slugify(name)
+    slug = base
+    suffix = 2
+    while connection.execute("SELECT 1 FROM oil_patterns WHERE slug = ?", (slug,)).fetchone():
+        slug = f"{base}-{suffix}"
+        suffix += 1
+    return slug
+
+
+def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bowling_balls (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          cover TEXT,
+          surface TEXT,
+          layout TEXT,
+          motion TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS spare_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          leave TEXT NOT NULL,
+          attempts INTEGER NOT NULL CHECK (attempts > 0),
+          makes INTEGER NOT NULL CHECK (makes >= 0),
+          ball TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS shot_logs (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          oil_pattern_id INTEGER,
+          ball TEXT,
+          target TEXT,
+          breakpoint TEXT,
+          result TEXT NOT NULL,
+          adjustment TEXT,
+          notes TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
+        )
+        """
+    )
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
+
+
+def require_text(payload: dict, key: str, label: str) -> str:
+    value = str(payload.get(key, "")).strip()
+    if not value:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{label} is required")
+    return value
+
+
+def optional_text(payload: dict, key: str) -> str | None:
+    value = str(payload.get(key, "")).strip()
+    return value or None
+
+
+def int_from_payload(payload: dict, key: str, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
+    raw = payload.get(key, default)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a number") from exc
+    if minimum is not None and value < minimum:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be at least {minimum}")
+    if maximum is not None and value > maximum:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be at most {maximum}")
+    return value
+
+
+def create_custom_pattern(payload: dict) -> dict:
+    name = require_text(payload, "name", "Pattern name")
+    length_ft = int_from_payload(payload, "length_ft", 40, 1)
+    difficulty = int_from_payload(payload, "difficulty", 3, 1, 5)
+    ratio = optional_text(payload, "ratio") or "Custom"
+    summary = optional_text(payload, "summary") or "Custom oil pattern."
+    play_strategy = optional_text(payload, "play_strategy") or "Use practice shots and tracker notes to build the line."
+    suggested_line_right = optional_text(payload, "suggested_line_right") or "Set after practice shots."
+    suggested_line_left = optional_text(payload, "suggested_line_left") or "Set after practice shots."
+    recommended_equipment = optional_text(payload, "recommended_equipment") or "Start with a benchmark ball and adjust from ball reaction."
+    common_adjustments = optional_text(payload, "common_adjustments") or "Track misses and move from breakpoint response."
+
+    with get_connection() as connection:
+        slug = unique_pattern_slug(connection, name)
+        cursor = connection.execute(
+            """
+            INSERT INTO oil_patterns (
+              slug, name, organization, pattern_type, length_ft, volume_ml, ratio, difficulty,
+              summary, play_strategy, ball_motion, suggested_line_right, suggested_line_left,
+              recommended_equipment, common_adjustments, source_note
+            )
+            VALUES (?, ?, 'User-defined', 'custom', ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Created in StrikeIQ.')
+            """,
+            (
+                slug,
+                name,
+                length_ft,
+                ratio,
+                difficulty,
+                summary,
+                play_strategy,
+                optional_text(payload, "ball_motion") or "User tracked",
+                suggested_line_right,
+                suggested_line_left,
+                recommended_equipment,
+                common_adjustments,
+            ),
+        )
+        tag = connection.execute("SELECT id FROM pattern_tags WHERE name = 'custom'").fetchone()
+        if tag is None:
+            tag_cursor = connection.execute("INSERT INTO pattern_tags (name) VALUES ('custom')")
+            tag_id = tag_cursor.lastrowid
+        else:
+            tag_id = tag["id"]
+        connection.execute(
+            "INSERT OR IGNORE INTO oil_pattern_tags (oil_pattern_id, tag_id) VALUES (?, ?)",
+            (cursor.lastrowid, tag_id),
+        )
+        connection.commit()
+    return get_pattern(slug)
+
+
+def get_balls() -> list[dict]:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        return dict_rows(
+            connection.execute(
+                """
+                SELECT id, name, cover, surface, layout, motion, notes, created_at, updated_at
+                FROM bowling_balls
+                ORDER BY updated_at DESC, id DESC
+                """
+            )
+        )
+
+
+def create_ball(payload: dict) -> dict:
+    name = require_text(payload, "name", "Ball name")
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        cursor = connection.execute(
+            """
+            INSERT INTO bowling_balls (name, cover, surface, layout, motion, notes)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                name,
+                optional_text(payload, "cover"),
+                optional_text(payload, "surface"),
+                optional_text(payload, "layout"),
+                optional_text(payload, "motion"),
+                optional_text(payload, "notes"),
+            ),
+        )
+        connection.commit()
+        row = connection.execute(
+            """
+            SELECT id, name, cover, surface, layout, motion, notes, created_at, updated_at
+            FROM bowling_balls
+            WHERE id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+    return dict(row)
+
+
+def get_spares() -> dict:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        rows = dict_rows(
+            connection.execute(
+                """
+                SELECT id, leave, attempts, makes, ball, notes, created_at
+                FROM spare_logs
+                ORDER BY created_at DESC, id DESC
+                LIMIT 100
+                """
+            )
+        )
+    attempts = sum(row["attempts"] for row in rows)
+    makes = sum(row["makes"] for row in rows)
+    return {"spares": rows, "attempts": attempts, "makes": makes, "rate": round((makes / attempts) * 100) if attempts else 0}
+
+
+def create_spare(payload: dict) -> dict:
+    leave = require_text(payload, "leave", "Leave")
+    attempts = int_from_payload(payload, "attempts", 1, 1)
+    makes = int_from_payload(payload, "makes", 0, 0, attempts)
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        connection.execute(
+            """
+            INSERT INTO spare_logs (leave, attempts, makes, ball, notes)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (leave, attempts, makes, optional_text(payload, "ball"), optional_text(payload, "notes")),
+        )
+        connection.commit()
+    return get_spares()
+
+
+def get_shots() -> list[dict]:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        return dict_rows(
+            connection.execute(
+                """
+                SELECT
+                  s.id,
+                  s.ball,
+                  s.target,
+                  s.breakpoint,
+                  s.result,
+                  s.adjustment,
+                  s.notes,
+                  s.created_at,
+                  p.slug AS pattern_slug,
+                  p.name AS pattern_name
+                FROM shot_logs s
+                LEFT JOIN oil_patterns p ON p.id = s.oil_pattern_id
+                ORDER BY s.created_at DESC, s.id DESC
+                LIMIT 100
+                """
+            )
+        )
+
+
+def create_shot(payload: dict) -> dict:
+    result = require_text(payload, "result", "Result")
+    pattern_slug = optional_text(payload, "pattern_slug")
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        pattern_id = None
+        if pattern_slug:
+            pattern = connection.execute("SELECT id FROM oil_patterns WHERE slug = ?", (pattern_slug,)).fetchone()
+            pattern_id = pattern["id"] if pattern else None
+        connection.execute(
+            """
+            INSERT INTO shot_logs (oil_pattern_id, ball, target, breakpoint, result, adjustment, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                pattern_id,
+                optional_text(payload, "ball"),
+                optional_text(payload, "target"),
+                optional_text(payload, "breakpoint"),
+                result,
+                optional_text(payload, "adjustment"),
+                optional_text(payload, "notes"),
+            ),
+        )
+        connection.commit()
+    return get_shots()
 
 
 def get_patterns(query: dict[str, list[str]]) -> list[dict]:
@@ -820,6 +1095,12 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_catalog_status())
             elif parsed.path == "/api/mobile-sync":
                 self.send_json(get_mobile_sync())
+            elif parsed.path == "/api/balls":
+                self.send_json(get_balls())
+            elif parsed.path == "/api/spares":
+                self.send_json(get_spares())
+            elif parsed.path == "/api/shots":
+                self.send_json(get_shots())
             elif parsed.path == "/api/tags":
                 self.send_json(get_tags())
             elif parsed.path == "/api/sources":
@@ -849,6 +1130,14 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_ai_coach_reply(self.read_json()))
             elif parsed.path == "/api/mobile-sync":
                 self.send_json(update_mobile_sync(self.read_json()))
+            elif parsed.path == "/api/custom-patterns":
+                self.send_json(create_custom_pattern(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/balls":
+                self.send_json(create_ball(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/spares":
+                self.send_json(create_spare(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/shots":
+                self.send_json(create_shot(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path.startswith("/api/imports/") and parsed.path.endswith("/status"):
                 import_id_text = parsed.path.removeprefix("/api/imports/").removesuffix("/status")
                 self.send_json(update_import_status(int(import_id_text), self.read_json()))
