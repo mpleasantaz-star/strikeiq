@@ -49,6 +49,17 @@ const elements = {
   toolDescription: document.querySelector("#tool-description"),
   toolContent: document.querySelector("#tool-content"),
   hubPatternCount: document.querySelector("#hub-pattern-count"),
+  homeGreeting: document.querySelector("#home-greeting"),
+  homeSubcopy: document.querySelector("#home-subcopy"),
+  homeTier: document.querySelector("#home-tier"),
+  homeProfile: document.querySelector("#home-profile"),
+  homeFocus: document.querySelector("#home-focus"),
+  homePatternCount: document.querySelector("#home-pattern-count"),
+  homeBallCount: document.querySelector("#home-ball-count"),
+  homeSpareRate: document.querySelector("#home-spare-rate"),
+  homeShotCount: document.querySelector("#home-shot-count"),
+  homeNextActions: document.querySelector("#home-next-actions"),
+  homeRecent: document.querySelector("#home-recent"),
   source: document.querySelector("#source-filter"),
   type: document.querySelector("#type-filter"),
   length: document.querySelector("#length-filter"),
@@ -249,6 +260,7 @@ function setSubscriptionTier(tier) {
   state.subscriptionTier = tier === "pro" ? "pro" : "free";
   window.localStorage.setItem(storageKeys.subscriptionTier, state.subscriptionTier);
   renderAccessState();
+  renderHomeDashboard();
   if (projectRequiresPro(state.project)) {
     renderToolProject(state.project);
   }
@@ -302,6 +314,7 @@ function showAppShell() {
   elements.profileScreen.classList.add("is-hidden");
   elements.appShell.classList.remove("is-hidden");
   renderAccessState();
+  renderHomeDashboard();
   setProject("hub");
 }
 
@@ -393,6 +406,7 @@ function handleProfileSubmit(event) {
   state.profile = profile;
   state.handedness = profile.handedness === "left" ? "left" : "right";
   window.localStorage.setItem(storageKeys.profile, JSON.stringify(profile));
+  renderHomeDashboard();
   showAppShell();
 }
 
@@ -462,6 +476,103 @@ function renderLockedProject(details) {
   `;
 }
 
+function renderHomeDashboard() {
+  if (!elements.homeGreeting) return;
+
+  const profile = state.profile || savedProfile() || {};
+  const displayName = profile.displayName || state.userName.split("@")[0] || "Bowler";
+  const handedness = profile.handedness === "left" ? "Left handed" : "Right handed";
+  const skill = profile.skillLevel ? profile.skillLevel.replace(/^\w/, (letter) => letter.toUpperCase()) : "League";
+  const ballCount = state.balls.length;
+  const spareRate = Number(state.spares.rate || 0);
+  const shotCount = state.shots.length;
+  const isPro = hasProAccess();
+
+  elements.homeGreeting.textContent = `Welcome, ${displayName}`;
+  elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${profile.homeCenter || "Home center not set"}`;
+  elements.homeTier.textContent = isPro ? "Pro" : "Free";
+  elements.homeProfile.textContent = `${displayName}'s StrikeIQ workspace`;
+  elements.homePatternCount.textContent = state.patterns.length;
+  elements.homeBallCount.textContent = ballCount;
+  elements.homeSpareRate.textContent = `${spareRate}%`;
+  elements.homeShotCount.textContent = shotCount;
+
+  let focus = "Start by opening a workspace below.";
+  if (!ballCount) {
+    focus = "Build your arsenal first so shot tracking and coaching can use your ball data.";
+  } else if (!shotCount) {
+    focus = "Log your next shot to start building lane transition history.";
+  } else if (!Number(state.spares.attempts || 0)) {
+    focus = "Add spare attempts so StrikeIQ can track conversion pressure points.";
+  } else if (!isPro) {
+    focus = "Core tracking is active. Pro unlocks AI coaching and sync tools.";
+  } else {
+    focus = "Your tracking base is active. Use AI Coach after logging shots on a selected pattern.";
+  }
+  elements.homeFocus.textContent = focus;
+
+  const nextActions = [
+    {
+      project: ballCount ? "shots" : "balls",
+      title: ballCount ? "Log a shot" : "Add your first ball",
+      text: ballCount ? "Capture ball, target, breakpoint, result, and next move." : "Create the arsenal data used by tracking and coaching.",
+    },
+    {
+      project: "spares",
+      title: "Track spare counts",
+      text: "Record leaves, attempts, makes, and miss notes.",
+    },
+    {
+      project: isPro ? "chat" : "upgrade",
+      title: isPro ? "Ask AI Coach" : "Review Pro tools",
+      text: isPro ? "Use profile, shots, balls, and selected pattern context." : "See what will be paid later before real payments are connected.",
+    },
+  ];
+
+  elements.homeNextActions.innerHTML = nextActions
+    .map(
+      (action) => `
+        <button type="button" data-project="${escapeHtml(action.project)}">
+          <strong>${escapeHtml(action.title)}</strong>
+          <span>${escapeHtml(action.text)}</span>
+        </button>
+      `
+    )
+    .join("");
+
+  const recentItems = [
+    ...state.shots.slice(0, 2).map((shot) => ({
+      label: "Shot",
+      title: shot.result || "Shot logged",
+      detail: [shot.pattern_name, shot.ball, shot.target].filter(Boolean).join(" | ") || "Shot details saved",
+    })),
+    ...(state.spares.spares || []).slice(0, 2).map((spare) => ({
+      label: "Spare",
+      title: spare.leave || "Spare logged",
+      detail: `${spare.makes}/${spare.attempts} made${spare.ball ? ` | ${spare.ball}` : ""}`,
+    })),
+    ...state.balls.slice(0, 2).map((ball) => ({
+      label: "Ball",
+      title: ball.name || "Ball saved",
+      detail: [ball.cover, ball.surface, ball.layout].filter(Boolean).join(" | ") || "Arsenal entry",
+    })),
+  ].slice(0, 4);
+
+  elements.homeRecent.innerHTML = recentItems.length
+    ? recentItems
+        .map(
+          (item) => `
+            <article>
+              <span>${escapeHtml(item.label)}</span>
+              <strong>${escapeHtml(item.title)}</strong>
+              <p>${escapeHtml(item.detail)}</p>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No activity yet. Add a ball, log a spare, or track a shot to build this feed.</p>`;
+}
+
 async function hydrateToolProject(project) {
   if (projectRequiresPro(project) && !hasProAccess()) {
     return;
@@ -493,6 +604,7 @@ function renderProjectList(containerId, items, emptyText, renderItem) {
 
 async function loadBalls() {
   state.balls = await api("/api/balls");
+  renderHomeDashboard();
   renderProjectList("#ball-list", state.balls, "No bowling balls saved yet.", (ball) => `
     <article class="project-record">
       <strong>${escapeHtml(ball.name)}</strong>
@@ -505,6 +617,7 @@ async function loadBalls() {
 
 async function loadSpares() {
   state.spares = await api("/api/spares");
+  renderHomeDashboard();
   const summary = document.querySelector("#spare-summary");
   if (summary) {
     summary.innerHTML = `
@@ -525,6 +638,7 @@ async function loadSpares() {
 
 async function loadShots() {
   state.shots = await api("/api/shots");
+  renderHomeDashboard();
   renderProjectList("#shot-list", state.shots, "No shots logged yet.", (shot) => `
     <article class="project-record">
       <strong>${escapeHtml(shot.result)}</strong>
@@ -654,6 +768,7 @@ async function loadPatterns() {
   state.patterns = await api(`/api/patterns${query}`);
   elements.count.textContent = state.patterns.length;
   elements.hubPatternCount.textContent = `${state.patterns.length} patterns`;
+  renderHomeDashboard();
   renderCards();
 
   if (state.patterns.length && !state.patterns.some((pattern) => pattern.slug === state.selectedSlug)) {
@@ -2628,7 +2743,11 @@ async function init() {
   await loadSyncSummary();
   await loadImportQueue();
   await loadPatterns();
+  await loadBalls();
+  await loadSpares();
+  await loadShots();
   await loadCatalogStatus();
+  renderHomeDashboard();
 }
 
 init().catch((error) => {

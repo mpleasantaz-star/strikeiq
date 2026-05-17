@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260516-access">
+    <link rel="stylesheet" href="/styles.css?v=20260516-home">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -115,10 +115,60 @@
     </nav>
 
     <main id="project-hub" class="project-hub" aria-label="Project hub">
+      <section class="home-dashboard">
+        <div class="home-hero-panel">
+          <p class="eyebrow">Dashboard</p>
+          <h2 id="home-greeting">Welcome To StrikeIQ</h2>
+          <p id="home-subcopy">Your bowling workspace is loading.</p>
+          <div class="home-actions">
+            <button type="button" data-project="shots">Log Shot</button>
+            <button type="button" data-project="add-pattern">Add Pattern</button>
+            <button type="button" data-project="balls">Add Ball</button>
+          </div>
+        </div>
+        <aside class="home-profile-panel" aria-label="Current profile">
+          <span id="home-tier">Free</span>
+          <strong id="home-profile">Profile loading</strong>
+          <p id="home-focus">Open a project to get started.</p>
+        </aside>
+      </section>
+
+      <section class="home-metrics" aria-label="StrikeIQ snapshot">
+        <article>
+          <span id="home-pattern-count">0</span>
+          <small>patterns ready</small>
+        </article>
+        <article>
+          <span id="home-ball-count">0</span>
+          <small>balls saved</small>
+        </article>
+        <article>
+          <span id="home-spare-rate">0%</span>
+          <small>spare rate</small>
+        </article>
+        <article>
+          <span id="home-shot-count">0</span>
+          <small>shots logged</small>
+        </article>
+      </section>
+
+      <section class="home-split">
+        <article class="home-panel">
+          <p class="eyebrow">Next Move</p>
+          <h3>Recommended Workflow</h3>
+          <div id="home-next-actions" class="home-next-actions"></div>
+        </article>
+        <article class="home-panel">
+          <p class="eyebrow">Recent</p>
+          <h3>Activity</h3>
+          <div id="home-recent" class="home-recent"></div>
+        </article>
+      </section>
+
       <section class="hub-intro">
-        <p class="eyebrow">Project Hub</p>
-        <h2>Choose A Project</h2>
-        <p>Each project opens as its own workspace. Expo Go and the browser now load this same frontend.</p>
+        <p class="eyebrow">Projects</p>
+        <h2>Choose A Workspace</h2>
+        <p>Each project opens as its own workspace. Expo Go and the browser load this same frontend.</p>
       </section>
       <section class="project-grid">
         <button type="button" class="project-card" data-project="patterns">
@@ -295,6 +345,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260516-access" type="module"></script>
+    <script src="/app.js?v=20260516-home" type="module"></script>
   </body>
 </html>
