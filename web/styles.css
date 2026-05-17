@@ -54,7 +54,7 @@ p {
 
 .app-header {
   display: grid;
-  grid-template-columns: minmax(210px, 280px) 1fr auto;
+  grid-template-columns: minmax(210px, 280px) 1fr auto auto auto;
   align-items: center;
   gap: 18px;
   padding: 16px clamp(18px, 4vw, 42px) 14px;
@@ -100,14 +100,16 @@ h1 {
   text-transform: uppercase;
 }
 
-.login-screen {
+.login-screen,
+.profile-screen {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 20px;
 }
 
-.login-panel {
+.login-panel,
+.profile-panel {
   width: min(100%, 480px);
   display: grid;
   gap: 15px;
@@ -118,17 +120,24 @@ h1 {
   padding: 22px;
 }
 
-.login-panel img {
+.profile-panel {
+  width: min(100%, 760px);
+}
+
+.login-panel img,
+.profile-panel img {
   width: min(100%, 220px);
 }
 
 .login-form,
+.profile-form,
 .project-form {
   display: grid;
   gap: 12px;
 }
 
 .login-form label,
+.profile-form label,
 .project-form label {
   display: grid;
   gap: 7px;
@@ -154,6 +163,12 @@ h1 {
   padding: 2px 0;
   text-align: left;
   text-decoration: underline;
+}
+
+.profile-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .hero-subtitle {
@@ -190,6 +205,34 @@ h1 {
   white-space: nowrap;
 }
 
+.subscription-status {
+  min-width: 148px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: rgba(26, 34, 51, 0.78);
+  padding: 10px;
+}
+
+.subscription-status span {
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.subscription-status small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.subscription-status button {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
 .project-tabs {
   position: sticky;
   top: 0;
@@ -219,6 +262,11 @@ h1 {
 .project-tabs button.is-active {
   border-color: var(--accent-2);
   background: rgba(10, 132, 255, 0.28);
+}
+
+.project-tabs button.is-locked {
+  border-color: rgba(255, 204, 0, 0.28);
+  color: var(--muted);
 }
 
 .project-hub,
@@ -292,10 +340,65 @@ h1 {
   line-height: 1.45;
 }
 
+.project-card.is-locked {
+  border-color: rgba(255, 204, 0, 0.30);
+  background: linear-gradient(135deg, rgba(16, 24, 39, 0.94), rgba(57, 45, 12, 0.34));
+}
+
+.project-card.is-locked b::after {
+  content: " Locked";
+  color: var(--amber);
+}
+
 .tool-content {
   display: grid;
   gap: 12px;
   margin-top: 16px;
+}
+
+.paywall-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.paywall-panel > div,
+.paywall-locked {
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.40);
+  padding: 14px;
+}
+
+.paywall-panel h3,
+.paywall-locked h3 {
+  margin: 0 0 7px;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.paywall-panel p,
+.paywall-locked p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.paywall-locked {
+  display: grid;
+  gap: 10px;
+}
+
+.paywall-locked span {
+  width: fit-content;
+  border: 1px solid rgba(255, 204, 0, 0.34);
+  border-radius: 999px;
+  color: var(--amber);
+  font-size: 0.70rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 4px 8px;
+  text-transform: uppercase;
 }
 
 .project-list {
@@ -1635,7 +1738,7 @@ button:hover {
 
 @media (max-width: 1180px) {
   .app-header {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto auto;
   }
 
   .hero-copy {
@@ -1816,6 +1919,11 @@ button:hover {
   }
 
   .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-setup-grid,
+  .paywall-panel {
     grid-template-columns: 1fr;
   }
 

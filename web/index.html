@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ Oil Patterns</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles.css?v=20260516-access">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -29,6 +29,58 @@
       </div>
     </section>
 
+    <section id="profile-screen" class="profile-screen is-hidden" aria-label="StrikeIQ profile setup">
+      <div class="profile-panel">
+        <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
+        <p class="eyebrow">Profile Setup</p>
+        <h1>Build Your Bowler Profile</h1>
+        <p class="hero-subtitle">Set up the bowling details StrikeIQ needs for oil patterns, ball choices, spare tracking, shot history, and coaching.</p>
+        <form id="profile-form" class="profile-form">
+          <div class="profile-setup-grid">
+            <label>
+              Display name
+              <input id="profile-name" name="displayName" autocomplete="name" placeholder="Michael" required>
+            </label>
+            <label>
+              Home center
+              <input id="profile-center" name="homeCenter" placeholder="Your main bowling center">
+            </label>
+            <label>
+              Handedness
+              <select id="profile-handedness" name="handedness" required>
+                <option value="right">Right handed</option>
+                <option value="left">Left handed</option>
+              </select>
+            </label>
+            <label>
+              Skill level
+              <select id="profile-level" name="skillLevel" required>
+                <option value="league">League bowler</option>
+                <option value="beginner">Beginner</option>
+                <option value="competitive">Competitive</option>
+                <option value="tournament">Tournament</option>
+                <option value="coach">Coach / operator</option>
+              </select>
+            </label>
+            <label>
+              Typical ball speed
+              <input id="profile-speed" name="ballSpeed" inputmode="decimal" placeholder="16.5 mph">
+            </label>
+            <label>
+              Rev rate
+              <input id="profile-rev-rate" name="revRate" inputmode="numeric" placeholder="350 rpm">
+            </label>
+          </div>
+          <label>
+            Goals and notes
+            <textarea id="profile-goals" name="goals" placeholder="Example: improve 10 pin conversion, track tournament moves, build a benchmark arsenal."></textarea>
+          </label>
+          <p id="profile-error" class="login-error" role="alert"></p>
+          <button type="submit">Save Profile</button>
+        </form>
+      </div>
+    </section>
+
     <div id="app-shell" class="app-shell is-hidden">
     <header class="app-header">
       <div class="brand-lockup" aria-label="StrikeIQ">
@@ -42,6 +94,11 @@
       <div class="header-stat">
         <span id="pattern-count">0</span>
         <small>patterns</small>
+      </div>
+      <div class="subscription-status" aria-live="polite">
+        <span id="tier-label">Free</span>
+        <small id="tier-detail">Core tools unlocked</small>
+        <button id="upgrade-button" type="button">Upgrade</button>
       </div>
       <button id="logout-button" class="logout-button" type="button">Log Out</button>
     </header>
@@ -89,14 +146,14 @@
           <b>Adjustments</b>
           <small>Capture target, breakpoint, result, and move history.</small>
         </button>
-        <button type="button" class="project-card" data-project="chat">
+        <button type="button" class="project-card" data-project="chat" data-tier="pro">
           <span>AI Lane Coach</span>
-          <b>Backend AI</b>
+          <b>Pro</b>
           <small>Ask for ball choice, line choice, and transition moves.</small>
         </button>
-        <button type="button" class="project-card" data-project="sync">
+        <button type="button" class="project-card" data-project="sync" data-tier="pro">
           <span>Sync / Admin Tools</span>
-          <b>Backend</b>
+          <b>Pro</b>
           <small>Check sources, imports, catalog coverage, and mobile sync.</small>
         </button>
       </section>
@@ -238,6 +295,6 @@
     </main>
     </div>
 
-    <script src="/app.js" type="module"></script>
+    <script src="/app.js?v=20260516-access" type="module"></script>
   </body>
 </html>

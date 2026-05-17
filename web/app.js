@@ -12,6 +12,8 @@ const state = {
   targetPath: null,
   project: "hub",
   userName: "",
+  profile: null,
+  subscriptionTier: "free",
 };
 
 const elements = {
@@ -24,8 +26,21 @@ const elements = {
   authSubmit: document.querySelector("#auth-submit"),
   authToggle: document.querySelector("#auth-toggle"),
   loginError: document.querySelector("#login-error"),
+  profileScreen: document.querySelector("#profile-screen"),
+  profileForm: document.querySelector("#profile-form"),
+  profileName: document.querySelector("#profile-name"),
+  profileCenter: document.querySelector("#profile-center"),
+  profileHandedness: document.querySelector("#profile-handedness"),
+  profileLevel: document.querySelector("#profile-level"),
+  profileSpeed: document.querySelector("#profile-speed"),
+  profileRevRate: document.querySelector("#profile-rev-rate"),
+  profileGoals: document.querySelector("#profile-goals"),
+  profileError: document.querySelector("#profile-error"),
   appShell: document.querySelector("#app-shell"),
   logout: document.querySelector("#logout-button"),
+  tierLabel: document.querySelector("#tier-label"),
+  tierDetail: document.querySelector("#tier-detail"),
+  upgradeButton: document.querySelector("#upgrade-button"),
   projectHub: document.querySelector("#project-hub"),
   patternWorkspace: document.querySelector("#pattern-workspace"),
   toolWorkspace: document.querySelector("#tool-workspace"),
@@ -53,6 +68,14 @@ const elements = {
 };
 
 let authMode = "create";
+
+const storageKeys = {
+  accountEmail: "strikeiq.accountEmail",
+  profile: "strikeiq.profile",
+  subscriptionTier: "strikeiq.subscriptionTier",
+};
+
+const proProjects = new Set(["chat", "sync"]);
 
 const projectDetails = {
   "add-pattern": {
@@ -148,7 +171,7 @@ const projectDetails = {
   chat: {
     eyebrow: "AI Coach",
     title: "AI Lane Coach",
-    description: "The backend already exposes /api/coach/chat. This shared frontend needs the chat panel wired to that route next.",
+    description: "Ask the backend AI coach for ball choice, line choice, transition moves, and spare strategy.",
     content: `
       <form id="coach-form" class="note-form project-form">
         <label>Question<textarea name="question" placeholder="What ball should I start with on this pattern?" required></textarea></label>
@@ -169,6 +192,28 @@ const projectDetails = {
       <p class="empty-state">Source Sync, Import Review, and Catalog Coverage are available in the pattern dashboard sidebar.</p>
     `,
   },
+  upgrade: {
+    eyebrow: "StrikeIQ Pro",
+    title: "Unlock Pro Tools",
+    description: "The app now has free and Pro access rules. Real App Store and Google Play payments can connect later when the app screens are stable.",
+    content: `
+      <div class="paywall-panel">
+        <div>
+          <h3>Free</h3>
+          <p>Account setup, oil pattern library, add oil pattern, bowling ball database, spare log, and shot tracker.</p>
+        </div>
+        <div>
+          <h3>Pro</h3>
+          <p>AI Lane Coach, sync/admin tools, and future cloud features for advanced tracking and reports.</p>
+        </div>
+      </div>
+      <div class="project-actions">
+        <button type="button" data-subscription-tier="pro">Enable Pro Preview</button>
+        <button type="button" data-subscription-tier="free">Return To Free</button>
+      </div>
+      <p class="empty-state">This is a local development preview. Production payments should come from Apple In-App Purchase and Google Play Billing, usually through RevenueCat or a similar entitlement backend.</p>
+    `,
+  },
 };
 
 function escapeHtml(value) {
@@ -180,16 +225,99 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function savedProfile() {
+  try {
+    return JSON.parse(window.localStorage.getItem(storageKeys.profile) || "null");
+  } catch {
+    return null;
+  }
+}
+
+function savedSubscriptionTier() {
+  return window.localStorage.getItem(storageKeys.subscriptionTier) === "pro" ? "pro" : "free";
+}
+
+function hasProAccess() {
+  return state.subscriptionTier === "pro";
+}
+
+function projectRequiresPro(project) {
+  return proProjects.has(project);
+}
+
+function setSubscriptionTier(tier) {
+  state.subscriptionTier = tier === "pro" ? "pro" : "free";
+  window.localStorage.setItem(storageKeys.subscriptionTier, state.subscriptionTier);
+  renderAccessState();
+  if (projectRequiresPro(state.project)) {
+    renderToolProject(state.project);
+  }
+}
+
+function renderAccessState() {
+  const isPro = hasProAccess();
+  elements.tierLabel.textContent = isPro ? "Pro" : "Free";
+  elements.tierDetail.textContent = isPro ? "Pro tools unlocked" : "Core tools unlocked";
+  elements.upgradeButton.textContent = isPro ? "Manage" : "Upgrade";
+
+  document.querySelectorAll("[data-tier='pro']").forEach((item) => {
+    item.classList.toggle("is-locked", !isPro);
+    item.setAttribute("aria-label", `${item.textContent.trim()} ${isPro ? "unlocked" : "locked, Pro"}`);
+  });
+
+  document.querySelectorAll("[data-project-nav]").forEach((button) => {
+    const locked = projectRequiresPro(button.dataset.projectNav) && !isPro;
+    button.classList.toggle("is-locked", locked);
+    if (locked) {
+      button.setAttribute("aria-label", `${button.textContent.trim()} locked, Pro`);
+    } else {
+      button.removeAttribute("aria-label");
+    }
+  });
+}
+
+function showLoginScreen() {
+  elements.loginScreen.classList.remove("is-hidden");
+  elements.profileScreen.classList.add("is-hidden");
+  elements.appShell.classList.add("is-hidden");
+}
+
+function showProfileScreen() {
+  const profile = savedProfile();
+  elements.profileName.value = profile?.displayName || state.userName.split("@")[0] || "";
+  elements.profileCenter.value = profile?.homeCenter || "";
+  elements.profileHandedness.value = profile?.handedness || "right";
+  elements.profileLevel.value = profile?.skillLevel || "league";
+  elements.profileSpeed.value = profile?.ballSpeed || "";
+  elements.profileRevRate.value = profile?.revRate || "";
+  elements.profileGoals.value = profile?.goals || "";
+  elements.profileError.textContent = "";
+  elements.loginScreen.classList.add("is-hidden");
+  elements.profileScreen.classList.remove("is-hidden");
+  elements.appShell.classList.add("is-hidden");
+}
+
+function showAppShell() {
+  elements.loginScreen.classList.add("is-hidden");
+  elements.profileScreen.classList.add("is-hidden");
+  elements.appShell.classList.remove("is-hidden");
+  renderAccessState();
+  setProject("hub");
+}
+
 function requireLogin() {
-  const savedEmail = window.localStorage.getItem("strikeiq.accountEmail");
+  const savedEmail = window.localStorage.getItem(storageKeys.accountEmail);
   if (savedEmail) {
     state.userName = savedEmail;
-    elements.loginScreen.classList.add("is-hidden");
-    elements.appShell.classList.remove("is-hidden");
-    setProject("hub");
+    state.profile = savedProfile();
+    state.subscriptionTier = savedSubscriptionTier();
+    if (state.profile) {
+      showAppShell();
+    } else {
+      showProfileScreen();
+    }
   } else {
-    elements.loginScreen.classList.remove("is-hidden");
-    elements.appShell.classList.add("is-hidden");
+    showLoginScreen();
   }
 }
 
@@ -232,26 +360,47 @@ function handleLogin(event) {
   }
 
   if (authMode === "login") {
-    const savedEmail = window.localStorage.getItem("strikeiq.accountEmail");
+    const savedEmail = window.localStorage.getItem(storageKeys.accountEmail);
     if (savedEmail && savedEmail !== email) {
       elements.loginError.textContent = "No local account found for that email. Create an account first.";
       return;
     }
   }
 
-  window.localStorage.setItem("strikeiq.accountEmail", email);
+  window.localStorage.setItem(storageKeys.accountEmail, email);
   state.userName = email;
+  state.subscriptionTier = savedSubscriptionTier();
   elements.loginError.textContent = "";
-  elements.loginScreen.classList.add("is-hidden");
-  elements.appShell.classList.remove("is-hidden");
-  setProject("hub");
+  state.profile = savedProfile();
+  if (authMode === "create" || !state.profile) {
+    showProfileScreen();
+  } else {
+    showAppShell();
+  }
+}
+
+function handleProfileSubmit(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const profile = formPayload(form);
+  profile.displayName = String(profile.displayName || "").trim();
+
+  if (!profile.displayName) {
+    elements.profileError.textContent = "Display name is required.";
+    return;
+  }
+
+  state.profile = profile;
+  state.handedness = profile.handedness === "left" ? "left" : "right";
+  window.localStorage.setItem(storageKeys.profile, JSON.stringify(profile));
+  showAppShell();
 }
 
 function handleLogout() {
   state.userName = "";
+  state.profile = null;
   elements.loginPassword.value = "";
-  elements.appShell.classList.add("is-hidden");
-  elements.loginScreen.classList.remove("is-hidden");
+  showLoginScreen();
   setAuthMode("login");
 }
 
@@ -298,11 +447,26 @@ function renderToolProject(project) {
   elements.toolEyebrow.textContent = details.eyebrow;
   elements.toolTitle.textContent = details.title;
   elements.toolDescription.textContent = details.description;
-  elements.toolContent.innerHTML = details.content;
+  elements.toolContent.innerHTML = projectRequiresPro(project) && !hasProAccess() ? renderLockedProject(details) : details.content;
   hydrateToolProject(project);
 }
 
+function renderLockedProject(details) {
+  return `
+    <div class="paywall-locked">
+      <span>Pro</span>
+      <h3>${escapeHtml(details.title)} Is A Pro Tool</h3>
+      <p>${escapeHtml(details.description)}</p>
+      <button type="button" data-project="upgrade">View Upgrade Options</button>
+    </div>
+  `;
+}
+
 async function hydrateToolProject(project) {
+  if (projectRequiresPro(project) && !hasProAccess()) {
+    return;
+  }
+
   if (project === "balls") {
     await loadBalls();
   } else if (project === "spares") {
@@ -2338,10 +2502,19 @@ async function updateImportStatus(importId, reviewStatus) {
 function bindEvents() {
   setAuthMode("create");
   elements.loginForm.addEventListener("submit", handleLogin);
+  elements.profileForm.addEventListener("submit", handleProfileSubmit);
   elements.authToggle.addEventListener("click", () => setAuthMode(authMode === "create" ? "login" : "create"));
   elements.logout.addEventListener("click", handleLogout);
+  elements.upgradeButton.addEventListener("click", () => setProject("upgrade"));
 
   document.addEventListener("click", (event) => {
+    const tierButton = event.target.closest("[data-subscription-tier]");
+    if (tierButton) {
+      setSubscriptionTier(tierButton.dataset.subscriptionTier);
+      setProject("hub");
+      return;
+    }
+
     const projectButton = event.target.closest("[data-project]");
     if (projectButton) {
       setProject(projectButton.dataset.project);
