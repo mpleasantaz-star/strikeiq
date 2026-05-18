@@ -164,8 +164,24 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS community_posts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          channel TEXT NOT NULL,
+          title TEXT NOT NULL,
+          user_name TEXT,
+          shot_type TEXT,
+          feedback_request TEXT,
+          video_url TEXT,
+          video_name TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
 
 
 def require_text(payload: dict, key: str, label: str) -> str:
@@ -376,6 +392,48 @@ def create_shot(payload: dict) -> dict:
         )
         connection.commit()
     return get_shots()
+
+
+def get_chat_posts() -> list[dict]:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        return dict_rows(
+            connection.execute(
+                """
+                SELECT id, channel, title, user_name, shot_type, feedback_request, video_url, video_name, created_at
+                FROM community_posts
+                ORDER BY created_at DESC, id DESC
+                LIMIT 100
+                """
+            )
+        )
+
+
+def create_chat_post(payload: dict) -> dict:
+    title = require_text(payload, "title", "Video title")
+    channel = optional_text(payload, "channel") or "# video-feedback"
+    if not channel.startswith("#"):
+        channel = f"# {channel.strip()}"
+
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        connection.execute(
+            """
+            INSERT INTO community_posts (channel, title, user_name, shot_type, feedback_request, video_url, video_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                channel,
+                title,
+                optional_text(payload, "user_name") or "StrikeIQ member",
+                optional_text(payload, "shot_type"),
+                optional_text(payload, "feedback_request"),
+                optional_text(payload, "video_url"),
+                optional_text(payload, "video_name"),
+            ),
+        )
+        connection.commit()
+    return get_chat_posts()
 
 
 def get_patterns(query: dict[str, list[str]]) -> list[dict]:
@@ -1101,6 +1159,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_spares())
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
+            elif parsed.path == "/api/chat/posts":
+                self.send_json(get_chat_posts())
             elif parsed.path == "/api/tags":
                 self.send_json(get_tags())
             elif parsed.path == "/api/sources":
@@ -1138,6 +1198,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_spare(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/shots":
                 self.send_json(create_shot(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/chat/posts":
+                self.send_json(create_chat_post(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path.startswith("/api/imports/") and parsed.path.endswith("/status"):
                 import_id_text = parsed.path.removeprefix("/api/imports/").removesuffix("/status")
                 self.send_json(update_import_status(int(import_id_text), self.read_json()))

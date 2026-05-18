@@ -6,6 +6,8 @@ const state = {
   spares: { spares: [], attempts: 0, makes: 0, rate: 0 },
   shots: [],
   chat: [],
+  communityPosts: [],
+  chatChannel: "# video-feedback",
   selectedSlug: null,
   laneVisual: null,
   handedness: "right",
@@ -86,6 +88,13 @@ const storageKeys = {
 
 const proProjects = new Set(["chat", "sync"]);
 const homeWorkspaceCount = 5;
+const chatChannels = [
+  ["# general", "Main discussion for the community"],
+  ["# lane-talk", "Moves, transition, and shape changes"],
+  ["# arsenal-help", "What ball to throw and when"],
+  ["# video-feedback", "Post clips and request feedback"],
+  ["# my-sessions", "Your saved shot history"],
+];
 
 const projectDetails = {
   "add-pattern": {
@@ -179,16 +188,49 @@ const projectDetails = {
     `,
   },
   chat: {
-    eyebrow: "AI Coach",
-    title: "AI Lane Coach",
-    description: "Ask the backend AI coach for ball choice, line choice, transition moves, and spare strategy.",
+    eyebrow: "Community + Coach",
+    title: "StrikeIQ Chat",
+    description: "Community channels, video feedback posts, and backend AI coaching in one workspace.",
     content: `
-      <form id="coach-form" class="note-form project-form">
-        <label>Question<textarea name="question" placeholder="What ball should I start with on this pattern?" required></textarea></label>
-        <button type="submit">Ask Coach</button>
-        <p id="coach-status" class="empty-state"></p>
-      </form>
-      <div id="chat-list" class="project-list"></div>
+      <div class="chat-workspace">
+        <aside class="chat-sidebar">
+          <strong>StrikeIQ Community</strong>
+          <p>Bowling chat, video feedback, coaching, and lane talk.</p>
+          <div id="chat-channel-list" class="chat-channel-list"></div>
+        </aside>
+        <section class="chat-feed">
+          <div class="chat-section-heading">
+            <div>
+              <p class="eyebrow">Video Feedback</p>
+              <h3 id="active-channel-title"># video-feedback</h3>
+            </div>
+          </div>
+          <form id="community-post-form" class="note-form project-form">
+            <div class="form-row">
+              <label>Channel<select name="channel" id="community-channel"></select></label>
+              <label>Video title<input name="title" placeholder="League shot 1" required></label>
+            </div>
+            <div class="form-row">
+              <label>Shot type<input name="shot_type" placeholder="League / Practice / Tournament / Spare"></label>
+              <label>Video link<input name="video_url" placeholder="Paste YouTube, Drive, or Hudl link"></label>
+            </div>
+            <label>Feedback request<textarea name="feedback_request" placeholder="What feedback do you want?"></textarea></label>
+            <button type="submit">Post Video Feedback</button>
+            <p id="community-post-status" class="empty-state"></p>
+          </form>
+          <div id="community-feed" class="community-feed"></div>
+        </section>
+        <aside class="coach-panel">
+          <p class="eyebrow">AI Coach</p>
+          <h3>Lane Coach</h3>
+          <form id="coach-form" class="note-form project-form">
+            <label>Question<textarea name="question" placeholder="What should I adjust after going high?" required></textarea></label>
+            <button type="submit">Ask Coach</button>
+            <p id="coach-status" class="empty-state"></p>
+          </form>
+          <div id="chat-list" class="project-list"></div>
+        </aside>
+      </div>
     `,
   },
   sync: {
@@ -214,7 +256,7 @@ const projectDetails = {
         </div>
         <div>
           <h3>Pro</h3>
-          <p>AI Lane Coach, sync/admin tools, and future cloud features for advanced tracking and reports.</p>
+          <p>StrikeIQ Chat, AI coaching, sync/admin tools, and future cloud features for advanced tracking and reports.</p>
         </div>
       </div>
       <div class="project-actions">
@@ -584,7 +626,7 @@ async function hydrateToolProject(project) {
   } else if (project === "shots") {
     await loadShots();
   } else if (project === "chat") {
-    renderChat();
+    await loadCommunityPosts();
   } else if (project === "add-pattern") {
     const status = document.querySelector("#custom-pattern-status");
     if (status) status.textContent = "Saved patterns appear immediately in Oil Pattern Library.";
@@ -650,12 +692,69 @@ async function loadShots() {
 }
 
 function renderChat() {
+  const channelList = document.querySelector("#chat-channel-list");
+  const channelSelect = document.querySelector("#community-channel");
+  const activeTitle = document.querySelector("#active-channel-title");
+  if (channelList) {
+    channelList.innerHTML = chatChannels
+      .map(
+        ([channel, description]) => `
+          <button type="button" class="${channel === state.chatChannel ? "is-active" : ""}" data-chat-channel="${escapeHtml(channel)}">
+            <strong>${escapeHtml(channel)}</strong>
+            <span>${escapeHtml(description)}</span>
+          </button>
+        `
+      )
+      .join("");
+  }
+  if (channelSelect) {
+    channelSelect.innerHTML = chatChannels
+      .map(([channel]) => `<option value="${escapeHtml(channel)}">${escapeHtml(channel)}</option>`)
+      .join("");
+    channelSelect.value = state.chatChannel;
+  }
+  if (activeTitle) {
+    activeTitle.textContent = state.chatChannel;
+  }
+
+  renderCommunityPosts();
   renderProjectList("#chat-list", state.chat, "No coach messages yet.", (message) => `
     <article class="project-record ${message.role === "user" ? "is-user" : ""}">
       <strong>${message.role === "user" ? "You" : "Coach"}</strong>
       <p>${escapeHtml(message.text)}</p>
     </article>
   `);
+}
+
+function renderCommunityPosts() {
+  const container = document.querySelector("#community-feed");
+  if (!container) return;
+
+  const visiblePosts = state.communityPosts.filter((post) => post.channel === state.chatChannel);
+  container.innerHTML = visiblePosts.length
+    ? visiblePosts
+        .map(
+          (post) => `
+            <article class="community-post">
+              <div>
+                <span>${escapeHtml(post.user_name || "StrikeIQ member")}</span>
+                <strong>${escapeHtml(post.title || "Untitled video")}</strong>
+              </div>
+              ${post.shot_type ? `<p class="community-meta">Shot type: ${escapeHtml(post.shot_type)}</p>` : ""}
+              ${post.feedback_request ? `<p>${escapeHtml(post.feedback_request)}</p>` : ""}
+              ${post.video_url ? `<a href="${escapeHtml(post.video_url)}" target="_blank" rel="noopener">Open Video</a>` : ""}
+              ${post.video_name && !post.video_url ? `<small>${escapeHtml(post.video_name)}</small>` : ""}
+              <small>${escapeHtml(post.created_at || "")}</small>
+            </article>
+          `
+        )
+        .join("")
+    : `<p class="empty-state">No posts in ${escapeHtml(state.chatChannel)} yet.</p>`;
+}
+
+async function loadCommunityPosts() {
+  state.communityPosts = await api("/api/chat/posts");
+  renderChat();
 }
 
 function externalSearchUrl(ref, pattern) {
@@ -2633,6 +2732,13 @@ function bindEvents() {
       return;
     }
 
+    const channelButton = event.target.closest("[data-chat-channel]");
+    if (channelButton) {
+      state.chatChannel = channelButton.dataset.chatChannel;
+      renderChat();
+      return;
+    }
+
     const projectButton = event.target.closest("[data-project]");
     if (projectButton) {
       setProject(projectButton.dataset.project);
@@ -2677,6 +2783,17 @@ function bindEvents() {
       await api("/api/shots", { method: "POST", body: JSON.stringify(payload) });
       form.reset();
       await loadShots();
+    } else if (form.id === "community-post-form") {
+      event.preventDefault();
+      const payload = formPayload(form);
+      payload.user_name = state.profile?.displayName || state.userName || "StrikeIQ member";
+      state.chatChannel = String(payload.channel || state.chatChannel);
+      const status = document.querySelector("#community-post-status");
+      if (status) status.textContent = "Posting feedback...";
+      await api("/api/chat/posts", { method: "POST", body: JSON.stringify(payload) });
+      form.reset();
+      if (status) status.textContent = "Feedback posted.";
+      await loadCommunityPosts();
     } else if (form.id === "coach-form") {
       event.preventDefault();
       const payload = formPayload(form);
