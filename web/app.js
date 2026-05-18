@@ -2630,6 +2630,12 @@ function bindEvents() {
       return;
     }
 
+    const editProfileButton = event.target.closest("[data-edit-profile]");
+    if (editProfileButton) {
+      showProfileScreen();
+      return;
+    }
+
     const projectButton = event.target.closest("[data-project]");
     if (projectButton) {
       setProject(projectButton.dataset.project);

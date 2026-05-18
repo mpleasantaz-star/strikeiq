@@ -350,6 +350,13 @@ h1 {
   line-height: 1.45;
 }
 
+.home-profile-panel button {
+  justify-self: start;
+  min-height: 36px;
+  margin-top: 4px;
+  padding: 8px 12px;
+}
+
 .home-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
