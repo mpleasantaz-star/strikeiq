@@ -7,6 +7,8 @@ tmp/
 data/*.err
 data/*.out
 data/*.zip
+*.zip
+.codex_tmp/
 mobile/node_modules/
 mobile/.expo/
 mobile/dist/
