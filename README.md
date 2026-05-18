@@ -31,6 +31,16 @@ http://127.0.0.1:8000
 
 The app uses only Python's standard library, so there are no packages to install.
 
+## Backend Choice
+
+Firebase is not required for the active StrikeIQ app. The app currently uses:
+
+- `app.py` for backend API routes.
+- `data/bowling_oil_patterns.sqlite` for local data, including balls, spares, shots, sync records, and StrikeIQ Chat posts.
+- `web/index.html`, `web/app.js`, and `web/styles.css` for the shared frontend loaded by both the browser and Expo Go.
+
+The earlier Firebase/Stream chat starter was used as design and workflow reference only. Its community channels and video-feedback idea were adapted into the Python/SQLite backend through `/api/chat/posts`.
+
 If port 8000 is busy:
 
 ```powershell
