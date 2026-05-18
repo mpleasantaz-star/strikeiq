@@ -48,13 +48,12 @@ const elements = {
   toolTitle: document.querySelector("#tool-title"),
   toolDescription: document.querySelector("#tool-description"),
   toolContent: document.querySelector("#tool-content"),
-  hubPatternCount: document.querySelector("#hub-pattern-count"),
   homeGreeting: document.querySelector("#home-greeting"),
   homeSubcopy: document.querySelector("#home-subcopy"),
   homeTier: document.querySelector("#home-tier"),
   homeProfile: document.querySelector("#home-profile"),
   homeFocus: document.querySelector("#home-focus"),
-  homePatternCount: document.querySelector("#home-pattern-count"),
+  homeWorkspaceCount: document.querySelector("#home-workspace-count"),
   homeBallCount: document.querySelector("#home-ball-count"),
   homeSpareRate: document.querySelector("#home-spare-rate"),
   homeShotCount: document.querySelector("#home-shot-count"),
@@ -68,7 +67,6 @@ const elements = {
   reset: document.querySelector("#reset-filters"),
   patterns: document.querySelector("#patterns"),
   detail: document.querySelector("#pattern-detail"),
-  count: document.querySelector("#pattern-count"),
   syncSummary: document.querySelector("#sync-summary"),
   syncState: document.querySelector("#sync-state"),
   runSync: document.querySelector("#run-sync"),
@@ -87,6 +85,7 @@ const storageKeys = {
 };
 
 const proProjects = new Set(["chat", "sync"]);
+const homeWorkspaceCount = 5;
 
 const projectDetails = {
   "add-pattern": {
@@ -492,7 +491,7 @@ function renderHomeDashboard() {
   elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${profile.homeCenter || "Home center not set"}`;
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
   elements.homeProfile.textContent = `${displayName}'s StrikeIQ workspace`;
-  elements.homePatternCount.textContent = state.patterns.length;
+  elements.homeWorkspaceCount.textContent = homeWorkspaceCount;
   elements.homeBallCount.textContent = ballCount;
   elements.homeSpareRate.textContent = `${spareRate}%`;
   elements.homeShotCount.textContent = shotCount;
@@ -525,7 +524,7 @@ function renderHomeDashboard() {
     {
       project: isPro ? "chat" : "upgrade",
       title: isPro ? "Ask AI Coach" : "Review Pro tools",
-      text: isPro ? "Use profile, shots, balls, and selected pattern context." : "See what will be paid later before real payments are connected.",
+      text: isPro ? "Use profile, shots, balls, and recent tracking context." : "See what will be paid later before real payments are connected.",
     },
   ];
 
@@ -766,8 +765,6 @@ async function loadPatterns() {
   const params = paramsFromFilters();
   const query = params.toString() ? `?${params}` : "";
   state.patterns = await api(`/api/patterns${query}`);
-  elements.count.textContent = state.patterns.length;
-  elements.hubPatternCount.textContent = `${state.patterns.length} patterns`;
   renderHomeDashboard();
   renderCards();
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260517-profile">
+    <link rel="stylesheet" href="/styles.css?v=20260517-home-clean2">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -89,11 +89,11 @@
       <div class="hero-copy">
         <p class="eyebrow">Bowling Intelligence</p>
         <h1>StrikeIQ Home</h1>
-        <p class="hero-subtitle">Your bowling workspace for patterns, arsenal tracking, spare logs, shot history, AI coaching, and app sync.</p>
+        <p class="hero-subtitle">Your bowling workspace for arsenal tracking, spare logs, shot history, AI coaching, and app sync.</p>
       </div>
       <div class="header-stat">
-        <span id="pattern-count">0</span>
-        <small>patterns</small>
+        <span id="workspace-count">5</span>
+        <small>workspaces</small>
       </div>
       <div class="subscription-status" aria-live="polite">
         <span id="tier-label">Free</span>
@@ -105,8 +105,8 @@
 
     <nav class="project-tabs" aria-label="Project sections">
       <button type="button" data-project-nav="hub">Home</button>
-      <button type="button" data-project-nav="patterns">Patterns</button>
-      <button type="button" data-project-nav="add-pattern">Add Pattern</button>
+      <button type="button" data-project-nav="patterns">Library</button>
+      <button type="button" data-project-nav="add-pattern">Create</button>
       <button type="button" data-project-nav="balls">Balls</button>
       <button type="button" data-project-nav="spares">Spares</button>
       <button type="button" data-project-nav="shots">Shots</button>
@@ -122,8 +122,8 @@
           <p id="home-subcopy">Your bowling workspace is loading.</p>
           <div class="home-actions">
             <button type="button" data-project="shots">Log Shot</button>
-            <button type="button" data-project="add-pattern">Add Pattern</button>
             <button type="button" data-project="balls">Add Ball</button>
+            <button type="button" data-project="spares">Log Spare</button>
           </div>
         </div>
         <aside class="home-profile-panel" aria-label="Current profile">
@@ -136,8 +136,8 @@
 
       <section class="home-metrics" aria-label="StrikeIQ snapshot">
         <article>
-          <span id="home-pattern-count">0</span>
-          <small>patterns ready</small>
+          <span id="home-workspace-count">5</span>
+          <small>workspaces</small>
         </article>
         <article>
           <span id="home-ball-count">0</span>
@@ -172,16 +172,6 @@
         <p>Each project opens as its own workspace. Expo Go and the browser load this same frontend.</p>
       </section>
       <section class="project-grid">
-        <button type="button" class="project-card" data-project="patterns">
-          <span>Oil Pattern Library</span>
-          <b id="hub-pattern-count">0 patterns</b>
-          <small>Search strategy, sources, lane reads, and notes.</small>
-        </button>
-        <button type="button" class="project-card" data-project="add-pattern">
-          <span>Add Oil Pattern</span>
-          <b>Custom record</b>
-          <small>Create new pattern entries and strategy notes.</small>
-        </button>
         <button type="button" class="project-card" data-project="balls">
           <span>Bowling Ball Database</span>
           <b>Arsenal</b>
@@ -346,6 +336,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260517-profile" type="module"></script>
+    <script src="/app.js?v=20260517-home-clean2" type="module"></script>
   </body>
 </html>
