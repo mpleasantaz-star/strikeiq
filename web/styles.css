@@ -282,9 +282,34 @@ h1 {
   padding: 0 12px;
 }
 
+.project-tabs [data-project-nav="hub"] {
+  min-width: 76px;
+  border-color: rgba(255, 184, 77, 0.42);
+  background: linear-gradient(135deg, rgba(255, 184, 77, 0.24), rgba(255, 123, 84, 0.16));
+  color: #fff4da;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.project-tabs [data-project-nav="hub"]::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: #ffb84d;
+  box-shadow: 0 0 10px rgba(255, 184, 77, 0.78);
+  vertical-align: 1px;
+}
+
 .project-tabs button.is-active {
   border-color: var(--accent-2);
   background: rgba(10, 132, 255, 0.28);
+}
+
+.project-tabs [data-project-nav="hub"].is-active {
+  border-color: #ffb84d;
+  background: linear-gradient(135deg, rgba(255, 184, 77, 0.36), rgba(255, 123, 84, 0.24));
 }
 
 .project-tabs button.is-locked {
