@@ -171,6 +171,19 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     )
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS spare_count_sessions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          session_date TEXT NOT NULL,
+          alley TEXT,
+          games_json TEXT NOT NULL,
+          metrics_json TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS shot_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           oil_pattern_id INTEGER,
@@ -201,6 +214,7 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
         """
     )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
@@ -553,6 +567,111 @@ def create_spare(payload: dict) -> dict:
         )
         connection.commit()
     return get_spares()
+
+
+def compute_spare_session_metrics(games: list[dict]) -> dict:
+    frames_logged = 0
+    strikes = 0
+    spares = 0
+    splits = 0
+    ball_changes = 0
+    speed_values: list[float] = []
+    ball_usage: dict[str, int] = {}
+
+    def add_ball(value: object) -> None:
+        ball = str(value or "").strip()
+        if ball:
+            ball_usage[ball] = ball_usage.get(ball, 0) + 1
+
+    for game in games:
+        if not isinstance(game, dict):
+            continue
+        add_ball(game.get("ballUsed"))
+        add_ball(game.get("spareBall"))
+        rows = game.get("rows") if isinstance(game.get("rows"), list) else []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            has_data = any(
+                str(row.get(key, "")).strip()
+                for key in ("board", "boardArrow", "strike", "firstSpeed", "spare", "spareSpeed", "notes", "ballChange")
+            ) or bool(row.get("split"))
+            if has_data:
+                frames_logged += 1
+            if str(row.get("strike", "")).strip().upper() == "X":
+                strikes += 1
+            if str(row.get("spare", "")).strip() == "/":
+                spares += 1
+            if bool(row.get("split")):
+                splits += 1
+            if str(row.get("ballChange", "")).strip():
+                ball_changes += 1
+                add_ball(row.get("ballChange"))
+            try:
+                speed = float(str(row.get("firstSpeed", "")).strip())
+            except ValueError:
+                speed = 0
+            if speed:
+                speed_values.append(speed)
+
+    average_speed = round(sum(speed_values) / len(speed_values), 1) if speed_values else None
+    return {
+        "frames_logged": frames_logged,
+        "strikes": strikes,
+        "spares": spares,
+        "splits": splits,
+        "ball_changes": ball_changes,
+        "average_speed": average_speed,
+        "ball_usage": ball_usage,
+    }
+
+
+def row_to_spare_session(row: sqlite3.Row) -> dict:
+    result = dict(row)
+    result["games"] = json.loads(result.pop("games_json") or "[]")
+    result["metrics"] = json.loads(result.pop("metrics_json") or "{}")
+    return result
+
+
+def get_spare_sessions() -> dict:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        rows = connection.execute(
+            """
+            SELECT id, session_date, alley, games_json, metrics_json, created_at, updated_at
+            FROM spare_count_sessions
+            ORDER BY session_date DESC, updated_at DESC, id DESC
+            LIMIT 20
+            """
+        ).fetchall()
+    sessions = [row_to_spare_session(row) for row in rows]
+    return {"sessions": sessions, "latest": sessions[0] if sessions else None}
+
+
+def create_spare_session(payload: dict) -> dict:
+    session_date = optional_text(payload, "session_date") or optional_text(payload, "date")
+    if not session_date:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Session date is required")
+    games = payload.get("games")
+    if not isinstance(games, list) or not games:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Games are required")
+    metrics = compute_spare_session_metrics(games)
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        connection.execute(
+            """
+            INSERT INTO spare_count_sessions (session_date, alley, games_json, metrics_json)
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                session_date,
+                optional_text(payload, "alley"),
+                json.dumps(games),
+                json.dumps(metrics),
+            ),
+        )
+        connection.commit()
+    return get_spare_sessions()
 
 
 def get_shots() -> list[dict]:
@@ -1372,6 +1491,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_balls())
             elif parsed.path == "/api/spares":
                 self.send_json(get_spares())
+            elif parsed.path == "/api/spare-sessions":
+                self.send_json(get_spare_sessions())
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
             elif parsed.path == "/api/chat/posts":
@@ -1411,6 +1532,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_ball(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/spares":
                 self.send_json(create_spare(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/spare-sessions":
+                self.send_json(create_spare_session(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/shots":
                 self.send_json(create_shot(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/chat/posts":

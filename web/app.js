@@ -4,6 +4,8 @@ const state = {
   patterns: [],
   balls: [],
   spares: { spares: [], attempts: 0, makes: 0, rate: 0 },
+  spareSessions: [],
+  spareSession: null,
   shots: [],
   chat: [],
   communityPosts: [],
@@ -96,6 +98,9 @@ const chatChannels = [
   ["# video-feedback", "Post clips and request feedback"],
   ["# my-sessions", "Your saved shot history"],
 ];
+const spareFrameLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10a", "10b"];
+const spareBoards = Array.from({ length: 41 }, (_, index) => String(index));
+const spareSpeeds = Array.from({ length: 90 }, (_, index) => (10 + index / 10).toFixed(1));
 
 const projectDetails = {
   "add-pattern": {
@@ -185,9 +190,23 @@ const projectDetails = {
   spares: {
     eyebrow: "Spare Tracking",
     title: "Spare Count Log",
-    description: "Log spare leaves, attempts, makes, and ball choices.",
+    description: "Track a full three-game spare counter session, then keep quick conversion notes for repeat leaves.",
     content: `
+      <section class="spare-session-panel">
+        <div class="form-row">
+          <label>Session date<input id="spare-session-date" type="date"></label>
+          <label>Bowling alley<input id="spare-session-alley" placeholder="Center name"></label>
+        </div>
+        <div id="spare-session-summary" class="project-metric"></div>
+        <div id="spare-session-games" class="spare-games"></div>
+        <div class="project-actions">
+          <button type="button" id="save-spare-session">Save Session</button>
+          <button type="button" id="reset-spare-session">Reset Session</button>
+        </div>
+        <p id="spare-session-status" class="empty-state"></p>
+      </section>
       <form id="spare-form" class="note-form project-form">
+        <h3>Quick Spare Conversion Log</h3>
         <div class="form-row">
           <label>Leave<input name="leave" placeholder="10 pin" required></label>
           <label>Ball<input name="ball" placeholder="Spare ball"></label>
@@ -200,6 +219,9 @@ const projectDetails = {
         <button type="submit">Log Spare</button>
       </form>
       <div id="spare-summary" class="project-metric"></div>
+      <h3>Saved Sessions</h3>
+      <div id="spare-session-list" class="project-list"></div>
+      <h3>Quick Logs</h3>
       <div id="spare-list" class="project-list"></div>
     `,
   },
@@ -765,9 +787,236 @@ function renderBallCard(ball) {
   `;
 }
 
+function defaultSpareRow(frame) {
+  return {
+    frame,
+    board: "",
+    boardArrow: "",
+    strike: "",
+    firstSpeed: "",
+    split: false,
+    spare: "",
+    spareSpeed: "",
+    notes: "",
+    ballChange: "",
+  };
+}
+
+function defaultSpareGame(id) {
+  return {
+    id,
+    ballUsed: "",
+    spareBall: "",
+    score: "",
+    rows: spareFrameLabels.map(defaultSpareRow),
+  };
+}
+
+function defaultSpareSession() {
+  return {
+    session_date: new Date().toISOString().slice(0, 10),
+    alley: "",
+    games: [defaultSpareGame(1), defaultSpareGame(2), defaultSpareGame(3)],
+  };
+}
+
+function normalizeSpareSession(session) {
+  const base = defaultSpareSession();
+  if (!session) return base;
+  return {
+    ...base,
+    ...session,
+    session_date: session.session_date || session.date || base.session_date,
+    games: [1, 2, 3].map((id) => {
+      const sourceGame = Array.isArray(session.games) ? session.games[id - 1] || {} : {};
+      return {
+        ...defaultSpareGame(id),
+        ...sourceGame,
+        id,
+        rows: spareFrameLabels.map((frame, index) => ({
+          ...defaultSpareRow(frame),
+          ...(Array.isArray(sourceGame.rows) ? sourceGame.rows[index] || {} : {}),
+          frame,
+        })),
+      };
+    }),
+  };
+}
+
+function spareOptionList(values, selectedValue = "", placeholder = "") {
+  const options = placeholder ? [`<option value="">${placeholder}</option>`] : [];
+  return options.concat(values.map((value) => {
+    const selected = String(value) === String(selectedValue) ? " selected" : "";
+    return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(value)}</option>`;
+  })).join("");
+}
+
+function spareBallOptions() {
+  return state.balls.map((ball) => [ball.brand, ball.name].filter(Boolean).join(" ")).filter(Boolean);
+}
+
+function computeSpareMetrics(session) {
+  const ballUsage = new Map();
+  let framesLogged = 0;
+  let strikes = 0;
+  let spares = 0;
+  let splits = 0;
+  let ballChanges = 0;
+  const speeds = [];
+  const addBall = (ball) => {
+    const value = String(ball || "").trim();
+    if (value) ballUsage.set(value, (ballUsage.get(value) || 0) + 1);
+  };
+  session.games.forEach((game) => {
+    addBall(game.ballUsed);
+    addBall(game.spareBall);
+    game.rows.forEach((row) => {
+      const hasData = Boolean(row.board || row.boardArrow || row.strike || row.firstSpeed || row.split || row.spare || row.spareSpeed || row.notes || row.ballChange);
+      if (hasData) framesLogged += 1;
+      if (String(row.strike || "").trim().toUpperCase() === "X") strikes += 1;
+      if (String(row.spare || "").trim() === "/") spares += 1;
+      if (row.split) splits += 1;
+      if (row.ballChange) {
+        ballChanges += 1;
+        addBall(row.ballChange);
+      }
+      const speed = Number(row.firstSpeed);
+      if (Number.isFinite(speed) && speed > 0) speeds.push(speed);
+    });
+  });
+  return {
+    framesLogged,
+    strikes,
+    spares,
+    splits,
+    ballChanges,
+    averageSpeed: speeds.length ? (speeds.reduce((sum, value) => sum + value, 0) / speeds.length).toFixed(1) : "-",
+    ballUsage,
+  };
+}
+
+function renderSpareSessionSummary() {
+  const metrics = computeSpareMetrics(state.spareSession);
+  const summary = document.querySelector("#spare-session-summary");
+  if (summary) {
+    summary.innerHTML = `
+      <span><b>${metrics.framesLogged}</b> frames</span>
+      <span><b>${metrics.strikes}</b> strikes</span>
+      <span><b>${metrics.spares}</b> spares</span>
+      <span><b>${metrics.splits}</b> splits</span>
+      <span><b>${metrics.averageSpeed}</b> avg mph</span>
+    `;
+  }
+}
+
+function renderSpareSessionWorkspace() {
+  if (!state.spareSession) state.spareSession = defaultSpareSession();
+  const dateInput = document.querySelector("#spare-session-date");
+  const alleyInput = document.querySelector("#spare-session-alley");
+  if (dateInput) dateInput.value = state.spareSession.session_date || "";
+  if (alleyInput) alleyInput.value = state.spareSession.alley || "";
+  renderSpareSessionSummary();
+
+  const balls = spareBallOptions();
+  const games = document.querySelector("#spare-session-games");
+  if (games) {
+    games.innerHTML = state.spareSession.games.map((game, gameIndex) => `
+      <section class="spare-game" data-spare-game="${gameIndex}">
+        <div class="spare-game-header">
+          <strong>Game ${game.id}</strong>
+          <label>Ball used<select data-spare-field="ballUsed">${spareOptionList(balls, game.ballUsed, "Select ball")}</select></label>
+          <label>Spare ball<select data-spare-field="spareBall">${spareOptionList(balls, game.spareBall, "Select spare ball")}</select></label>
+          <label>Score<input data-spare-field="score" inputmode="numeric" value="${escapeHtml(game.score)}"></label>
+        </div>
+        <div class="spare-frame-grid">
+          ${game.rows.map((row, rowIndex) => `
+            <article class="spare-frame" data-spare-row="${rowIndex}">
+              <b>${escapeHtml(row.frame)}</b>
+              <select data-spare-row-field="board" aria-label="Board">${spareOptionList(spareBoards, row.board, "Board")}</select>
+              <input data-spare-row-field="strike" value="${escapeHtml(row.strike)}" maxlength="1" placeholder="X">
+              <select data-spare-row-field="firstSpeed" aria-label="First speed">${spareOptionList(spareSpeeds, row.firstSpeed, "MPH")}</select>
+              <label class="spare-check"><input type="checkbox" data-spare-row-field="split"${row.split ? " checked" : ""}> Split</label>
+              <input data-spare-row-field="spare" value="${escapeHtml(row.spare)}" maxlength="1" placeholder="/">
+              <select data-spare-row-field="spareSpeed" aria-label="Spare speed">${spareOptionList(spareSpeeds, row.spareSpeed, "Spare MPH")}</select>
+              <input data-spare-row-field="ballChange" value="${escapeHtml(row.ballChange)}" placeholder="Ball change">
+              <textarea data-spare-row-field="notes" placeholder="Notes">${escapeHtml(row.notes)}</textarea>
+            </article>
+          `).join("")}
+        </div>
+      </section>
+    `).join("");
+  }
+}
+
+function bindSpareSessionControls() {
+  document.querySelector("#spare-session-date")?.addEventListener("input", (event) => {
+    state.spareSession.session_date = event.target.value;
+  });
+  document.querySelector("#spare-session-alley")?.addEventListener("input", (event) => {
+    state.spareSession.alley = event.target.value;
+  });
+  document.querySelector("#spare-session-games")?.addEventListener("input", handleSpareSessionInput);
+  document.querySelector("#spare-session-games")?.addEventListener("change", handleSpareSessionInput);
+  document.querySelector("#save-spare-session")?.addEventListener("click", saveSpareSession);
+  document.querySelector("#reset-spare-session")?.addEventListener("click", () => {
+    state.spareSession = defaultSpareSession();
+    renderSpareSessionWorkspace();
+    bindSpareSessionControls();
+  });
+}
+
+function handleSpareSessionInput(event) {
+  const gameElement = event.target.closest("[data-spare-game]");
+  if (!gameElement) return;
+  const game = state.spareSession.games[Number(gameElement.dataset.spareGame)];
+  const field = event.target.dataset.spareField;
+  if (field) {
+    game[field] = event.target.value;
+  }
+  const rowField = event.target.dataset.spareRowField;
+  if (rowField) {
+    const rowElement = event.target.closest("[data-spare-row]");
+    const row = game.rows[Number(rowElement.dataset.spareRow)];
+    row[rowField] = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+  }
+  renderSpareSessionSummary();
+}
+
+async function saveSpareSession() {
+  const status = document.querySelector("#spare-session-status");
+  if (status) status.textContent = "Saving spare session...";
+  const response = await api("/api/spare-sessions", { method: "POST", body: JSON.stringify(state.spareSession) });
+  state.spareSessions = response.sessions || [];
+  state.spareSession = normalizeSpareSession(response.latest);
+  if (status) status.textContent = "Spare session saved.";
+  renderSpareSessionWorkspace();
+  renderSpareSessionList();
+  renderHomeDashboard();
+  bindSpareSessionControls();
+}
+
+function renderSpareSessionList() {
+  renderProjectList("#spare-session-list", state.spareSessions, "No full spare sessions saved yet.", (session) => {
+    const metrics = session.metrics || {};
+    return `
+      <article class="project-record">
+        <strong>${escapeHtml(session.session_date)}${session.alley ? ` | ${escapeHtml(session.alley)}` : ""}</strong>
+        <span>${metrics.frames_logged || 0} frames | ${metrics.strikes || 0} strikes | ${metrics.spares || 0} spares | ${metrics.splits || 0} splits</span>
+        <small>Average speed: ${escapeHtml(metrics.average_speed ?? "-")} mph</small>
+      </article>
+    `;
+  });
+}
+
 async function loadSpares() {
   state.spares = await api("/api/spares");
+  const sessions = await api("/api/spare-sessions");
+  state.spareSessions = sessions.sessions || [];
+  state.spareSession = normalizeSpareSession(sessions.latest || state.spareSession);
   renderHomeDashboard();
+  renderSpareSessionWorkspace();
+  renderSpareSessionList();
+  bindSpareSessionControls();
   const summary = document.querySelector("#spare-summary");
   if (summary) {
     summary.innerHTML = `

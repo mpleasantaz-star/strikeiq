@@ -760,6 +760,94 @@ h1 {
   text-decoration: none;
 }
 
+.spare-session-panel,
+.spare-game {
+  display: grid;
+  gap: 12px;
+}
+
+.spare-games {
+  display: grid;
+  gap: 14px;
+}
+
+.spare-game {
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.32);
+  padding: 12px;
+}
+
+.spare-game-header {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(150px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.spare-game-header strong {
+  color: #ffffff;
+  font-family: var(--strikeiq-font-brand);
+  font-size: 1.1rem;
+  text-transform: uppercase;
+}
+
+.spare-frame-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.spare-frame {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(44px, 0.55fr);
+  gap: 6px;
+  border: 1px solid rgba(76, 201, 240, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 8px;
+}
+
+.spare-frame b {
+  grid-row: span 4;
+  color: var(--accent-2);
+  font-family: var(--strikeiq-font-brand);
+}
+
+.spare-frame textarea,
+.spare-frame [data-spare-row-field="ballChange"],
+.spare-check {
+  grid-column: 2 / -1;
+}
+
+.spare-frame input,
+.spare-frame select,
+.spare-frame textarea,
+.spare-game-header input,
+.spare-game-header select {
+  min-width: 0;
+  min-height: 36px;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 6px;
+  background: rgba(5, 7, 10, 0.72);
+  color: #ffffff;
+  padding: 6px 8px;
+}
+
+.spare-frame textarea {
+  min-height: 58px;
+  resize: vertical;
+}
+
+.spare-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .project-record.is-user {
   border-color: rgba(10, 132, 255, 0.44);
 }
@@ -2194,7 +2282,10 @@ button:hover {
   }
 
   .ball-catalog-tools,
-  .ball-record {
+  .ball-record,
+  .spare-game-header,
+  .spare-frame-grid,
+  .spare-frame {
     grid-template-columns: 1fr;
   }
 
@@ -2205,6 +2296,14 @@ button:hover {
   .ball-thumb {
     width: 72px;
     height: 72px;
+  }
+
+  .spare-frame b,
+  .spare-frame textarea,
+  .spare-frame [data-spare-row-field="ballChange"],
+  .spare-check {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .home-dashboard,

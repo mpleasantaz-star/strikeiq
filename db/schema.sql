@@ -258,6 +258,16 @@ CREATE TABLE IF NOT EXISTS spare_logs (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS spare_count_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_date TEXT NOT NULL,
+  alley TEXT,
+  games_json TEXT NOT NULL,
+  metrics_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS shot_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   oil_pattern_id INTEGER,
@@ -290,6 +300,7 @@ CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover);
 CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition);
 CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active);
 CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at);
 CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at);
 
 CREATE VIEW IF NOT EXISTS oil_pattern_cards AS
