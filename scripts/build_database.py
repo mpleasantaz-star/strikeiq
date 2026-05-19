@@ -10,6 +10,7 @@ DB_PATH = ROOT / "data" / "bowling_oil_patterns.sqlite"
 SCHEMA_PATH = ROOT / "db" / "schema.sql"
 SEED_PATH = ROOT / "db" / "seed.sql"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
+LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
 BRUNSWICK_ARCHIVE_PATH = ROOT / "data" / "brunswick_pattern_library.zip"
 BRUNSWICK_SOURCE_NAME = "Brunswick Pattern Library"
 BRUNSWICK_SOURCE_URL = (
@@ -86,10 +87,31 @@ def migrate_existing_database(connection: sqlite3.Connection) -> None:
         "feet_board": "ALTER TABLE shot_logs ADD COLUMN feet_board TEXT",
         "arrows_board": "ALTER TABLE shot_logs ADD COLUMN arrows_board TEXT",
         "ball_speed": "ALTER TABLE shot_logs ADD COLUMN ball_speed TEXT",
+        "speed_mph": "ALTER TABLE shot_logs ADD COLUMN speed_mph REAL",
         "lane_condition": "ALTER TABLE shot_logs ADD COLUMN lane_condition TEXT",
         "miss_direction": "ALTER TABLE shot_logs ADD COLUMN miss_direction TEXT",
         "leave_pin": "ALTER TABLE shot_logs ADD COLUMN leave_pin TEXT",
         "next_move": "ALTER TABLE shot_logs ADD COLUMN next_move TEXT",
+        "analysis_run_id": "ALTER TABLE shot_logs ADD COLUMN analysis_run_id TEXT",
+        "video_name": "ALTER TABLE shot_logs ADD COLUMN video_name TEXT",
+        "hook_inches": "ALTER TABLE shot_logs ADD COLUMN hook_inches REAL",
+        "boards_crossed": "ALTER TABLE shot_logs ADD COLUMN boards_crossed REAL",
+        "release_board": "ALTER TABLE shot_logs ADD COLUMN release_board TEXT",
+        "entry_board": "ALTER TABLE shot_logs ADD COLUMN entry_board TEXT",
+        "pocket_quality": "ALTER TABLE shot_logs ADD COLUMN pocket_quality TEXT",
+        "pin_result": "ALTER TABLE shot_logs ADD COLUMN pin_result TEXT",
+        "impact_result": "ALTER TABLE shot_logs ADD COLUMN impact_result TEXT",
+        "confidence": "ALTER TABLE shot_logs ADD COLUMN confidence INTEGER",
+        "confidence_label": "ALTER TABLE shot_logs ADD COLUMN confidence_label TEXT",
+        "confidence_notes": "ALTER TABLE shot_logs ADD COLUMN confidence_notes TEXT",
+        "quality_score": "ALTER TABLE shot_logs ADD COLUMN quality_score INTEGER",
+        "quality_label": "ALTER TABLE shot_logs ADD COLUMN quality_label TEXT",
+        "quality_notes": "ALTER TABLE shot_logs ADD COLUMN quality_notes TEXT",
+        "consistency_label": "ALTER TABLE shot_logs ADD COLUMN consistency_label TEXT",
+        "consistency_notes": "ALTER TABLE shot_logs ADD COLUMN consistency_notes TEXT",
+        "output_preview": "ALTER TABLE shot_logs ADD COLUMN output_preview TEXT",
+        "tracking_mode": "ALTER TABLE shot_logs ADD COLUMN tracking_mode TEXT",
+        "shot_source": "ALTER TABLE shot_logs ADD COLUMN shot_source TEXT",
     }
     for column, statement in shot_migrations.items():
         if shot_columns and column not in shot_columns:
@@ -106,6 +128,11 @@ def csv_int(value: str | None, default: int = 0) -> int:
     if value is None or value == "":
         return default
     return int(value)
+
+
+def csv_text(row: dict, key: str) -> str | None:
+    value = str(row.get(key) or "").strip()
+    return value or None
 
 
 def seed_bowling_balls(connection: sqlite3.Connection) -> None:
@@ -179,6 +206,126 @@ def seed_bowling_balls(connection: sqlite3.Connection) -> None:
                 )
 
 
+def seed_lane_tracker_sessions(connection: sqlite3.Connection) -> None:
+    if not LANE_TRACKER_IMPORT_PATH.exists():
+        return
+    connection.execute("DELETE FROM shot_logs WHERE shot_source = 'video_analysis_import'")
+    with LANE_TRACKER_IMPORT_PATH.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            run_id = csv_text(row, "run_id")
+            if not run_id:
+                continue
+            timestamp = csv_text(row, "timestamp")
+            speed_mph = csv_float(row.get("speed_mph"))
+            hook_inches = csv_float(row.get("hook_in"))
+            boards_crossed = csv_float(row.get("boards"))
+            release_board = csv_text(row, "release_board")
+            arrows_board = csv_text(row, "arrows_board")
+            breakpoint_board = csv_text(row, "breakpoint_board")
+            entry_board = csv_text(row, "entry_board")
+            result = (
+                csv_text(row, "pin_result_label")
+                or csv_text(row, "impact_result_label")
+                or csv_text(row, "shot_type")
+                or "Video Analysis"
+            )
+            leave_type = csv_text(row, "leave_type_label")
+            if leave_type and "strike" in leave_type.lower():
+                leave_type = None
+            target_parts = [
+                release_board and f"Release {release_board}",
+                arrows_board and f"Arrows {arrows_board}",
+                breakpoint_board and f"Breakpoint {breakpoint_board}",
+                entry_board and f"Entry {entry_board}",
+            ]
+            target_summary = " | ".join(item for item in target_parts if item) or None
+            notes = " | ".join(
+                item
+                for item in [
+                    csv_text(row, "confidence_notes"),
+                    csv_text(row, "quality_notes"),
+                    csv_text(row, "consistency_notes"),
+                    csv_text(row, "lane_quality_notes"),
+                ]
+                if item
+            ) or None
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO shot_logs (
+                  session_date,
+                  ball,
+                  target,
+                  arrows_board,
+                  breakpoint,
+                  ball_speed,
+                  speed_mph,
+                  result,
+                  miss_direction,
+                  leave_pin,
+                  next_move,
+                  notes,
+                  analysis_run_id,
+                  video_name,
+                  hook_inches,
+                  boards_crossed,
+                  release_board,
+                  entry_board,
+                  pocket_quality,
+                  pin_result,
+                  impact_result,
+                  confidence,
+                  confidence_label,
+                  confidence_notes,
+                  quality_score,
+                  quality_label,
+                  quality_notes,
+                  consistency_label,
+                  consistency_notes,
+                  output_preview,
+                  tracking_mode,
+                  shot_source,
+                  created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    timestamp[:10] if timestamp else None,
+                    csv_text(row, "video_name"),
+                    target_summary,
+                    arrows_board,
+                    breakpoint_board,
+                    f"{speed_mph:.2f} mph" if speed_mph is not None else None,
+                    speed_mph,
+                    result,
+                    csv_text(row, "shot_type"),
+                    leave_type,
+                    csv_text(row, "consistency_notes"),
+                    notes,
+                    run_id,
+                    csv_text(row, "video_name"),
+                    hook_inches,
+                    boards_crossed,
+                    release_board,
+                    entry_board,
+                    csv_text(row, "pocket_quality_label"),
+                    csv_text(row, "pin_result_label"),
+                    csv_text(row, "impact_result_label"),
+                    csv_int(row.get("confidence"), None),
+                    csv_text(row, "confidence_label"),
+                    csv_text(row, "confidence_notes"),
+                    csv_int(row.get("quality_score"), None),
+                    csv_text(row, "quality_label"),
+                    csv_text(row, "quality_notes"),
+                    csv_text(row, "consistency_label"),
+                    csv_text(row, "consistency_notes"),
+                    csv_text(row, "output_preview"),
+                    csv_text(row, "tracking_mode"),
+                    "video_analysis_import",
+                    timestamp,
+                ),
+            )
+
+
 def main() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
@@ -190,6 +337,7 @@ def main() -> None:
         run_sql_file(connection, SCHEMA_PATH)
         run_sql_file(connection, SEED_PATH)
         seed_bowling_balls(connection)
+        seed_lane_tracker_sessions(connection)
         connection.commit()
 
     if BRUNSWICK_ARCHIVE_PATH.exists():
@@ -211,10 +359,14 @@ def main() -> None:
         ball_count = connection.execute(
             "SELECT COUNT(*) FROM bowling_balls WHERE is_active = 1 OR is_active IS NULL"
         ).fetchone()[0]
+        shot_count = connection.execute(
+            "SELECT COUNT(*) FROM shot_logs"
+        ).fetchone()[0]
 
     print(f"Built {DB_PATH}")
     print(f"Seeded {pattern_count} oil patterns and {tag_count} tags")
     print(f"Seeded {ball_count} bowling balls")
+    print(f"Seeded {shot_count} lane tracker sessions")
 
 
 if __name__ == "__main__":

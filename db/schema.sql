@@ -282,6 +282,7 @@ CREATE TABLE IF NOT EXISTS shot_logs (
   arrows_board TEXT,
   breakpoint TEXT,
   ball_speed TEXT,
+  speed_mph REAL,
   lane_condition TEXT,
   result TEXT NOT NULL,
   miss_direction TEXT,
@@ -289,6 +290,26 @@ CREATE TABLE IF NOT EXISTS shot_logs (
   adjustment TEXT,
   next_move TEXT,
   notes TEXT,
+  analysis_run_id TEXT,
+  video_name TEXT,
+  hook_inches REAL,
+  boards_crossed REAL,
+  release_board TEXT,
+  entry_board TEXT,
+  pocket_quality TEXT,
+  pin_result TEXT,
+  impact_result TEXT,
+  confidence INTEGER,
+  confidence_label TEXT,
+  confidence_notes TEXT,
+  quality_score INTEGER,
+  quality_label TEXT,
+  quality_notes TEXT,
+  consistency_label TEXT,
+  consistency_notes TEXT,
+  output_preview TEXT,
+  tracking_mode TEXT,
+  shot_source TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
 );
@@ -315,6 +336,7 @@ CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at);
 CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shot_logs_analysis_run ON shot_logs(analysis_run_id);
 
 CREATE VIEW IF NOT EXISTS oil_pattern_cards AS
 SELECT

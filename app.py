@@ -18,6 +18,7 @@ DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.s
 STATIC_DIR = ROOT / "web"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
+LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
 
 
 class ApiError(Exception):
@@ -198,6 +199,7 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
           arrows_board TEXT,
           breakpoint TEXT,
           ball_speed TEXT,
+          speed_mph REAL,
           lane_condition TEXT,
           result TEXT NOT NULL,
           miss_direction TEXT,
@@ -205,6 +207,26 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
           adjustment TEXT,
           next_move TEXT,
           notes TEXT,
+          analysis_run_id TEXT,
+          video_name TEXT,
+          hook_inches REAL,
+          boards_crossed REAL,
+          release_board TEXT,
+          entry_board TEXT,
+          pocket_quality TEXT,
+          pin_result TEXT,
+          impact_result TEXT,
+          confidence INTEGER,
+          confidence_label TEXT,
+          confidence_notes TEXT,
+          quality_score INTEGER,
+          quality_label TEXT,
+          quality_notes TEXT,
+          consistency_label TEXT,
+          consistency_notes TEXT,
+          output_preview TEXT,
+          tracking_mode TEXT,
+          shot_source TEXT,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
         )
@@ -230,12 +252,14 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at)")
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_shot_logs_analysis_run ON shot_logs(analysis_run_id)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active)")
     seed_ball_catalog(connection)
+    seed_lane_tracker_sessions(connection)
 
 
 def ensure_shot_log_columns(connection: sqlite3.Connection) -> None:
@@ -249,10 +273,31 @@ def ensure_shot_log_columns(connection: sqlite3.Connection) -> None:
         "feet_board": "ALTER TABLE shot_logs ADD COLUMN feet_board TEXT",
         "arrows_board": "ALTER TABLE shot_logs ADD COLUMN arrows_board TEXT",
         "ball_speed": "ALTER TABLE shot_logs ADD COLUMN ball_speed TEXT",
+        "speed_mph": "ALTER TABLE shot_logs ADD COLUMN speed_mph REAL",
         "lane_condition": "ALTER TABLE shot_logs ADD COLUMN lane_condition TEXT",
         "miss_direction": "ALTER TABLE shot_logs ADD COLUMN miss_direction TEXT",
         "leave_pin": "ALTER TABLE shot_logs ADD COLUMN leave_pin TEXT",
         "next_move": "ALTER TABLE shot_logs ADD COLUMN next_move TEXT",
+        "analysis_run_id": "ALTER TABLE shot_logs ADD COLUMN analysis_run_id TEXT",
+        "video_name": "ALTER TABLE shot_logs ADD COLUMN video_name TEXT",
+        "hook_inches": "ALTER TABLE shot_logs ADD COLUMN hook_inches REAL",
+        "boards_crossed": "ALTER TABLE shot_logs ADD COLUMN boards_crossed REAL",
+        "release_board": "ALTER TABLE shot_logs ADD COLUMN release_board TEXT",
+        "entry_board": "ALTER TABLE shot_logs ADD COLUMN entry_board TEXT",
+        "pocket_quality": "ALTER TABLE shot_logs ADD COLUMN pocket_quality TEXT",
+        "pin_result": "ALTER TABLE shot_logs ADD COLUMN pin_result TEXT",
+        "impact_result": "ALTER TABLE shot_logs ADD COLUMN impact_result TEXT",
+        "confidence": "ALTER TABLE shot_logs ADD COLUMN confidence INTEGER",
+        "confidence_label": "ALTER TABLE shot_logs ADD COLUMN confidence_label TEXT",
+        "confidence_notes": "ALTER TABLE shot_logs ADD COLUMN confidence_notes TEXT",
+        "quality_score": "ALTER TABLE shot_logs ADD COLUMN quality_score INTEGER",
+        "quality_label": "ALTER TABLE shot_logs ADD COLUMN quality_label TEXT",
+        "quality_notes": "ALTER TABLE shot_logs ADD COLUMN quality_notes TEXT",
+        "consistency_label": "ALTER TABLE shot_logs ADD COLUMN consistency_label TEXT",
+        "consistency_notes": "ALTER TABLE shot_logs ADD COLUMN consistency_notes TEXT",
+        "output_preview": "ALTER TABLE shot_logs ADD COLUMN output_preview TEXT",
+        "tracking_mode": "ALTER TABLE shot_logs ADD COLUMN tracking_mode TEXT",
+        "shot_source": "ALTER TABLE shot_logs ADD COLUMN shot_source TEXT",
     }
     for column, statement in migrations.items():
         if column not in columns:
@@ -392,6 +437,144 @@ def seed_ball_catalog(connection: sqlite3.Connection) -> None:
                         payload["discontinued_at"], payload["spec_hash"],
                     ),
                 )
+
+
+def csv_text(row: dict, key: str) -> str | None:
+    value = str(row.get(key) or "").strip()
+    return value or None
+
+
+def seed_lane_tracker_sessions(connection: sqlite3.Connection) -> None:
+    if not LANE_TRACKER_IMPORT_PATH.exists():
+        return
+    imported = connection.execute(
+        "SELECT COUNT(*) AS count FROM shot_logs WHERE shot_source = 'video_analysis_import'"
+    ).fetchone()["count"]
+    connection.execute(
+        """
+        UPDATE shot_logs
+        SET leave_pin = NULL
+        WHERE shot_source = 'video_analysis_import'
+          AND lower(coalesce(leave_pin, '')) LIKE '%strike%'
+        """
+    )
+    if imported:
+        return
+
+    with LANE_TRACKER_IMPORT_PATH.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            run_id = csv_text(row, "run_id")
+            if not run_id:
+                continue
+            timestamp = csv_text(row, "timestamp")
+            speed_mph = csv_float(row.get("speed_mph"))
+            hook_inches = csv_float(row.get("hook_in"))
+            boards_crossed = csv_float(row.get("boards"))
+            release_board = csv_text(row, "release_board")
+            arrows_board = csv_text(row, "arrows_board")
+            breakpoint_board = csv_text(row, "breakpoint_board")
+            entry_board = csv_text(row, "entry_board")
+            result = (
+                csv_text(row, "pin_result_label")
+                or csv_text(row, "impact_result_label")
+                or csv_text(row, "shot_type")
+                or "Video Analysis"
+            )
+            leave_type = csv_text(row, "leave_type_label")
+            if leave_type and "strike" in leave_type.lower():
+                leave_type = None
+            target_parts = [
+                release_board and f"Release {release_board}",
+                arrows_board and f"Arrows {arrows_board}",
+                breakpoint_board and f"Breakpoint {breakpoint_board}",
+                entry_board and f"Entry {entry_board}",
+            ]
+            target_summary = " | ".join(item for item in target_parts if item) or None
+            notes = " | ".join(
+                item
+                for item in [
+                    csv_text(row, "confidence_notes"),
+                    csv_text(row, "quality_notes"),
+                    csv_text(row, "consistency_notes"),
+                    csv_text(row, "lane_quality_notes"),
+                ]
+                if item
+            ) or None
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO shot_logs (
+                  session_date,
+                  ball,
+                  target,
+                  arrows_board,
+                  breakpoint,
+                  ball_speed,
+                  speed_mph,
+                  result,
+                  miss_direction,
+                  leave_pin,
+                  next_move,
+                  notes,
+                  analysis_run_id,
+                  video_name,
+                  hook_inches,
+                  boards_crossed,
+                  release_board,
+                  entry_board,
+                  pocket_quality,
+                  pin_result,
+                  impact_result,
+                  confidence,
+                  confidence_label,
+                  confidence_notes,
+                  quality_score,
+                  quality_label,
+                  quality_notes,
+                  consistency_label,
+                  consistency_notes,
+                  output_preview,
+                  tracking_mode,
+                  shot_source,
+                  created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    timestamp[:10] if timestamp else None,
+                    csv_text(row, "video_name"),
+                    target_summary,
+                    arrows_board,
+                    breakpoint_board,
+                    f"{speed_mph:.2f} mph" if speed_mph is not None else None,
+                    speed_mph,
+                    result,
+                    csv_text(row, "shot_type"),
+                    leave_type,
+                    csv_text(row, "consistency_notes"),
+                    notes,
+                    run_id,
+                    csv_text(row, "video_name"),
+                    hook_inches,
+                    boards_crossed,
+                    release_board,
+                    entry_board,
+                    csv_text(row, "pocket_quality_label"),
+                    csv_text(row, "pin_result_label"),
+                    csv_text(row, "impact_result_label"),
+                    csv_int(row.get("confidence"), None),
+                    csv_text(row, "confidence_label"),
+                    csv_text(row, "confidence_notes"),
+                    csv_int(row.get("quality_score"), None),
+                    csv_text(row, "quality_label"),
+                    csv_text(row, "quality_notes"),
+                    csv_text(row, "consistency_label"),
+                    csv_text(row, "consistency_notes"),
+                    csv_text(row, "output_preview"),
+                    csv_text(row, "tracking_mode"),
+                    "video_analysis_import",
+                    timestamp,
+                ),
+            )
 
 
 def require_text(payload: dict, key: str, label: str) -> str:
@@ -728,6 +911,7 @@ def get_shots() -> list[dict]:
                   s.arrows_board,
                   s.breakpoint,
                   s.ball_speed,
+                  s.speed_mph,
                   s.lane_condition,
                   s.result,
                   s.miss_direction,
@@ -735,6 +919,26 @@ def get_shots() -> list[dict]:
                   s.adjustment,
                   s.next_move,
                   s.notes,
+                  s.analysis_run_id,
+                  s.video_name,
+                  s.hook_inches,
+                  s.boards_crossed,
+                  s.release_board,
+                  s.entry_board,
+                  s.pocket_quality,
+                  s.pin_result,
+                  s.impact_result,
+                  s.confidence,
+                  s.confidence_label,
+                  s.confidence_notes,
+                  s.quality_score,
+                  s.quality_label,
+                  s.quality_notes,
+                  s.consistency_label,
+                  s.consistency_notes,
+                  s.output_preview,
+                  s.tracking_mode,
+                  s.shot_source,
                   s.created_at,
                   p.slug AS pattern_slug,
                   p.name AS pattern_name
@@ -745,6 +949,42 @@ def get_shots() -> list[dict]:
                 """
             )
         )
+
+
+def get_shot_stats() -> dict:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        summary = connection.execute(
+            """
+            SELECT
+              COUNT(*) AS total,
+              SUM(CASE WHEN shot_source = 'video_analysis_import' THEN 1 ELSE 0 END) AS video_total,
+              SUM(CASE WHEN lower(coalesce(result, '')) LIKE '%strike%' THEN 1 ELSE 0 END) AS strikes,
+              ROUND(AVG(speed_mph), 1) AS average_speed,
+              ROUND(AVG(hook_inches), 1) AS average_hook
+            FROM shot_logs
+            """
+        ).fetchone()
+        common_leave = connection.execute(
+            """
+            SELECT leave_pin, COUNT(*) AS total
+            FROM shot_logs
+            WHERE leave_pin IS NOT NULL
+              AND trim(leave_pin) <> ''
+              AND lower(leave_pin) NOT LIKE '%strike%'
+            GROUP BY leave_pin
+            ORDER BY total DESC, leave_pin
+            LIMIT 1
+            """
+        ).fetchone()
+    return {
+        "total": summary["total"] or 0,
+        "video_total": summary["video_total"] or 0,
+        "strikes": summary["strikes"] or 0,
+        "average_speed": summary["average_speed"],
+        "average_hook": summary["average_hook"],
+        "common_leave": common_leave["leave_pin"] if common_leave else None,
+    }
 
 
 def create_shot(payload: dict) -> dict:
@@ -771,15 +1011,35 @@ def create_shot(payload: dict) -> dict:
               arrows_board,
               breakpoint,
               ball_speed,
+              speed_mph,
               lane_condition,
               result,
               miss_direction,
               leave_pin,
               adjustment,
               next_move,
-              notes
+              notes,
+              video_name,
+              hook_inches,
+              boards_crossed,
+              release_board,
+              entry_board,
+              pocket_quality,
+              pin_result,
+              impact_result,
+              confidence,
+              confidence_label,
+              confidence_notes,
+              quality_score,
+              quality_label,
+              quality_notes,
+              consistency_label,
+              consistency_notes,
+              output_preview,
+              tracking_mode,
+              shot_source
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 pattern_id,
@@ -794,6 +1054,7 @@ def create_shot(payload: dict) -> dict:
                 optional_text(payload, "arrows_board"),
                 optional_text(payload, "breakpoint"),
                 optional_text(payload, "ball_speed"),
+                optional_float_from_payload(payload, "speed_mph"),
                 optional_text(payload, "lane_condition"),
                 result,
                 optional_text(payload, "miss_direction"),
@@ -801,6 +1062,25 @@ def create_shot(payload: dict) -> dict:
                 optional_text(payload, "adjustment"),
                 optional_text(payload, "next_move"),
                 optional_text(payload, "notes"),
+                optional_text(payload, "video_name"),
+                optional_float_from_payload(payload, "hook_inches"),
+                optional_float_from_payload(payload, "boards_crossed"),
+                optional_text(payload, "release_board"),
+                optional_text(payload, "entry_board"),
+                optional_text(payload, "pocket_quality"),
+                optional_text(payload, "pin_result"),
+                optional_text(payload, "impact_result"),
+                optional_int_from_payload(payload, "confidence", None),
+                optional_text(payload, "confidence_label"),
+                optional_text(payload, "confidence_notes"),
+                optional_int_from_payload(payload, "quality_score", None),
+                optional_text(payload, "quality_label"),
+                optional_text(payload, "quality_notes"),
+                optional_text(payload, "consistency_label"),
+                optional_text(payload, "consistency_notes"),
+                optional_text(payload, "output_preview"),
+                optional_text(payload, "tracking_mode"),
+                optional_text(payload, "shot_source") or "manual",
             ),
         )
         connection.commit()
@@ -1572,6 +1852,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_spares())
             elif parsed.path == "/api/spare-sessions":
                 self.send_json(get_spare_sessions())
+            elif parsed.path == "/api/shots/stats":
+                self.send_json(get_shot_stats())
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
             elif parsed.path == "/api/chat/posts":

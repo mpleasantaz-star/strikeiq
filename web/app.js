@@ -7,6 +7,7 @@ const state = {
   spareSessions: [],
   spareSession: null,
   shots: [],
+  shotStats: { total: 0, video_total: 0, strikes: 0, average_speed: null, average_hook: null, common_leave: null },
   chat: [],
   communityPosts: [],
   chatChannel: "# video-feedback",
@@ -286,6 +287,29 @@ const projectDetails = {
         <div class="form-row">
           <label>Ball Speed<input name="ball_speed" placeholder="16.5 mph"></label>
           <label>Result<input name="result" placeholder="Strike, high, light" required></label>
+        </div>
+        <div class="analysis-panel">
+          <h3>Video Analysis</h3>
+          <div class="form-row">
+            <label>Video Name<input name="video_name" placeholder="Practice clip or upload name"></label>
+            <label>Speed MPH<input type="number" name="speed_mph" min="0" step="0.01" placeholder="16.5"></label>
+          </div>
+          <div class="form-row">
+            <label>Hook Inches<input type="number" name="hook_inches" step="0.01" placeholder="18.2"></label>
+            <label>Boards Crossed<input type="number" name="boards_crossed" step="0.01" placeholder="17.1"></label>
+          </div>
+          <div class="form-row">
+            <label>Release Board<input name="release_board" placeholder="18"></label>
+            <label>Entry Board<input name="entry_board" placeholder="17.5"></label>
+          </div>
+          <div class="form-row">
+            <label>Pocket Quality<input name="pocket_quality" placeholder="Flush, high, light"></label>
+            <label>Pin Result<input name="pin_result" placeholder="Strike, 10 pin, split"></label>
+          </div>
+          <div class="form-row">
+            <label>Confidence<input type="number" name="confidence" min="0" max="100" placeholder="100"></label>
+            <label>Confidence Label<input name="confidence_label" placeholder="Good, Review"></label>
+          </div>
         </div>
         <div class="form-row">
           <label>Miss Direction
@@ -745,7 +769,7 @@ function renderHomeDashboard() {
   const completion = profileCompletion(profile);
   const ballCount = state.balls.length;
   const spareRate = Number(state.spares.rate || 0);
-  const shotCount = state.shots.length;
+  const shotCount = Number(state.shotStats.total || state.shots.length);
   const isPro = hasProAccess();
 
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
@@ -822,9 +846,18 @@ function renderHomeDashboard() {
 
   const recentItems = [
     ...state.shots.slice(0, 2).map((shot) => ({
-      label: "Shot",
+      label: shot.shot_source === "video_analysis_import" ? "Video Shot" : "Shot",
       title: shot.result || "Shot logged",
-      detail: [shot.pattern_name, shot.ball, shot.target].filter(Boolean).join(" | ") || "Shot details saved",
+      detail:
+        [
+          shot.pattern_name,
+          shot.ball,
+          shot.speed_mph && `${formatShotMetric(shot.speed_mph, " mph")}`,
+          shot.hook_inches && `${formatShotMetric(shot.hook_inches, " in hook")}`,
+          shot.target,
+        ]
+          .filter(Boolean)
+          .join(" | ") || "Shot details saved",
     })),
     ...(state.spares.spares || []).slice(0, 2).map((spare) => ({
       label: "Spare",
@@ -909,6 +942,13 @@ function hydrateLaneTrackerForm() {
       .map((ball) => `<option value="${escapeHtml([ball.brand, ball.name].filter(Boolean).join(" "))}"></option>`)
       .join("");
   }
+}
+
+function formatShotMetric(value, suffix = "") {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return "";
+  const rounded = Math.round(numeric * 10) / 10;
+  return `${rounded}${suffix}`;
 }
 
 function renderProjectList(containerId, items, emptyText, renderItem) {
@@ -1239,11 +1279,24 @@ async function loadSpares() {
 
 async function loadShots() {
   state.shots = await api("/api/shots");
+  state.shotStats = await api("/api/shots/stats").catch(() => ({
+    total: state.shots.length,
+    video_total: state.shots.filter((shot) => shot.shot_source === "video_analysis_import").length,
+    strikes: state.shots.filter((shot) => String(shot.result || "").toLowerCase().includes("strike")).length,
+    average_speed: null,
+    average_hook: null,
+    common_leave: null,
+  }));
   renderHomeDashboard();
   hydrateLaneTrackerForm();
   const summary = document.querySelector("#lane-summary");
   if (summary) {
-    const strikes = state.shots.filter((shot) => String(shot.result || "").toLowerCase().includes("strike")).length;
+    const strikes = Number(state.shotStats.strikes || 0);
+    const videoImports = Number(state.shotStats.video_total || 0);
+    const speeds = state.shots.map((shot) => Number(shot.speed_mph)).filter(Number.isFinite);
+    const hooks = state.shots.map((shot) => Number(shot.hook_inches)).filter(Number.isFinite);
+    const avgSpeed = Number(state.shotStats.average_speed) || (speeds.length ? speeds.reduce((sum, value) => sum + value, 0) / speeds.length : null);
+    const avgHook = Number(state.shotStats.average_hook) || (hooks.length ? hooks.reduce((sum, value) => sum + value, 0) / hooks.length : null);
     const leaves = state.shots
       .map((shot) => shot.leave_pin)
       .filter(Boolean)
@@ -1251,11 +1304,14 @@ async function loadShots() {
         acc[leave] = (acc[leave] || 0) + 1;
         return acc;
       }, {});
-    const commonLeave = Object.entries(leaves).sort((a, b) => b[1] - a[1])[0]?.[0] || "No leaves logged";
+    const commonLeave = state.shotStats.common_leave || Object.entries(leaves).sort((a, b) => b[1] - a[1])[0]?.[0] || "No leaves logged";
     const latest = state.shots[0];
     summary.innerHTML = `
-      <span><b>${state.shots.length}</b> shots</span>
+      <span><b>${Number(state.shotStats.total || state.shots.length)}</b> shots</span>
+      <span><b>${videoImports}</b> video analyzed</span>
       <span><b>${strikes}</b> strikes</span>
+      <span><b>${avgSpeed ? formatShotMetric(avgSpeed, " mph") : "No speed"}</b> avg speed</span>
+      <span><b>${avgHook ? formatShotMetric(avgHook, " in") : "No hook"}</b> avg hook</span>
       <span><b>${escapeHtml(commonLeave)}</b> common leave</span>
       <span><b>${escapeHtml(latest?.lane_center || state.profile?.homeCenter || "Center not set")}</b> latest center</span>
     `;
@@ -1263,18 +1319,24 @@ async function loadShots() {
   renderProjectList("#shot-list", state.shots, "No lane entries logged yet.", (shot) => `
     <article class="project-record">
       <strong>${escapeHtml(shot.result)}</strong>
-      <span>${escapeHtml([shot.session_date, shot.lane_center, shot.lane_number && `Lane ${shot.lane_number}`].filter(Boolean).join(" | ") || "Session not set")}</span>
-      <p>${escapeHtml([shot.ball || "Ball not set", shot.pattern_name || "No pattern", shot.lane_condition].filter(Boolean).join(" | "))}</p>
+      <span>${escapeHtml([shot.session_date, shot.lane_center, shot.lane_number && `Lane ${shot.lane_number}`, shot.shot_source === "video_analysis_import" && "Video analysis"].filter(Boolean).join(" | ") || "Session not set")}</span>
+      <p>${escapeHtml([shot.ball || shot.video_name || "Ball not set", shot.pattern_name || "No pattern", shot.lane_condition, shot.confidence_label && `Confidence ${shot.confidence_label}`].filter(Boolean).join(" | "))}</p>
       <p>${escapeHtml([
+        shot.release_board && `Release ${shot.release_board}`,
         shot.feet_board && `Feet ${shot.feet_board}`,
         shot.arrows_board && `Arrows ${shot.arrows_board}`,
-        shot.target && `Target ${shot.target}`,
+        shot.target && shot.shot_source !== "video_analysis_import" && `Target ${shot.target}`,
         shot.breakpoint && `Breakpoint ${shot.breakpoint}`,
-        shot.ball_speed && `${shot.ball_speed}`
+        shot.entry_board && `Entry ${shot.entry_board}`,
+        shot.speed_mph && formatShotMetric(shot.speed_mph, " mph"),
+        shot.hook_inches && formatShotMetric(shot.hook_inches, " in hook"),
+        shot.boards_crossed && formatShotMetric(shot.boards_crossed, " boards"),
+        !shot.speed_mph && shot.ball_speed && `${shot.ball_speed}`
       ].filter(Boolean).join(" | ") || "Target not set")}</p>
-      ${shot.leave_pin || shot.miss_direction ? `<p>${escapeHtml([shot.miss_direction && `Miss ${shot.miss_direction}`, shot.leave_pin && `Leave ${shot.leave_pin}`].filter(Boolean).join(" | "))}</p>` : ""}
+      ${shot.leave_pin || shot.miss_direction || shot.pocket_quality || shot.pin_result || shot.impact_result ? `<p>${escapeHtml([shot.miss_direction && `Miss ${shot.miss_direction}`, shot.pocket_quality && `Pocket ${shot.pocket_quality}`, shot.pin_result && `Pins ${shot.pin_result}`, shot.impact_result && `Impact ${shot.impact_result}`, shot.leave_pin && `Leave ${shot.leave_pin}`].filter(Boolean).join(" | "))}</p>` : ""}
       ${shot.adjustment ? `<p><b>Adjustment:</b> ${escapeHtml(shot.adjustment)}</p>` : ""}
       ${shot.next_move ? `<p><b>Next move:</b> ${escapeHtml(shot.next_move)}</p>` : ""}
+      ${shot.quality_label || shot.consistency_label ? `<p>${escapeHtml([shot.quality_label && `Quality ${shot.quality_label}`, shot.consistency_label && `Consistency ${shot.consistency_label}`].filter(Boolean).join(" | "))}</p>` : ""}
       ${shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
     </article>
   `);

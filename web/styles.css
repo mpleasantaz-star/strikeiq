@@ -2183,6 +2183,21 @@ button:hover {
   gap: 10px;
 }
 
+.analysis-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(76, 201, 240, 0.06);
+  padding: 12px;
+}
+
+.analysis-panel h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
 .note-card {
   border: 1px solid rgba(76, 201, 240, 0.14);
   border-radius: 8px;
