@@ -258,7 +258,15 @@ const projectDetails = {
       <form id="shot-form" class="note-form project-form">
         <div class="form-row">
           <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
-          <label>Center<input name="lane_center" id="lane-session-center" placeholder="Home center"></label>
+          <label>Center<input name="lane_center" id="lane-session-center" list="lane-center-options" placeholder="Home center or bowling alley"></label>
+        </div>
+        <div class="center-picker-tools lane-center-tools">
+          <button id="find-lane-centers" type="button">Find Nearby Centers</button>
+          <select id="nearby-lane-centers" aria-label="Nearby lane tracker bowling centers">
+            <option value="">Select a nearby center</option>
+          </select>
+          <p id="lane-center-status" class="empty-state">Type manually or use location to populate nearby bowling centers.</p>
+          <datalist id="lane-center-options"></datalist>
         </div>
         <div class="form-row">
           <label>Lane<input name="lane_number" placeholder="Pair 7-8 / lane 12"></label>
@@ -449,9 +457,30 @@ function milesBetween(lat1, lon1, lat2, lon2) {
   return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function renderHomeCenterOptions(centers, statusText) {
-  if (!elements.nearbyHomeCenters || !elements.homeCenterOptions) return;
-  elements.nearbyHomeCenters.innerHTML = centers.length
+function sortedLocalCenters(latitude, longitude) {
+  return bowlingCenters
+    .map((center) => ({
+      ...center,
+      distance: Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? milesBetween(latitude, longitude, center.lat, center.lon)
+        : center.distance,
+    }))
+    .sort((a, b) => (a.distance ?? Number.POSITIVE_INFINITY) - (b.distance ?? Number.POSITIVE_INFINITY));
+}
+
+async function nearbyCentersFromLocation(latitude, longitude) {
+  const fallback = sortedLocalCenters(latitude, longitude).slice(0, 8);
+  try {
+    const liveCenters = await api(`/api/nearby-centers?lat=${encodeURIComponent(latitude)}&lon=${encodeURIComponent(longitude)}`);
+    return Array.isArray(liveCenters) && liveCenters.length ? liveCenters : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function renderCenterOptions({ select, datalist, status }, centers, statusText) {
+  if (!select || !datalist) return;
+  select.innerHTML = centers.length
     ? `<option value="">Select a nearby center</option>${centers
         .map((center) => {
           const distance = Number.isFinite(center.distance) ? ` - ${center.distance.toFixed(1)} mi` : "";
@@ -459,41 +488,79 @@ function renderHomeCenterOptions(centers, statusText) {
         })
         .join("")}`
     : `<option value="">No nearby centers found</option>`;
-  elements.homeCenterOptions.innerHTML = centers
+  datalist.innerHTML = centers
     .map((center) => `<option value="${escapeHtml(center.name)}">${escapeHtml(center.address)}</option>`)
     .join("");
-  if (elements.homeCenterStatus) {
-    elements.homeCenterStatus.textContent = statusText;
+  if (status) {
+    status.textContent = statusText;
   }
 }
 
-function findNearbyHomeCenters() {
+function renderHomeCenterOptions(centers, statusText) {
+  renderCenterOptions(
+    { select: elements.nearbyHomeCenters, datalist: elements.homeCenterOptions, status: elements.homeCenterStatus },
+    centers,
+    statusText,
+  );
+}
+
+function laneCenterElements() {
+  return {
+    button: document.querySelector("#find-lane-centers"),
+    input: document.querySelector("#lane-session-center"),
+    select: document.querySelector("#nearby-lane-centers"),
+    datalist: document.querySelector("#lane-center-options"),
+    status: document.querySelector("#lane-center-status"),
+  };
+}
+
+function renderLaneCenterOptions(centers, statusText) {
+  const lane = laneCenterElements();
+  renderCenterOptions(lane, centers, statusText);
+}
+
+function findNearbyCenters({ button, status, renderOptions, fallbackMessage, successMessage }) {
   if (!navigator.geolocation) {
-    renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Location is not available here. Showing saved Arizona centers.");
+    renderOptions(bowlingCenters.slice(0, 8), fallbackMessage);
     return;
   }
 
-  elements.findHomeCenters.disabled = true;
-  elements.homeCenterStatus.textContent = "Requesting location permission...";
+  if (button) button.disabled = true;
+  if (status) status.textContent = "Requesting location permission...";
   navigator.geolocation.getCurrentPosition(
-    (position) => {
+    async (position) => {
       const { latitude, longitude } = position.coords;
-      const centers = bowlingCenters
-        .map((center) => ({
-          ...center,
-          distance: milesBetween(latitude, longitude, center.lat, center.lon),
-        }))
-        .sort((a, b) => a.distance - b.distance)
-        .slice(0, 8);
-      renderHomeCenterOptions(centers, "Closest bowling centers populated from your current location.");
-      elements.findHomeCenters.disabled = false;
+      const centers = await nearbyCentersFromLocation(latitude, longitude);
+      renderOptions(centers, successMessage);
+      if (button) button.disabled = false;
     },
     () => {
-      renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Location permission was not available. Showing saved Arizona centers.");
-      elements.findHomeCenters.disabled = false;
+      renderOptions(bowlingCenters.slice(0, 8), fallbackMessage);
+      if (button) button.disabled = false;
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
   );
+}
+
+function findNearbyHomeCenters() {
+  findNearbyCenters({
+    button: elements.findHomeCenters,
+    status: elements.homeCenterStatus,
+    renderOptions: renderHomeCenterOptions,
+    fallbackMessage: "Location permission was not available. Showing saved Arizona centers.",
+    successMessage: "Closest bowling centers populated from your current location.",
+  });
+}
+
+function findNearbyLaneCenters() {
+  const lane = laneCenterElements();
+  findNearbyCenters({
+    button: lane.button,
+    status: lane.status,
+    renderOptions: renderLaneCenterOptions,
+    fallbackMessage: "Location permission was not available. Showing saved bowling centers.",
+    successMessage: "Closest bowling centers populated for this lane session.",
+  });
 }
 
 function titleFromSlug(value) {
@@ -935,6 +1002,10 @@ function hydrateLaneTrackerForm() {
   const centerInput = document.querySelector("#lane-session-center");
   if (centerInput && !centerInput.value && state.profile?.homeCenter) {
     centerInput.value = state.profile.homeCenter;
+  }
+  const lane = laneCenterElements();
+  if (lane.datalist && !lane.datalist.children.length) {
+    renderLaneCenterOptions(bowlingCenters.slice(0, 8), "Type manually or use location to populate nearby bowling centers.");
   }
   const ballOptions = document.querySelector("#lane-ball-options");
   if (ballOptions) {
@@ -3371,11 +3442,24 @@ function bindEvents() {
       elements.profileCenter.value = elements.nearbyHomeCenters.value;
     }
   });
+  document.addEventListener("change", (event) => {
+    const laneSelect = event.target.closest("#nearby-lane-centers");
+    if (!laneSelect?.value) return;
+    const laneInput = document.querySelector("#lane-session-center");
+    if (laneInput) {
+      laneInput.value = laneSelect.value;
+    }
+  });
   elements.authToggle.addEventListener("click", () => setAuthMode(authMode === "create" ? "login" : "create"));
   elements.logout.addEventListener("click", handleLogout);
   elements.upgradeButton.addEventListener("click", () => setProject("upgrade"));
 
   document.addEventListener("click", (event) => {
+    if (event.target.closest("#find-lane-centers")) {
+      findNearbyLaneCenters();
+      return;
+    }
+
     const tierButton = event.target.closest("[data-subscription-tier]");
     if (tierButton) {
       setSubscriptionTier(tierButton.dataset.subscriptionTier);

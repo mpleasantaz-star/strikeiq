@@ -171,17 +171,20 @@ h1 {
   gap: 12px;
 }
 
-.home-center-tools {
+.home-center-tools,
+.center-picker-tools {
   display: grid;
   gap: 8px;
   align-self: end;
 }
 
-.home-center-tools button {
+.home-center-tools button,
+.center-picker-tools button {
   min-height: 42px;
 }
 
-.home-center-tools select {
+.home-center-tools select,
+.center-picker-tools select {
   min-height: 42px;
   border: 1px solid rgba(76, 201, 240, 0.18);
   border-radius: 8px;
@@ -190,7 +193,8 @@ h1 {
   padding: 0 12px;
 }
 
-.home-center-tools .empty-state {
+.home-center-tools .empty-state,
+.center-picker-tools .empty-state {
   font-size: 0.82rem;
 }
 

@@ -1,11 +1,12 @@
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import csv
 import json
+import math
 import os
 import subprocess
 import sys
@@ -19,6 +20,22 @@ STATIC_DIR = ROOT / "web"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
 LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
+OVERPASS_INTERPRETER_URL = "https://overpass-api.de/api/interpreter"
+BOWLING_CENTER_FALLBACKS = [
+    {"name": "AMF Peoria Lanes", "address": "Peoria, AZ", "lat": 33.581, "lon": -112.239},
+    {"name": "Bowlero Glendale", "address": "17210 N 59th Ave, Glendale, AZ 85308", "lat": 33.641, "lon": -112.186},
+    {"name": "AMF Union Hills Lanes", "address": "Phoenix, AZ", "lat": 33.654, "lon": -112.132},
+    {"name": "AMF Desert Hills Lanes", "address": "Phoenix, AZ", "lat": 33.64, "lon": -112.02},
+    {"name": "Let it Roll Bowl", "address": "8925 N 12th St, Phoenix, AZ 85020", "lat": 33.566, "lon": -112.056},
+    {"name": "Bowlero Christown", "address": "Phoenix, AZ", "lat": 33.523, "lon": -112.099},
+    {"name": "Lucky Strike North Scottsdale", "address": "Scottsdale, AZ", "lat": 33.622, "lon": -111.925},
+    {"name": "Bowlero Via Linda", "address": "Scottsdale, AZ", "lat": 33.569, "lon": -111.89},
+    {"name": "Bowlero Old Town", "address": "Scottsdale, AZ", "lat": 33.494, "lon": -111.926},
+    {"name": "AMF Tempe Village Lanes", "address": "Tempe, AZ", "lat": 33.378, "lon": -111.91},
+    {"name": "AMF Mesa Lanes", "address": "Mesa, AZ", "lat": 33.392, "lon": -111.84},
+    {"name": "AMF Chandler Lanes", "address": "Chandler, AZ", "lat": 33.333, "lon": -111.842},
+    {"name": "AMF McRay Plaza Lanes", "address": "Chandler, AZ", "lat": 33.319, "lon": -111.91},
+]
 
 
 class ApiError(Exception):
@@ -105,6 +122,96 @@ def update_mobile_sync(payload: dict) -> dict:
         connection.commit()
 
     return get_mobile_sync()
+
+
+def miles_between(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    radius_miles = 3958.8
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (
+        math.sin(d_lat / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(d_lon / 2) ** 2
+    )
+    return radius_miles * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def fallback_bowling_centers(lat: float, lon: float, limit: int = 12) -> list[dict]:
+    return sorted(
+        (
+            {
+                **center,
+                "distance": round(miles_between(lat, lon, center["lat"], center["lon"]), 1),
+                "source": "saved",
+            }
+            for center in BOWLING_CENTER_FALLBACKS
+        ),
+        key=lambda center: center["distance"],
+    )[:limit]
+
+
+def get_nearby_bowling_centers(query: dict) -> list[dict]:
+    try:
+        lat = float((query.get("lat") or [""])[0])
+        lon = float((query.get("lon") or [""])[0])
+    except (TypeError, ValueError) as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Latitude and longitude are required") from exc
+
+    fallback = fallback_bowling_centers(lat, lon)
+    overpass_query = f"""
+    [out:json][timeout:10];
+    (
+      node(around:32000,{lat},{lon})["sport"~"^(10pin|bowling)$"];
+      way(around:32000,{lat},{lon})["sport"~"^(10pin|bowling)$"];
+      relation(around:32000,{lat},{lon})["sport"~"^(10pin|bowling)$"];
+      node(around:32000,{lat},{lon})["leisure"="bowling_alley"];
+      way(around:32000,{lat},{lon})["leisure"="bowling_alley"];
+      relation(around:32000,{lat},{lon})["leisure"="bowling_alley"];
+      node(around:32000,{lat},{lon})["name"~"(bowling|bowlero|amf|lanes)",i];
+      way(around:32000,{lat},{lon})["name"~"(bowling|bowlero|amf|lanes)",i];
+      relation(around:32000,{lat},{lon})["name"~"(bowling|bowlero|amf|lanes)",i];
+    );
+    out center tags 24;
+    """
+    try:
+        request = Request(
+            OVERPASS_INTERPRETER_URL,
+            data=urlencode({"data": overpass_query}).encode("utf-8"),
+            headers={"Content-Type": "application/x-www-form-urlencoded", "User-Agent": "StrikeIQ local development"},
+        )
+        with urlopen(request, timeout=12) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return fallback
+
+    centers: dict[str, dict] = {}
+    for element in data.get("elements", []):
+        tags = element.get("tags") or {}
+        name = str(tags.get("name") or "").strip()
+        if not name:
+            continue
+        center_lat = element.get("lat") or (element.get("center") or {}).get("lat")
+        center_lon = element.get("lon") or (element.get("center") or {}).get("lon")
+        if center_lat is None or center_lon is None:
+            continue
+        address = ", ".join(
+            part
+            for part in [
+                tags.get("addr:housenumber") and f"{tags.get('addr:housenumber')} {tags.get('addr:street', '')}".strip(),
+                tags.get("addr:city"),
+                tags.get("addr:state"),
+            ]
+            if part
+        ) or tags.get("operator") or "Nearby bowling center"
+        centers[name.lower()] = {
+            "name": name,
+            "address": address,
+            "lat": center_lat,
+            "lon": center_lon,
+            "distance": round(miles_between(lat, lon, center_lat, center_lon), 1),
+            "source": "openstreetmap",
+        }
+
+    return sorted(centers.values(), key=lambda center: center["distance"])[:12] or fallback
 
 
 def slugify(value: str) -> str:
@@ -1846,6 +1953,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_catalog_status())
             elif parsed.path == "/api/mobile-sync":
                 self.send_json(get_mobile_sync())
+            elif parsed.path == "/api/nearby-centers":
+                self.send_json(get_nearby_bowling_centers(parse_qs(parsed.query)))
             elif parsed.path == "/api/balls":
                 self.send_json(get_balls())
             elif parsed.path == "/api/spares":
