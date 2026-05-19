@@ -187,17 +187,30 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS shot_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           oil_pattern_id INTEGER,
+          session_date TEXT,
+          lane_center TEXT,
+          lane_number TEXT,
+          game_number INTEGER,
+          frame_number TEXT,
           ball TEXT,
           target TEXT,
+          feet_board TEXT,
+          arrows_board TEXT,
           breakpoint TEXT,
+          ball_speed TEXT,
+          lane_condition TEXT,
           result TEXT NOT NULL,
+          miss_direction TEXT,
+          leave_pin TEXT,
           adjustment TEXT,
+          next_move TEXT,
           notes TEXT,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
         )
         """
     )
+    ensure_shot_log_columns(connection)
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS community_posts (
@@ -216,12 +229,34 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active)")
     seed_ball_catalog(connection)
+
+
+def ensure_shot_log_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(shot_logs)").fetchall()}
+    migrations = {
+        "session_date": "ALTER TABLE shot_logs ADD COLUMN session_date TEXT",
+        "lane_center": "ALTER TABLE shot_logs ADD COLUMN lane_center TEXT",
+        "lane_number": "ALTER TABLE shot_logs ADD COLUMN lane_number TEXT",
+        "game_number": "ALTER TABLE shot_logs ADD COLUMN game_number INTEGER",
+        "frame_number": "ALTER TABLE shot_logs ADD COLUMN frame_number TEXT",
+        "feet_board": "ALTER TABLE shot_logs ADD COLUMN feet_board TEXT",
+        "arrows_board": "ALTER TABLE shot_logs ADD COLUMN arrows_board TEXT",
+        "ball_speed": "ALTER TABLE shot_logs ADD COLUMN ball_speed TEXT",
+        "lane_condition": "ALTER TABLE shot_logs ADD COLUMN lane_condition TEXT",
+        "miss_direction": "ALTER TABLE shot_logs ADD COLUMN miss_direction TEXT",
+        "leave_pin": "ALTER TABLE shot_logs ADD COLUMN leave_pin TEXT",
+        "next_move": "ALTER TABLE shot_logs ADD COLUMN next_move TEXT",
+    }
+    for column, statement in migrations.items():
+        if column not in columns:
+            connection.execute(statement)
 
 
 def ensure_ball_catalog_columns(connection: sqlite3.Connection) -> None:
@@ -682,11 +717,23 @@ def get_shots() -> list[dict]:
                 """
                 SELECT
                   s.id,
+                  s.session_date,
+                  s.lane_center,
+                  s.lane_number,
+                  s.game_number,
+                  s.frame_number,
                   s.ball,
                   s.target,
+                  s.feet_board,
+                  s.arrows_board,
                   s.breakpoint,
+                  s.ball_speed,
+                  s.lane_condition,
                   s.result,
+                  s.miss_direction,
+                  s.leave_pin,
                   s.adjustment,
+                  s.next_move,
                   s.notes,
                   s.created_at,
                   p.slug AS pattern_slug,
@@ -711,16 +758,48 @@ def create_shot(payload: dict) -> dict:
             pattern_id = pattern["id"] if pattern else None
         connection.execute(
             """
-            INSERT INTO shot_logs (oil_pattern_id, ball, target, breakpoint, result, adjustment, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO shot_logs (
+              oil_pattern_id,
+              session_date,
+              lane_center,
+              lane_number,
+              game_number,
+              frame_number,
+              ball,
+              target,
+              feet_board,
+              arrows_board,
+              breakpoint,
+              ball_speed,
+              lane_condition,
+              result,
+              miss_direction,
+              leave_pin,
+              adjustment,
+              next_move,
+              notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 pattern_id,
+                optional_text(payload, "session_date"),
+                optional_text(payload, "lane_center"),
+                optional_text(payload, "lane_number"),
+                optional_int_from_payload(payload, "game_number", None),
+                optional_text(payload, "frame_number"),
                 optional_text(payload, "ball"),
                 optional_text(payload, "target"),
+                optional_text(payload, "feet_board"),
+                optional_text(payload, "arrows_board"),
                 optional_text(payload, "breakpoint"),
+                optional_text(payload, "ball_speed"),
+                optional_text(payload, "lane_condition"),
                 result,
+                optional_text(payload, "miss_direction"),
+                optional_text(payload, "leave_pin"),
                 optional_text(payload, "adjustment"),
+                optional_text(payload, "next_move"),
                 optional_text(payload, "notes"),
             ),
         )

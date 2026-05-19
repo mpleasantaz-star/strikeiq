@@ -271,11 +271,23 @@ CREATE TABLE IF NOT EXISTS spare_count_sessions (
 CREATE TABLE IF NOT EXISTS shot_logs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   oil_pattern_id INTEGER,
+  session_date TEXT,
+  lane_center TEXT,
+  lane_number TEXT,
+  game_number INTEGER,
+  frame_number TEXT,
   ball TEXT,
   target TEXT,
+  feet_board TEXT,
+  arrows_board TEXT,
   breakpoint TEXT,
+  ball_speed TEXT,
+  lane_condition TEXT,
   result TEXT NOT NULL,
+  miss_direction TEXT,
+  leave_pin TEXT,
   adjustment TEXT,
+  next_move TEXT,
   notes TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (oil_pattern_id) REFERENCES oil_patterns(id) ON DELETE SET NULL
@@ -302,6 +314,7 @@ CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active);
 CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_spare_sessions_date ON spare_count_sessions(session_date, updated_at);
 CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at);
 
 CREATE VIEW IF NOT EXISTS oil_pattern_cards AS
 SELECT

@@ -252,22 +252,63 @@ const projectDetails = {
   shots: {
     eyebrow: "Lane Tracking",
     title: "Lane Tracker",
-    description: "Capture ball, target, breakpoint, result, and adjustment history.",
+    description: "Track sessions, targets, misses, leaves, and next moves.",
     content: `
       <form id="shot-form" class="note-form project-form">
         <div class="form-row">
-          <label>Ball<input name="ball" placeholder="Benchmark solid"></label>
+          <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
+          <label>Center<input name="lane_center" id="lane-session-center" placeholder="Home center"></label>
+        </div>
+        <div class="form-row">
+          <label>Lane<input name="lane_number" placeholder="Pair 7-8 / lane 12"></label>
+          <label>Game<input type="number" name="game_number" min="1" max="20" placeholder="1"></label>
+          <label>Frame<input name="frame_number" placeholder="1-10"></label>
+        </div>
+        <div class="form-row">
+          <label>Ball<input name="ball" list="lane-ball-options" placeholder="Benchmark solid"></label>
+          <label>Lane Condition
+            <select name="lane_condition">
+              <option value="">Select condition</option>
+              <option>Fresh</option>
+              <option>Transition</option>
+              <option>Burn</option>
+              <option>Carrydown</option>
+              <option>Unknown</option>
+            </select>
+          </label>
+        </div>
+        <datalist id="lane-ball-options"></datalist>
+        <div class="form-row">
+          <label>Feet Board<input name="feet_board" placeholder="22"></label>
+          <label>Arrows Board<input name="arrows_board" placeholder="12"></label>
+          <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
+        </div>
+        <div class="form-row">
+          <label>Ball Speed<input name="ball_speed" placeholder="16.5 mph"></label>
           <label>Result<input name="result" placeholder="Strike, high, light" required></label>
         </div>
         <div class="form-row">
-          <label>Target<input name="target" placeholder="15 at arrows"></label>
-          <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
+          <label>Miss Direction
+            <select name="miss_direction">
+              <option value="">Select miss</option>
+              <option>Flush</option>
+              <option>High</option>
+              <option>Light</option>
+              <option>Left</option>
+              <option>Right</option>
+              <option>Early hook</option>
+              <option>Through breakpoint</option>
+            </select>
+          </label>
+          <label>Leave<input name="leave_pin" placeholder="10 pin, 2-8, split"></label>
         </div>
         <input type="hidden" name="pattern_slug" id="shot-pattern-slug">
         <label>Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
-        <label>Notes<textarea name="notes" placeholder="Reaction, miss, next move"></textarea></label>
+        <label>Next Move<textarea name="next_move" placeholder="Move feet, change ball, change speed, change target"></textarea></label>
+        <label>Notes<textarea name="notes" placeholder="Reaction, carry, lane read, confidence"></textarea></label>
         <button type="submit">Log Shot</button>
       </form>
+      <div id="lane-summary" class="project-metric"></div>
       <div id="shot-list" class="project-list"></div>
     `,
   },
@@ -834,6 +875,8 @@ async function hydrateToolProject(project) {
   } else if (project === "spares") {
     await loadSpares();
   } else if (project === "shots") {
+    await loadBalls();
+    hydrateLaneTrackerForm();
     await loadShots();
   } else if (project === "chat") {
     await loadCommunityPosts();
@@ -845,6 +888,27 @@ async function hydrateToolProject(project) {
 
 function formPayload(form) {
   return Object.fromEntries(new FormData(form).entries());
+}
+
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function hydrateLaneTrackerForm() {
+  const dateInput = document.querySelector("#lane-session-date");
+  if (dateInput && !dateInput.value) {
+    dateInput.value = todayIsoDate();
+  }
+  const centerInput = document.querySelector("#lane-session-center");
+  if (centerInput && !centerInput.value && state.profile?.homeCenter) {
+    centerInput.value = state.profile.homeCenter;
+  }
+  const ballOptions = document.querySelector("#lane-ball-options");
+  if (ballOptions) {
+    ballOptions.innerHTML = state.balls
+      .map((ball) => `<option value="${escapeHtml([ball.brand, ball.name].filter(Boolean).join(" "))}"></option>`)
+      .join("");
+  }
 }
 
 function renderProjectList(containerId, items, emptyText, renderItem) {
@@ -1176,12 +1240,41 @@ async function loadSpares() {
 async function loadShots() {
   state.shots = await api("/api/shots");
   renderHomeDashboard();
+  hydrateLaneTrackerForm();
+  const summary = document.querySelector("#lane-summary");
+  if (summary) {
+    const strikes = state.shots.filter((shot) => String(shot.result || "").toLowerCase().includes("strike")).length;
+    const leaves = state.shots
+      .map((shot) => shot.leave_pin)
+      .filter(Boolean)
+      .reduce((acc, leave) => {
+        acc[leave] = (acc[leave] || 0) + 1;
+        return acc;
+      }, {});
+    const commonLeave = Object.entries(leaves).sort((a, b) => b[1] - a[1])[0]?.[0] || "No leaves logged";
+    const latest = state.shots[0];
+    summary.innerHTML = `
+      <span><b>${state.shots.length}</b> shots</span>
+      <span><b>${strikes}</b> strikes</span>
+      <span><b>${escapeHtml(commonLeave)}</b> common leave</span>
+      <span><b>${escapeHtml(latest?.lane_center || state.profile?.homeCenter || "Center not set")}</b> latest center</span>
+    `;
+  }
   renderProjectList("#shot-list", state.shots, "No lane entries logged yet.", (shot) => `
     <article class="project-record">
       <strong>${escapeHtml(shot.result)}</strong>
-      <span>${escapeHtml(shot.pattern_name || "No pattern")} | ${escapeHtml(shot.ball || "Ball not set")}</span>
-      <p>${escapeHtml([shot.target && `Target ${shot.target}`, shot.breakpoint && `Breakpoint ${shot.breakpoint}`].filter(Boolean).join(" | ") || "Target not set")}</p>
+      <span>${escapeHtml([shot.session_date, shot.lane_center, shot.lane_number && `Lane ${shot.lane_number}`].filter(Boolean).join(" | ") || "Session not set")}</span>
+      <p>${escapeHtml([shot.ball || "Ball not set", shot.pattern_name || "No pattern", shot.lane_condition].filter(Boolean).join(" | "))}</p>
+      <p>${escapeHtml([
+        shot.feet_board && `Feet ${shot.feet_board}`,
+        shot.arrows_board && `Arrows ${shot.arrows_board}`,
+        shot.target && `Target ${shot.target}`,
+        shot.breakpoint && `Breakpoint ${shot.breakpoint}`,
+        shot.ball_speed && `${shot.ball_speed}`
+      ].filter(Boolean).join(" | ") || "Target not set")}</p>
+      ${shot.leave_pin || shot.miss_direction ? `<p>${escapeHtml([shot.miss_direction && `Miss ${shot.miss_direction}`, shot.leave_pin && `Leave ${shot.leave_pin}`].filter(Boolean).join(" | "))}</p>` : ""}
       ${shot.adjustment ? `<p><b>Adjustment:</b> ${escapeHtml(shot.adjustment)}</p>` : ""}
+      ${shot.next_move ? `<p><b>Next move:</b> ${escapeHtml(shot.next_move)}</p>` : ""}
       ${shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
     </article>
   `);
@@ -3284,6 +3377,7 @@ function bindEvents() {
       payload.pattern_slug = state.selectedSlug || "";
       await api("/api/shots", { method: "POST", body: JSON.stringify(payload) });
       form.reset();
+      hydrateLaneTrackerForm();
       await loadShots();
     } else if (form.id === "community-post-form") {
       event.preventDefault();

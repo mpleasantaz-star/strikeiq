@@ -73,6 +73,28 @@ def migrate_existing_database(connection: sqlite3.Connection) -> None:
         if ball_columns and column not in ball_columns:
             connection.execute(statement)
 
+    shot_columns = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(shot_logs)").fetchall()
+    }
+    shot_migrations = {
+        "session_date": "ALTER TABLE shot_logs ADD COLUMN session_date TEXT",
+        "lane_center": "ALTER TABLE shot_logs ADD COLUMN lane_center TEXT",
+        "lane_number": "ALTER TABLE shot_logs ADD COLUMN lane_number TEXT",
+        "game_number": "ALTER TABLE shot_logs ADD COLUMN game_number INTEGER",
+        "frame_number": "ALTER TABLE shot_logs ADD COLUMN frame_number TEXT",
+        "feet_board": "ALTER TABLE shot_logs ADD COLUMN feet_board TEXT",
+        "arrows_board": "ALTER TABLE shot_logs ADD COLUMN arrows_board TEXT",
+        "ball_speed": "ALTER TABLE shot_logs ADD COLUMN ball_speed TEXT",
+        "lane_condition": "ALTER TABLE shot_logs ADD COLUMN lane_condition TEXT",
+        "miss_direction": "ALTER TABLE shot_logs ADD COLUMN miss_direction TEXT",
+        "leave_pin": "ALTER TABLE shot_logs ADD COLUMN leave_pin TEXT",
+        "next_move": "ALTER TABLE shot_logs ADD COLUMN next_move TEXT",
+    }
+    for column, statement in shot_migrations.items():
+        if shot_columns and column not in shot_columns:
+            connection.execute(statement)
+
 
 def csv_float(value: str | None) -> float | None:
     if value is None or value == "":
