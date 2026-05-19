@@ -35,6 +35,10 @@ const elements = {
   profileForm: document.querySelector("#profile-form"),
   profileName: document.querySelector("#profile-name"),
   profileCenter: document.querySelector("#profile-center"),
+  findHomeCenters: document.querySelector("#find-home-centers"),
+  nearbyHomeCenters: document.querySelector("#nearby-home-centers"),
+  homeCenterStatus: document.querySelector("#home-center-status"),
+  homeCenterOptions: document.querySelector("#home-center-options"),
   profileHandedness: document.querySelector("#profile-handedness"),
   profileLevel: document.querySelector("#profile-level"),
   profileSpeed: document.querySelector("#profile-speed"),
@@ -101,6 +105,21 @@ const chatChannels = [
 const spareFrameLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10a", "10b"];
 const spareBoards = Array.from({ length: 41 }, (_, index) => String(index));
 const spareSpeeds = Array.from({ length: 90 }, (_, index) => (10 + index / 10).toFixed(1));
+const bowlingCenters = [
+  { name: "AMF Peoria Lanes", address: "Peoria, AZ", lat: 33.581, lon: -112.239 },
+  { name: "Bowlero Glendale", address: "17210 N 59th Ave, Glendale, AZ 85308", lat: 33.641, lon: -112.186 },
+  { name: "AMF Union Hills Lanes", address: "Phoenix, AZ", lat: 33.654, lon: -112.132 },
+  { name: "AMF Desert Hills Lanes", address: "Phoenix, AZ", lat: 33.64, lon: -112.02 },
+  { name: "Let it Roll Bowl", address: "8925 N 12th St, Phoenix, AZ 85020", lat: 33.566, lon: -112.056 },
+  { name: "Bowlero Christown", address: "Phoenix, AZ", lat: 33.523, lon: -112.099 },
+  { name: "Lucky Strike North Scottsdale", address: "Scottsdale, AZ", lat: 33.622, lon: -111.925 },
+  { name: "Bowlero Via Linda", address: "Scottsdale, AZ", lat: 33.569, lon: -111.89 },
+  { name: "Bowlero Old Town", address: "Scottsdale, AZ", lat: 33.494, lon: -111.926 },
+  { name: "AMF Tempe Village Lanes", address: "Tempe, AZ", lat: 33.378, lon: -111.91 },
+  { name: "AMF Mesa Lanes", address: "Mesa, AZ", lat: 33.392, lon: -111.84 },
+  { name: "AMF Chandler Lanes", address: "Chandler, AZ", lat: 33.333, lon: -111.842 },
+  { name: "AMF McRay Plaza Lanes", address: "Chandler, AZ", lat: 33.319, lon: -111.91 },
+];
 
 const projectDetails = {
   "add-pattern": {
@@ -349,6 +368,64 @@ function savedSubscriptionTier() {
   return window.localStorage.getItem(storageKeys.subscriptionTier) === "pro" ? "pro" : "free";
 }
 
+function milesBetween(lat1, lon1, lat2, lon2) {
+  const earthRadiusMiles = 3958.8;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLon / 2) ** 2;
+  return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function renderHomeCenterOptions(centers, statusText) {
+  if (!elements.nearbyHomeCenters || !elements.homeCenterOptions) return;
+  elements.nearbyHomeCenters.innerHTML = centers.length
+    ? `<option value="">Select a nearby center</option>${centers
+        .map((center) => {
+          const distance = Number.isFinite(center.distance) ? ` - ${center.distance.toFixed(1)} mi` : "";
+          return `<option value="${escapeHtml(center.name)}">${escapeHtml(center.name)}${distance}</option>`;
+        })
+        .join("")}`
+    : `<option value="">No nearby centers found</option>`;
+  elements.homeCenterOptions.innerHTML = centers
+    .map((center) => `<option value="${escapeHtml(center.name)}">${escapeHtml(center.address)}</option>`)
+    .join("");
+  if (elements.homeCenterStatus) {
+    elements.homeCenterStatus.textContent = statusText;
+  }
+}
+
+function findNearbyHomeCenters() {
+  if (!navigator.geolocation) {
+    renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Location is not available here. Showing saved Arizona centers.");
+    return;
+  }
+
+  elements.findHomeCenters.disabled = true;
+  elements.homeCenterStatus.textContent = "Requesting location permission...";
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const { latitude, longitude } = position.coords;
+      const centers = bowlingCenters
+        .map((center) => ({
+          ...center,
+          distance: milesBetween(latitude, longitude, center.lat, center.lon),
+        }))
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 8);
+      renderHomeCenterOptions(centers, "Closest bowling centers populated from your current location.");
+      elements.findHomeCenters.disabled = false;
+    },
+    () => {
+      renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Location permission was not available. Showing saved Arizona centers.");
+      elements.findHomeCenters.disabled = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 },
+  );
+}
+
 function hasProAccess() {
   return state.subscriptionTier === "pro";
 }
@@ -408,6 +485,7 @@ function showProfileScreen() {
   elements.loginScreen.classList.add("is-hidden");
   elements.profileScreen.classList.remove("is-hidden");
   elements.appShell.classList.add("is-hidden");
+  renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Use location to populate nearby bowling centers.");
 }
 
 function showAppShell() {
@@ -3072,6 +3150,12 @@ function bindEvents() {
   setAuthMode("create");
   elements.loginForm.addEventListener("submit", handleLogin);
   elements.profileForm.addEventListener("submit", handleProfileSubmit);
+  elements.findHomeCenters?.addEventListener("click", findNearbyHomeCenters);
+  elements.nearbyHomeCenters?.addEventListener("change", () => {
+    if (elements.nearbyHomeCenters.value) {
+      elements.profileCenter.value = elements.nearbyHomeCenters.value;
+    }
+  });
   elements.authToggle.addEventListener("click", () => setAuthMode(authMode === "create" ? "login" : "create"));
   elements.logout.addEventListener("click", handleLogout);
   elements.upgradeButton.addEventListener("click", () => setProject("upgrade"));

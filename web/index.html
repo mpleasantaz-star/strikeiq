@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260518-spares">
+    <link rel="stylesheet" href="/styles.css?v=20260518-centers">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -43,8 +43,16 @@
             </label>
             <label>
               Home center
-              <input id="profile-center" name="homeCenter" placeholder="Your main bowling center">
+              <input id="profile-center" name="homeCenter" list="home-center-options" placeholder="Your main bowling center">
             </label>
+            <div class="home-center-tools">
+              <button id="find-home-centers" type="button">Find Nearby Centers</button>
+              <select id="nearby-home-centers" aria-label="Nearby bowling centers">
+                <option value="">Nearby centers will appear here</option>
+              </select>
+              <p id="home-center-status" class="empty-state">Use location to populate nearby bowling centers.</p>
+              <datalist id="home-center-options"></datalist>
+            </div>
             <label>
               Handedness
               <select id="profile-handedness" name="handedness" required>
@@ -336,6 +344,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260518-spares" type="module"></script>
+    <script src="/app.js?v=20260518-centers" type="module"></script>
   </body>
 </html>

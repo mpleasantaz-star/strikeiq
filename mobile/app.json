@@ -14,10 +14,17 @@
     },
     "ios": {
       "bundleIdentifier": "com.strikeiq.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "StrikeIQ uses your location to suggest nearby bowling centers for your profile."
+      }
     },
     "android": {
       "package": "com.strikeiq.app",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

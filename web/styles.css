@@ -171,6 +171,29 @@ h1 {
   gap: 12px;
 }
 
+.home-center-tools {
+  display: grid;
+  gap: 8px;
+  align-self: end;
+}
+
+.home-center-tools button {
+  min-height: 42px;
+}
+
+.home-center-tools select {
+  min-height: 42px;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.72);
+  color: #ffffff;
+  padding: 0 12px;
+}
+
+.home-center-tools .empty-state {
+  font-size: 0.82rem;
+}
+
 .hero-subtitle {
   max-width: 720px;
   line-height: 1.45;

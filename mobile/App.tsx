@@ -169,6 +169,7 @@ export default function App() {
           originWhitelist={["*"]}
           javaScriptEnabled
           domStorageEnabled
+          geolocationEnabled
           allowsBackForwardNavigationGestures
           startInLoadingState
           onLoadStart={() => setIsLoading(true)}
