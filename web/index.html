@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260518-centers">
+    <link rel="stylesheet" href="/styles.css?v=20260518-profile">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -61,6 +61,24 @@
               </select>
             </label>
             <label>
+              Delivery
+              <select id="profile-delivery" name="delivery" required>
+                <option value="one-handed">One-handed</option>
+                <option value="two-handed">Two-handed</option>
+              </select>
+            </label>
+            <label>
+              Bowler style
+              <select id="profile-style" name="bowlerStyle" required>
+                <option value="balanced">Balanced</option>
+                <option value="speed-dominant">Speed dominant</option>
+                <option value="rev-dominant">Rev dominant</option>
+                <option value="tweener">Tweener</option>
+                <option value="stroker">Stroker</option>
+                <option value="cranker">Cranker</option>
+              </select>
+            </label>
+            <label>
               Skill level
               <select id="profile-level" name="skillLevel" required>
                 <option value="league">League bowler</option>
@@ -77,6 +95,21 @@
             <label>
               Rev rate
               <input id="profile-rev-rate" name="revRate" inputmode="numeric" placeholder="350 rpm">
+            </label>
+            <label>
+              Ball weight
+              <select id="profile-ball-weight" name="ballWeight">
+                <option value="">Select weight</option>
+                <option value="12 lb">12 lb</option>
+                <option value="13 lb">13 lb</option>
+                <option value="14 lb">14 lb</option>
+                <option value="15 lb">15 lb</option>
+                <option value="16 lb">16 lb</option>
+              </select>
+            </label>
+            <label>
+              League average
+              <input id="profile-average" name="leagueAverage" inputmode="numeric" placeholder="185">
             </label>
           </div>
           <label>
@@ -138,6 +171,7 @@
           <span id="home-tier">Free</span>
           <strong id="home-profile">Profile loading</strong>
           <p id="home-focus">Open a project to get started.</p>
+          <div id="home-profile-details" class="home-profile-details"></div>
           <button type="button" data-edit-profile>Edit Profile</button>
         </aside>
       </section>
@@ -344,6 +378,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260518-centers" type="module"></script>
+    <script src="/app.js?v=20260518-profile" type="module"></script>
   </body>
 </html>

@@ -373,6 +373,20 @@ h1 {
   line-height: 1.45;
 }
 
+.home-profile-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.home-profile-details span {
+  border-color: rgba(76, 201, 240, 0.16);
+  background: rgba(5, 7, 10, 0.36);
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .home-profile-panel button {
   justify-self: start;
   min-height: 36px;

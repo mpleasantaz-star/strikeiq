@@ -40,9 +40,13 @@ const elements = {
   homeCenterStatus: document.querySelector("#home-center-status"),
   homeCenterOptions: document.querySelector("#home-center-options"),
   profileHandedness: document.querySelector("#profile-handedness"),
+  profileDelivery: document.querySelector("#profile-delivery"),
+  profileStyle: document.querySelector("#profile-style"),
   profileLevel: document.querySelector("#profile-level"),
   profileSpeed: document.querySelector("#profile-speed"),
   profileRevRate: document.querySelector("#profile-rev-rate"),
+  profileBallWeight: document.querySelector("#profile-ball-weight"),
+  profileAverage: document.querySelector("#profile-average"),
   profileGoals: document.querySelector("#profile-goals"),
   profileError: document.querySelector("#profile-error"),
   appShell: document.querySelector("#app-shell"),
@@ -62,6 +66,7 @@ const elements = {
   homeTier: document.querySelector("#home-tier"),
   homeProfile: document.querySelector("#home-profile"),
   homeFocus: document.querySelector("#home-focus"),
+  homeProfileDetails: document.querySelector("#home-profile-details"),
   homeWorkspaceCount: document.querySelector("#home-workspace-count"),
   homeBallCount: document.querySelector("#home-ball-count"),
   homeSpareRate: document.querySelector("#home-spare-rate"),
@@ -426,6 +431,32 @@ function findNearbyHomeCenters() {
   );
 }
 
+function titleFromSlug(value) {
+  return String(value || "")
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part.replace(/^\w/, (letter) => letter.toUpperCase()))
+    .join(" ");
+}
+
+function profileCompletion(profile) {
+  const keys = [
+    "displayName",
+    "homeCenter",
+    "handedness",
+    "delivery",
+    "bowlerStyle",
+    "skillLevel",
+    "ballSpeed",
+    "revRate",
+    "ballWeight",
+    "leagueAverage",
+    "goals",
+  ];
+  const completed = keys.filter((key) => String(profile?.[key] || "").trim()).length;
+  return Math.round((completed / keys.length) * 100);
+}
+
 function hasProAccess() {
   return state.subscriptionTier === "pro";
 }
@@ -477,9 +508,13 @@ function showProfileScreen() {
   elements.profileName.value = profile?.displayName || state.userName.split("@")[0] || "";
   elements.profileCenter.value = profile?.homeCenter || "";
   elements.profileHandedness.value = profile?.handedness || "right";
+  elements.profileDelivery.value = profile?.delivery || "one-handed";
+  elements.profileStyle.value = profile?.bowlerStyle || "balanced";
   elements.profileLevel.value = profile?.skillLevel || "league";
   elements.profileSpeed.value = profile?.ballSpeed || "";
   elements.profileRevRate.value = profile?.revRate || "";
+  elements.profileBallWeight.value = profile?.ballWeight || "";
+  elements.profileAverage.value = profile?.leagueAverage || "";
   elements.profileGoals.value = profile?.goals || "";
   elements.profileError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
@@ -575,7 +610,9 @@ function handleProfileSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const profile = formPayload(form);
-  profile.displayName = String(profile.displayName || "").trim();
+  Object.keys(profile).forEach((key) => {
+    profile[key] = String(profile[key] || "").trim();
+  });
 
   if (!profile.displayName) {
     elements.profileError.textContent = "Display name is required.";
@@ -661,23 +698,41 @@ function renderHomeDashboard() {
   const profile = state.profile || savedProfile() || {};
   const displayName = profile.displayName || state.userName.split("@")[0] || "Bowler";
   const handedness = profile.handedness === "left" ? "Left handed" : "Right handed";
-  const skill = profile.skillLevel ? profile.skillLevel.replace(/^\w/, (letter) => letter.toUpperCase()) : "League";
+  const skill = titleFromSlug(profile.skillLevel || "league");
+  const delivery = titleFromSlug(profile.delivery || "one-handed");
+  const style = titleFromSlug(profile.bowlerStyle || "balanced");
+  const completion = profileCompletion(profile);
   const ballCount = state.balls.length;
   const spareRate = Number(state.spares.rate || 0);
   const shotCount = state.shots.length;
   const isPro = hasProAccess();
 
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
-  elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${profile.homeCenter || "Home center not set"}`;
+  elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${delivery} | ${profile.homeCenter || "Home center not set"}`;
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
   elements.homeProfile.textContent = `${displayName}'s StrikeIQ workspace`;
+  if (elements.homeProfileDetails) {
+    const detailItems = [
+      `${completion}% profile`,
+      style,
+      profile.ballWeight,
+      profile.ballSpeed && `${profile.ballSpeed} speed`,
+      profile.revRate && `${profile.revRate} rev rate`,
+      profile.leagueAverage && `${profile.leagueAverage} avg`,
+    ].filter(Boolean);
+    elements.homeProfileDetails.innerHTML = detailItems
+      .map((item) => `<span>${escapeHtml(item)}</span>`)
+      .join("");
+  }
   elements.homeWorkspaceCount.textContent = homeWorkspaceCount;
   elements.homeBallCount.textContent = ballCount;
   elements.homeSpareRate.textContent = `${spareRate}%`;
   elements.homeShotCount.textContent = shotCount;
 
   let focus = "Start by opening a workspace below.";
-  if (!ballCount) {
+  if (completion < 80) {
+    focus = "Finish your bowler profile so StrikeIQ can tune ball, pattern, spare, and AI recommendations.";
+  } else if (!ballCount) {
     focus = "Build your arsenal first so shot tracking and coaching can use your ball data.";
   } else if (!shotCount) {
     focus = "Log your next shot to start building lane transition history.";
