@@ -98,7 +98,7 @@ const storageKeys = {
   subscriptionTier: "strikeiq.subscriptionTier",
 };
 
-const proProjects = new Set(["chat", "sync"]);
+const proProjects = new Set(["sync"]);
 const homeWorkspaceCount = 5;
 const chatChannels = [
   ["# general", "Main discussion for the community"],
@@ -155,7 +155,7 @@ const projectDetails = {
   },
   balls: {
     eyebrow: "Arsenal",
-    title: "Bowling Ball Database",
+    title: "Ball Database",
     description: "Browse the seeded ball catalog, filter by lane use, and add custom arsenal pieces that browser and Expo share.",
     content: `
       <section class="ball-catalog-tools" aria-label="Ball catalog filters">
@@ -212,9 +212,9 @@ const projectDetails = {
     `,
   },
   spares: {
-    eyebrow: "Spare Tracking",
-    title: "Spare Count Log",
-    description: "Track a full three-game spare counter session, then keep quick conversion notes for repeat leaves.",
+    eyebrow: "Scoring",
+    title: "Scoring",
+    description: "Track games, frames, strikes, spares, speed, ball changes, and quick conversion notes.",
     content: `
       <section class="spare-session-panel">
         <div class="form-row">
@@ -250,9 +250,9 @@ const projectDetails = {
     `,
   },
   shots: {
-    eyebrow: "Shot Tracking",
-    title: "Shot Tracker",
-    description: "Capture ball, target, breakpoint, result, and adjustment history by selected pattern.",
+    eyebrow: "Lane Tracking",
+    title: "Lane Tracker",
+    description: "Capture ball, target, breakpoint, result, and adjustment history.",
     content: `
       <form id="shot-form" class="note-form project-form">
         <div class="form-row">
@@ -272,13 +272,13 @@ const projectDetails = {
     `,
   },
   chat: {
-    eyebrow: "Community + Coach",
-    title: "StrikeIQ Chat",
-    description: "Community channels, video feedback posts, and backend AI coaching in one workspace.",
+    eyebrow: "Friends",
+    title: "Friends",
+    description: "Chat with friends, post video feedback, and keep AI coaching nearby.",
     content: `
       <div class="chat-workspace">
         <aside class="chat-sidebar">
-          <strong>StrikeIQ Community</strong>
+          <strong>Friends</strong>
           <p>Bowling chat, video feedback, coaching, and lane talk.</p>
           <div id="chat-channel-list" class="chat-channel-list"></div>
         </aside>
@@ -340,7 +340,7 @@ const projectDetails = {
         </div>
         <div>
           <h3>Pro</h3>
-          <p>StrikeIQ Chat, AI coaching, sync/admin tools, and future cloud features for advanced tracking and reports.</p>
+          <p>AI coaching, sync/admin tools, and future cloud features for advanced tracking and reports.</p>
         </div>
       </div>
       <div class="project-actions">
@@ -710,7 +710,7 @@ function renderHomeDashboard() {
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
   elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${delivery} | ${profile.homeCenter || "Home center not set"}`;
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
-  elements.homeProfile.textContent = `${displayName}'s StrikeIQ workspace`;
+  elements.homeProfile.textContent = `${displayName}'s StrikeIQ home`;
   if (elements.homeProfileDetails) {
     const detailItems = [
       `${completion}% profile`,
@@ -729,37 +729,42 @@ function renderHomeDashboard() {
   elements.homeSpareRate.textContent = `${spareRate}%`;
   elements.homeShotCount.textContent = shotCount;
 
-  let focus = "Start by opening a workspace below.";
+  let focus = "Start by opening a section below.";
   if (completion < 80) {
     focus = "Finish your bowler profile so StrikeIQ can tune ball, pattern, spare, and AI recommendations.";
   } else if (!ballCount) {
-    focus = "Build your arsenal first so shot tracking and coaching can use your ball data.";
+    focus = "Build your ball database first so lane tracking and coaching can use your ball data.";
   } else if (!shotCount) {
-    focus = "Log your next shot to start building lane transition history.";
+    focus = "Open Lane Tracker to start building lane transition history.";
   } else if (!Number(state.spares.attempts || 0)) {
-    focus = "Add spare attempts so StrikeIQ can track conversion pressure points.";
+    focus = "Open Scoring so StrikeIQ can track conversion pressure points.";
   } else if (!isPro) {
-    focus = "Core tracking is active. Pro unlocks AI coaching and sync tools.";
+    focus = "Core tracking is active. Friends keeps chat and feedback in one place.";
   } else {
-    focus = "Your tracking base is active. Use AI Coach after logging shots on a selected pattern.";
+    focus = "Your tracking base is active. Use Friends after logging lane data.";
   }
   elements.homeFocus.textContent = focus;
 
   const nextActions = [
     {
-      project: ballCount ? "shots" : "balls",
-      title: ballCount ? "Log a shot" : "Add your first ball",
-      text: ballCount ? "Capture ball, target, breakpoint, result, and next move." : "Create the arsenal data used by tracking and coaching.",
+      project: "shots",
+      title: "Lane Tracker",
+      text: "Capture ball, target, breakpoint, result, and next move.",
+    },
+    {
+      project: "balls",
+      title: "Ball Database",
+      text: "Create the ball data used by tracking and coaching.",
     },
     {
       project: "spares",
-      title: "Track spare counts",
-      text: "Record leaves, attempts, makes, and miss notes.",
+      title: "Scoring",
+      text: "Track frames, strikes, spares, speed, and scores.",
     },
     {
-      project: isPro ? "chat" : "upgrade",
-      title: isPro ? "Ask AI Coach" : "Review Pro tools",
-      text: isPro ? "Use profile, shots, balls, and recent tracking context." : "See what will be paid later before real payments are connected.",
+      project: "chat",
+      title: "Friends",
+      text: "Use chat, video feedback, and coaching conversations.",
     },
   ];
 
@@ -834,7 +839,7 @@ async function hydrateToolProject(project) {
     await loadCommunityPosts();
   } else if (project === "add-pattern") {
     const status = document.querySelector("#custom-pattern-status");
-    if (status) status.textContent = "Saved patterns appear immediately in Oil Pattern Library.";
+    if (status) status.textContent = "Saved patterns are stored for Lane Tracker context.";
   }
 }
 
@@ -1171,7 +1176,7 @@ async function loadSpares() {
 async function loadShots() {
   state.shots = await api("/api/shots");
   renderHomeDashboard();
-  renderProjectList("#shot-list", state.shots, "No shots logged yet.", (shot) => `
+  renderProjectList("#shot-list", state.shots, "No lane entries logged yet.", (shot) => `
     <article class="project-record">
       <strong>${escapeHtml(shot.result)}</strong>
       <span>${escapeHtml(shot.pattern_name || "No pattern")} | ${escapeHtml(shot.ball || "Ball not set")}</span>

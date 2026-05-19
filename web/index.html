@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260518-profile">
+    <link rel="stylesheet" href="/styles.css?v=20260519-nav">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -130,7 +130,7 @@
       <div class="hero-copy">
         <p class="eyebrow">Bowling Intelligence</p>
         <h1>StrikeIQ Home</h1>
-        <p class="hero-subtitle">Your bowling workspace for arsenal tracking, spare logs, shot history, AI coaching, and app sync.</p>
+        <p class="hero-subtitle">Your bowling workspace for lane tracking, ball data, friends, and scoring.</p>
       </div>
       <div class="header-stat">
         <span id="workspace-count">5</span>
@@ -146,13 +146,10 @@
 
     <nav class="project-tabs" aria-label="Project sections">
       <button type="button" data-project-nav="hub">Home</button>
-      <button type="button" data-project-nav="patterns">Library</button>
-      <button type="button" data-project-nav="add-pattern">Create</button>
-      <button type="button" data-project-nav="balls">Balls</button>
-      <button type="button" data-project-nav="spares">Spares</button>
-      <button type="button" data-project-nav="shots">Shots</button>
-      <button type="button" data-project-nav="chat">Chat</button>
-      <button type="button" data-project-nav="sync">Sync</button>
+      <button type="button" data-project-nav="shots">Lane Tracker</button>
+      <button type="button" data-project-nav="balls">Ball Database</button>
+      <button type="button" data-project-nav="chat">Friends</button>
+      <button type="button" data-project-nav="spares">Scoring</button>
     </nav>
 
     <main id="project-hub" class="project-hub" aria-label="Project hub">
@@ -162,9 +159,9 @@
           <h2 id="home-greeting">Welcome To StrikeIQ</h2>
           <p id="home-subcopy">Your bowling workspace is loading.</p>
           <div class="home-actions">
-            <button type="button" data-project="shots">Log Shot</button>
-            <button type="button" data-project="balls">Add Ball</button>
-            <button type="button" data-project="spares">Log Spare</button>
+            <button type="button" data-project="shots">Lane Tracker</button>
+            <button type="button" data-project="balls">Ball Database</button>
+            <button type="button" data-project="spares">Scoring</button>
           </div>
         </div>
         <aside class="home-profile-panel" aria-label="Current profile">
@@ -183,15 +180,15 @@
         </article>
         <article>
           <span id="home-ball-count">0</span>
-          <small>balls saved</small>
+          <small>ball database</small>
         </article>
         <article>
           <span id="home-spare-rate">0%</span>
-          <small>spare rate</small>
+          <small>scoring rate</small>
         </article>
         <article>
           <span id="home-shot-count">0</span>
-          <small>shots logged</small>
+          <small>lane entries</small>
         </article>
       </section>
 
@@ -211,33 +208,28 @@
       <section class="hub-intro">
         <p class="eyebrow">Projects</p>
         <h2>Choose A Workspace</h2>
-        <p>Each project opens as its own workspace. Expo Go and the browser load this same frontend.</p>
+        <p>Choose one area to work in. Expo Go and the browser load this same frontend.</p>
       </section>
       <section class="project-grid">
-        <button type="button" class="project-card" data-project="balls">
-          <span>Bowling Ball Database</span>
-          <b>Arsenal</b>
-          <small>Track cover, surface, layout, and motion.</small>
-        </button>
-        <button type="button" class="project-card" data-project="spares">
-          <span>Spare Count Log</span>
-          <b>Conversion</b>
-          <small>Log leaves, attempts, makes, and spare balls.</small>
-        </button>
         <button type="button" class="project-card" data-project="shots">
-          <span>Shot Tracker</span>
+          <span>Lane Tracker</span>
           <b>Adjustments</b>
           <small>Capture target, breakpoint, result, and move history.</small>
         </button>
-        <button type="button" class="project-card" data-project="chat" data-tier="pro">
-          <span>StrikeIQ Chat</span>
-          <b>Pro</b>
+        <button type="button" class="project-card" data-project="balls">
+          <span>Ball Database</span>
+          <b>Arsenal</b>
+          <small>Track cover, surface, layout, and motion.</small>
+        </button>
+        <button type="button" class="project-card" data-project="chat">
+          <span>Friends</span>
+          <b>Chat</b>
           <small>Community posts, video feedback, and AI coaching.</small>
         </button>
-        <button type="button" class="project-card" data-project="sync" data-tier="pro">
-          <span>Sync / Admin Tools</span>
-          <b>Pro</b>
-          <small>Check sources, imports, catalog coverage, and mobile sync.</small>
+        <button type="button" class="project-card" data-project="spares">
+          <span>Scoring</span>
+          <b>Score Log</b>
+          <small>Track frames, spares, strikes, speed, and scores.</small>
         </button>
       </section>
     </main>
@@ -378,6 +370,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260518-profile" type="module"></script>
+    <script src="/app.js?v=20260519-nav" type="module"></script>
   </body>
 </html>
