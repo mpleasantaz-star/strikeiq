@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+import csv
 import json
 import os
 import subprocess
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.sqlite"))
 STATIC_DIR = ROOT / "web"
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
+BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
 
 
 class ApiError(Exception):
@@ -124,17 +126,36 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
         """
         CREATE TABLE IF NOT EXISTS bowling_balls (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          brand TEXT,
           name TEXT NOT NULL,
           cover TEXT,
+          core TEXT,
+          rg REAL,
+          differential REAL,
+          mass_bias REAL,
           surface TEXT,
           layout TEXT,
+          condition TEXT,
           motion TEXT,
+          strength INTEGER,
+          price REAL,
+          colors_json TEXT NOT NULL DEFAULT '[]',
+          image_url TEXT,
+          research_url TEXT,
           notes TEXT,
+          source_name TEXT,
+          source_url TEXT,
+          last_imported_at TEXT,
+          last_seen_at TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          discontinued_at TEXT,
+          spec_hash TEXT,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
         """
     )
+    ensure_ball_catalog_columns(connection)
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS spare_logs (
@@ -182,6 +203,146 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active)")
+    seed_ball_catalog(connection)
+
+
+def ensure_ball_catalog_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(bowling_balls)").fetchall()}
+    migrations = {
+        "brand": "ALTER TABLE bowling_balls ADD COLUMN brand TEXT",
+        "core": "ALTER TABLE bowling_balls ADD COLUMN core TEXT",
+        "rg": "ALTER TABLE bowling_balls ADD COLUMN rg REAL",
+        "differential": "ALTER TABLE bowling_balls ADD COLUMN differential REAL",
+        "mass_bias": "ALTER TABLE bowling_balls ADD COLUMN mass_bias REAL",
+        "condition": "ALTER TABLE bowling_balls ADD COLUMN condition TEXT",
+        "strength": "ALTER TABLE bowling_balls ADD COLUMN strength INTEGER",
+        "price": "ALTER TABLE bowling_balls ADD COLUMN price REAL",
+        "colors_json": "ALTER TABLE bowling_balls ADD COLUMN colors_json TEXT NOT NULL DEFAULT '[]'",
+        "image_url": "ALTER TABLE bowling_balls ADD COLUMN image_url TEXT",
+        "research_url": "ALTER TABLE bowling_balls ADD COLUMN research_url TEXT",
+        "source_name": "ALTER TABLE bowling_balls ADD COLUMN source_name TEXT",
+        "source_url": "ALTER TABLE bowling_balls ADD COLUMN source_url TEXT",
+        "last_imported_at": "ALTER TABLE bowling_balls ADD COLUMN last_imported_at TEXT",
+        "last_seen_at": "ALTER TABLE bowling_balls ADD COLUMN last_seen_at TEXT",
+        "is_active": "ALTER TABLE bowling_balls ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1",
+        "discontinued_at": "ALTER TABLE bowling_balls ADD COLUMN discontinued_at TEXT",
+        "spec_hash": "ALTER TABLE bowling_balls ADD COLUMN spec_hash TEXT",
+    }
+    for column, statement in migrations.items():
+        if column not in columns:
+            connection.execute(statement)
+
+
+def csv_float(value: str | None) -> float | None:
+    if value is None or value == "":
+        return None
+    return float(value)
+
+
+def csv_int(value: str | None, default: int = 0) -> int:
+    if value is None or value == "":
+        return default
+    return int(value)
+
+
+def csv_bool(value: str | None, default: int = 1) -> int:
+    if value is None or value == "":
+        return default
+    return 1 if str(value).strip().lower() in {"1", "true", "yes", "active"} else 0
+
+
+def seed_ball_catalog(connection: sqlite3.Connection) -> None:
+    if not BALL_IMPORT_PATH.exists():
+        return
+    existing = connection.execute(
+        "SELECT COUNT(*) AS count FROM bowling_balls WHERE source_name = 'StrikeIQ ball package'"
+    ).fetchone()["count"]
+    if existing:
+        return
+
+    with BALL_IMPORT_PATH.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            brand = (row.get("brand") or "").strip()
+            name = (row.get("name") or "").strip()
+            if not brand or not name:
+                continue
+            colors = [color.strip() for color in (row.get("colors") or "").split("|") if color.strip()]
+            payload = {
+                "brand": brand,
+                "name": name,
+                "cover": (row.get("cover") or "").strip() or None,
+                "core": (row.get("core") or "").strip() or None,
+                "rg": csv_float(row.get("rg")),
+                "differential": csv_float(row.get("differential")),
+                "mass_bias": csv_float(row.get("massBias")),
+                "surface": (row.get("surface") or "").strip() or None,
+                "condition": (row.get("condition") or "").strip() or None,
+                "motion": (row.get("motion") or "").strip() or None,
+                "strength": csv_int(row.get("strength")),
+                "price": csv_float(row.get("price")),
+                "colors_json": json.dumps(colors),
+                "image_url": (row.get("imageUrl") or "").strip() or None,
+                "research_url": (row.get("researchUrl") or "").strip() or None,
+                "notes": (row.get("notes") or "").strip() or None,
+                "source_name": "StrikeIQ ball package",
+                "source_url": (row.get("sourceUrl") or "").strip() or None,
+                "last_seen_at": (row.get("lastSeenAt") or "").strip() or None,
+                "is_active": csv_bool(row.get("isActive")),
+                "discontinued_at": (row.get("discontinuedAt") or "").strip() or None,
+                "spec_hash": (row.get("specHash") or "").strip() or None,
+            }
+            current = connection.execute(
+                """
+                SELECT id FROM bowling_balls
+                WHERE lower(coalesce(brand, '')) = lower(?) AND lower(name) = lower(?)
+                """,
+                (brand, name),
+            ).fetchone()
+            if current:
+                connection.execute(
+                    """
+                    UPDATE bowling_balls
+                    SET cover = ?, core = ?, rg = ?, differential = ?, mass_bias = ?, surface = ?,
+                        condition = ?, motion = ?, strength = ?, price = ?, colors_json = ?,
+                        image_url = ?, research_url = ?, notes = ?, source_name = ?, source_url = ?,
+                        last_imported_at = CURRENT_TIMESTAMP, last_seen_at = COALESCE(?, CURRENT_TIMESTAMP),
+                        is_active = ?, discontinued_at = ?, spec_hash = ?, updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                    """,
+                    (
+                        payload["cover"], payload["core"], payload["rg"], payload["differential"],
+                        payload["mass_bias"], payload["surface"], payload["condition"], payload["motion"],
+                        payload["strength"], payload["price"], payload["colors_json"], payload["image_url"],
+                        payload["research_url"], payload["notes"], payload["source_name"], payload["source_url"],
+                        payload["last_seen_at"], payload["is_active"], payload["discontinued_at"],
+                        payload["spec_hash"], current["id"],
+                    ),
+                )
+            else:
+                connection.execute(
+                    """
+                    INSERT INTO bowling_balls (
+                      brand, name, cover, core, rg, differential, mass_bias, surface, condition,
+                      motion, strength, price, colors_json, image_url, research_url, notes,
+                      source_name, source_url, last_imported_at, last_seen_at, is_active,
+                      discontinued_at, spec_hash
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP,
+                            COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?)
+                    """,
+                    (
+                        payload["brand"], payload["name"], payload["cover"], payload["core"], payload["rg"],
+                        payload["differential"], payload["mass_bias"], payload["surface"], payload["condition"],
+                        payload["motion"], payload["strength"], payload["price"], payload["colors_json"],
+                        payload["image_url"], payload["research_url"], payload["notes"], payload["source_name"],
+                        payload["source_url"], payload["last_seen_at"], payload["is_active"],
+                        payload["discontinued_at"], payload["spec_hash"],
+                    ),
+                )
 
 
 def require_text(payload: dict, key: str, label: str) -> str:
@@ -207,6 +368,26 @@ def int_from_payload(payload: dict, key: str, default: int, minimum: int | None 
     if maximum is not None and value > maximum:
         raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be at most {maximum}")
     return value
+
+
+def optional_float_from_payload(payload: dict, key: str) -> float | None:
+    raw = optional_text(payload, key)
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a number") from exc
+
+
+def optional_int_from_payload(payload: dict, key: str, default: int = 0) -> int:
+    raw = optional_text(payload, key)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a whole number") from exc
 
 
 def create_custom_pattern(payload: dict) -> dict:
@@ -264,45 +445,79 @@ def create_custom_pattern(payload: dict) -> dict:
 def get_balls() -> list[dict]:
     with get_connection() as connection:
         ensure_tracker_tables(connection)
-        return dict_rows(
+        rows = dict_rows(
             connection.execute(
                 """
-                SELECT id, name, cover, surface, layout, motion, notes, created_at, updated_at
+                SELECT id, brand, name, cover, core, rg, differential, mass_bias, surface, layout,
+                       condition, motion, strength, price, colors_json, image_url, research_url,
+                       notes, source_name, source_url, last_imported_at, last_seen_at, is_active,
+                       discontinued_at, spec_hash, created_at, updated_at
                 FROM bowling_balls
-                ORDER BY updated_at DESC, id DESC
+                WHERE is_active = 1 OR is_active IS NULL
+                ORDER BY
+                  CASE WHEN source_name = 'StrikeIQ ball package' THEN 0 ELSE 1 END,
+                  brand COLLATE NOCASE,
+                  name COLLATE NOCASE
                 """
             )
         )
+    for row in rows:
+        try:
+            row["colors"] = json.loads(row.get("colors_json") or "[]")
+        except json.JSONDecodeError:
+            row["colors"] = []
+    return rows
 
 
 def create_ball(payload: dict) -> dict:
     name = require_text(payload, "name", "Ball name")
+    colors = [color.strip() for color in str(payload.get("colors", "")).split("|") if color.strip()]
     with get_connection() as connection:
         ensure_tracker_tables(connection)
         cursor = connection.execute(
             """
-            INSERT INTO bowling_balls (name, cover, surface, layout, motion, notes)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO bowling_balls (
+              brand, name, cover, core, rg, differential, mass_bias, surface, layout, condition,
+              motion, strength, price, colors_json, image_url, research_url, notes, source_name,
+              last_imported_at, last_seen_at, is_active
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'User arsenal', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 1)
             """,
             (
+                optional_text(payload, "brand") or "Custom",
                 name,
                 optional_text(payload, "cover"),
+                optional_text(payload, "core"),
+                optional_float_from_payload(payload, "rg"),
+                optional_float_from_payload(payload, "differential"),
+                optional_float_from_payload(payload, "mass_bias"),
                 optional_text(payload, "surface"),
                 optional_text(payload, "layout"),
+                optional_text(payload, "condition"),
                 optional_text(payload, "motion"),
+                optional_int_from_payload(payload, "strength", 0),
+                optional_float_from_payload(payload, "price"),
+                json.dumps(colors),
+                optional_text(payload, "image_url"),
+                optional_text(payload, "research_url"),
                 optional_text(payload, "notes"),
             ),
         )
         connection.commit()
         row = connection.execute(
             """
-            SELECT id, name, cover, surface, layout, motion, notes, created_at, updated_at
+            SELECT id, brand, name, cover, core, rg, differential, mass_bias, surface, layout,
+                   condition, motion, strength, price, colors_json, image_url, research_url,
+                   notes, source_name, source_url, last_imported_at, last_seen_at, is_active,
+                   discontinued_at, spec_hash, created_at, updated_at
             FROM bowling_balls
             WHERE id = ?
             """,
             (cursor.lastrowid,),
         ).fetchone()
-    return dict(row)
+    result = dict(row)
+    result["colors"] = json.loads(result.get("colors_json") or "[]")
+    return result
 
 
 def get_spares() -> dict:
@@ -1240,6 +1455,7 @@ class AppHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Cache-Control", "no-store, max-age=0")
         super().end_headers()
 
 

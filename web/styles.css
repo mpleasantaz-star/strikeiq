@@ -680,6 +680,31 @@ h1 {
   gap: 10px;
 }
 
+.ball-catalog-tools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(2, minmax(160px, 0.8fr));
+  gap: 10px;
+}
+
+.ball-catalog-tools label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ball-catalog-tools input,
+.ball-catalog-tools select {
+  min-height: 42px;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.72);
+  color: #ffffff;
+  padding: 0 12px;
+}
+
 .project-record {
   display: grid;
   gap: 5px;
@@ -687,6 +712,52 @@ h1 {
   border-radius: 8px;
   background: rgba(5, 7, 10, 0.40);
   padding: 12px;
+}
+
+.ball-record {
+  grid-template-columns: 82px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.ball-thumb {
+  width: 82px;
+  height: 82px;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  object-fit: contain;
+  padding: 6px;
+}
+
+.ball-thumb.is-placeholder {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+}
+
+.ball-swatches {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.ball-swatches span {
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.record-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 8px;
+  color: var(--accent-2);
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
 }
 
 .project-record.is-user {
@@ -710,7 +781,7 @@ h1 {
 
 .project-metric {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
 }
 
@@ -2120,6 +2191,20 @@ button:hover {
 
   .project-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ball-catalog-tools,
+  .ball-record {
+    grid-template-columns: 1fr;
+  }
+
+  .ball-record {
+    align-items: start;
+  }
+
+  .ball-thumb {
+    width: 72px;
+    height: 72px;
   }
 
   .home-dashboard,

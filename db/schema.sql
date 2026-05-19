@@ -220,12 +220,30 @@ CREATE TABLE IF NOT EXISTS mobile_sync_records (
 
 CREATE TABLE IF NOT EXISTS bowling_balls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  brand TEXT,
   name TEXT NOT NULL,
   cover TEXT,
+  core TEXT,
+  rg REAL,
+  differential REAL,
+  mass_bias REAL,
   surface TEXT,
   layout TEXT,
+  condition TEXT,
   motion TEXT,
+  strength INTEGER,
+  price REAL,
+  colors_json TEXT NOT NULL DEFAULT '[]',
+  image_url TEXT,
+  research_url TEXT,
   notes TEXT,
+  source_name TEXT,
+  source_url TEXT,
+  last_imported_at TEXT,
+  last_seen_at TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  discontinued_at TEXT,
+  spec_hash TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -267,6 +285,10 @@ CREATE INDEX IF NOT EXISTS idx_external_checks_review ON external_ref_checks(nee
 CREATE INDEX IF NOT EXISTS idx_official_imports_status ON official_pattern_imports(review_status, created_at);
 CREATE INDEX IF NOT EXISTS idx_sync_runs_source ON sync_runs(source_name, started_at);
 CREATE INDEX IF NOT EXISTS idx_user_notes_pattern ON user_pattern_notes(oil_pattern_id);
+CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand);
+CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover);
+CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition);
+CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active);
 CREATE INDEX IF NOT EXISTS idx_spare_logs_created ON spare_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at);
 

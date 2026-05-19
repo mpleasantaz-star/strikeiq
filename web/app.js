@@ -16,6 +16,7 @@ const state = {
   userName: "",
   profile: null,
   subscriptionTier: "free",
+  ballFilters: { search: "", condition: "all", cover: "all" },
 };
 
 const elements = {
@@ -126,18 +127,55 @@ const projectDetails = {
   balls: {
     eyebrow: "Arsenal",
     title: "Bowling Ball Database",
-    description: "Track ball cover, surface, layout, and motion. This is ready for a backend table so browser and Expo share one arsenal.",
+    description: "Browse the seeded ball catalog, filter by lane use, and add custom arsenal pieces that browser and Expo share.",
     content: `
+      <section class="ball-catalog-tools" aria-label="Ball catalog filters">
+        <label>Search catalog<input id="ball-search" type="search" placeholder="Storm, Hammer, Phaze, urethane"></label>
+        <label>Lane use
+          <select id="ball-condition-filter">
+            <option value="all">All conditions</option>
+            <option value="Fresh heavy oil">Fresh heavy oil</option>
+            <option value="Medium house shot">Medium house shot</option>
+            <option value="Transition">Transition</option>
+            <option value="Dry lanes">Dry lanes</option>
+            <option value="Spares">Spares</option>
+          </select>
+        </label>
+        <label>Cover
+          <select id="ball-cover-filter">
+            <option value="all">All covers</option>
+            <option value="Reactive solid">Reactive solid</option>
+            <option value="Reactive hybrid">Reactive hybrid</option>
+            <option value="Reactive pearl">Reactive pearl</option>
+            <option value="Urethane">Urethane</option>
+            <option value="Plastic">Plastic</option>
+          </select>
+        </label>
+      </section>
+      <div id="ball-summary" class="project-metric"></div>
       <form id="ball-form" class="note-form project-form">
         <div class="form-row">
+          <label>Brand<input name="brand" placeholder="Storm, Hammer, Motiv"></label>
           <label>Ball name<input name="name" placeholder="Benchmark solid" required></label>
-          <label>Surface<input name="surface" placeholder="3000, 2000, polish"></label>
         </div>
         <div class="form-row">
-          <label>Cover<input name="cover" placeholder="Solid reactive"></label>
+          <label>Cover<input name="cover" placeholder="Reactive solid"></label>
+          <label>Core<input name="core" placeholder="Symmetric, asymmetric"></label>
+        </div>
+        <div class="form-row">
+          <label>Surface<input name="surface" placeholder="3000, 2000, polish"></label>
           <label>Layout<input name="layout" placeholder="Pin up, control, etc."></label>
         </div>
+        <div class="form-row">
+          <label>RG<input name="rg" inputmode="decimal" placeholder="2.48"></label>
+          <label>Differential<input name="differential" inputmode="decimal" placeholder="0.051"></label>
+        </div>
+        <div class="form-row">
+          <label>Lane use<input name="condition" placeholder="Medium house shot"></label>
+          <label>Strength<input name="strength" inputmode="numeric" placeholder="7"></label>
+        </div>
         <label>Motion<textarea name="motion" placeholder="Early, smooth, angular, controllable"></textarea></label>
+        <label>Research URL<input name="research_url" placeholder="https://manufacturer.com/ball"></label>
         <label>Notes<textarea name="notes" placeholder="When to use it, lane shape, misses"></textarea></label>
         <button type="submit">Save Ball</button>
       </form>
@@ -594,8 +632,8 @@ function renderHomeDashboard() {
     })),
     ...state.balls.slice(0, 2).map((ball) => ({
       label: "Ball",
-      title: ball.name || "Ball saved",
-      detail: [ball.cover, ball.surface, ball.layout].filter(Boolean).join(" | ") || "Arsenal entry",
+      title: [ball.brand, ball.name].filter(Boolean).join(" ") || "Ball saved",
+      detail: [ball.cover, ball.surface, ball.condition].filter(Boolean).join(" | ") || "Arsenal entry",
     })),
   ].slice(0, 4);
 
@@ -621,6 +659,18 @@ async function hydrateToolProject(project) {
 
   if (project === "balls") {
     await loadBalls();
+    document.querySelector("#ball-search")?.addEventListener("input", (event) => {
+      state.ballFilters.search = event.target.value;
+      renderBallDatabase();
+    });
+    document.querySelector("#ball-condition-filter")?.addEventListener("change", (event) => {
+      state.ballFilters.condition = event.target.value;
+      renderBallDatabase();
+    });
+    document.querySelector("#ball-cover-filter")?.addEventListener("change", (event) => {
+      state.ballFilters.cover = event.target.value;
+      renderBallDatabase();
+    });
   } else if (project === "spares") {
     await loadSpares();
   } else if (project === "shots") {
@@ -646,14 +696,73 @@ function renderProjectList(containerId, items, emptyText, renderItem) {
 async function loadBalls() {
   state.balls = await api("/api/balls");
   renderHomeDashboard();
-  renderProjectList("#ball-list", state.balls, "No bowling balls saved yet.", (ball) => `
-    <article class="project-record">
-      <strong>${escapeHtml(ball.name)}</strong>
-      <span>${escapeHtml([ball.cover, ball.surface, ball.layout].filter(Boolean).join(" | ") || "Details pending")}</span>
-      ${ball.motion ? `<p>${escapeHtml(ball.motion)}</p>` : ""}
-      ${ball.notes ? `<small>${escapeHtml(ball.notes)}</small>` : ""}
+  renderBallDatabase();
+}
+
+function ballMatchesFilters(ball) {
+  const query = state.ballFilters.search.trim().toLowerCase();
+  const searchable = [
+    ball.brand,
+    ball.name,
+    ball.cover,
+    ball.core,
+    ball.surface,
+    ball.condition,
+    ball.motion,
+    ball.notes,
+  ].filter(Boolean).join(" ").toLowerCase();
+  const matchesSearch = !query || searchable.includes(query);
+  const matchesCondition = state.ballFilters.condition === "all" || ball.condition === state.ballFilters.condition;
+  const matchesCover = state.ballFilters.cover === "all" || ball.cover === state.ballFilters.cover;
+  return matchesSearch && matchesCondition && matchesCover;
+}
+
+function renderBallDatabase() {
+  const filteredBalls = state.balls.filter(ballMatchesFilters);
+  const summary = document.querySelector("#ball-summary");
+  if (summary) {
+    const brands = new Set(state.balls.map((ball) => ball.brand).filter(Boolean));
+    const heavyOil = state.balls.filter((ball) => ball.condition === "Fresh heavy oil").length;
+    const spareBalls = state.balls.filter((ball) => ball.cover === "Plastic" || ball.condition === "Spares").length;
+    summary.innerHTML = `
+      <span><b>${state.balls.length}</b> catalog balls</span>
+      <span><b>${brands.size}</b> brands</span>
+      <span><b>${heavyOil}</b> heavy oil</span>
+      <span><b>${spareBalls}</b> spare options</span>
+    `;
+  }
+  renderProjectList("#ball-list", filteredBalls, "No bowling balls match these filters.", renderBallCard);
+}
+
+function renderBallCard(ball) {
+  const swatches = Array.isArray(ball.colors) && ball.colors.length
+    ? `<div class="ball-swatches">${ball.colors.map((color) => `<span style="--swatch:${escapeHtml(color)}"></span>`).join("")}</div>`
+    : "";
+  const specs = [
+    ball.cover,
+    ball.core,
+    ball.surface,
+    ball.rg ? `RG ${ball.rg}` : "",
+    ball.differential ? `Diff ${ball.differential}` : "",
+  ].filter(Boolean).join(" | ");
+  const meta = [
+    ball.condition,
+    ball.motion,
+    ball.strength ? `Strength ${ball.strength}/10` : "",
+  ].filter(Boolean).join(" | ");
+  return `
+    <article class="project-record ball-record">
+      ${ball.image_url ? `<img class="ball-thumb" src="${escapeHtml(ball.image_url)}" alt="">` : `<div class="ball-thumb is-placeholder">${swatches}</div>`}
+      <div>
+        <strong>${escapeHtml([ball.brand, ball.name].filter(Boolean).join(" "))}</strong>
+        <span>${escapeHtml(specs || "Specs pending")}</span>
+        ${meta ? `<p>${escapeHtml(meta)}</p>` : ""}
+        ${ball.notes ? `<small>${escapeHtml(ball.notes)}</small>` : ""}
+        ${ball.research_url ? `<a class="record-link" href="${escapeHtml(ball.research_url)}" target="_blank" rel="noreferrer">Research specs</a>` : ""}
+      </div>
+      ${swatches && ball.image_url ? swatches : ""}
     </article>
-  `);
+  `;
 }
 
 async function loadSpares() {
