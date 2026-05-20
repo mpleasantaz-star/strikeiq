@@ -81,6 +81,7 @@ const elements = {
   homeShotCount: document.querySelector("#home-shot-count"),
   homeNextActions: document.querySelector("#home-next-actions"),
   homeRecent: document.querySelector("#home-recent"),
+  copyrightYear: document.querySelector("#copyright-year"),
   source: document.querySelector("#source-filter"),
   type: document.querySelector("#type-filter"),
   length: document.querySelector("#length-filter"),
@@ -3842,6 +3843,9 @@ function bindEvents() {
 }
 
 async function init() {
+  if (elements.copyrightYear) {
+    elements.copyrightYear.textContent = String(new Date().getFullYear());
+  }
   syncMobileFilterState();
   window.addEventListener("resize", syncMobileFilterState);
   bindEvents();
