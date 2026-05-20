@@ -101,14 +101,14 @@
               <div id="profile-arsenal-suggestions" class="arsenal-suggestions" aria-live="polite"></div>
             </div>
           </div>
-          <section class="locked-profile-section" aria-label="Paid Pro profile options">
-            <div class="locked-profile-heading">
+          <details class="locked-profile-section paid-profile-disclosure" aria-label="Paid Pro profile options">
+            <summary class="locked-profile-heading">
               <div>
                 <p class="eyebrow">Pro Profile</p>
                 <h2>Advanced Details</h2>
               </div>
               <span>Paid</span>
-            </div>
+            </summary>
             <div class="profile-setup-grid locked-profile-grid" aria-disabled="true">
               <label>
                 Ball speed
@@ -139,7 +139,7 @@
                 <textarea disabled>Save advanced notes and AI recommendations with Pro.</textarea>
               </label>
             </div>
-          </section>
+          </details>
           <p id="profile-error" class="login-error" role="alert"></p>
           <div class="profile-actions">
             <button type="submit">Save Profile</button>

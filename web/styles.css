@@ -373,6 +373,28 @@ h1 {
   gap: 14px;
 }
 
+.paid-profile-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.paid-profile-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.paid-profile-disclosure > summary::after {
+  content: "Tap to preview";
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.paid-profile-disclosure[open] > summary::after {
+  content: "Hide preview";
+}
+
 .locked-profile-heading h2 {
   margin: 3px 0 0;
   color: #ffffff;
