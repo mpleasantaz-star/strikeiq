@@ -625,14 +625,14 @@ function renderAccessState() {
 
   document.querySelectorAll("[data-tier='pro']").forEach((item) => {
     item.classList.toggle("is-locked", !isPro);
-    item.setAttribute("aria-label", `${item.textContent.trim()} ${isPro ? "unlocked" : "locked, Pro"}`);
+    item.setAttribute("aria-label", `${item.textContent.trim()} ${isPro ? "unlocked" : "paid, Pro"}`);
   });
 
   document.querySelectorAll("[data-project-nav]").forEach((button) => {
     const locked = projectRequiresPro(button.dataset.projectNav) && !isPro;
     button.classList.toggle("is-locked", locked);
     if (locked) {
-      button.setAttribute("aria-label", `${button.textContent.trim()} locked, Pro`);
+      button.setAttribute("aria-label", `${button.textContent.trim()} paid, Pro`);
     } else {
       button.removeAttribute("aria-label");
     }

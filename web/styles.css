@@ -704,7 +704,7 @@ h1 {
 }
 
 .project-card.is-locked b::after {
-  content: " Locked";
+  content: " Paid";
   color: var(--amber);
 }
 
