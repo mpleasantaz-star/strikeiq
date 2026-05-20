@@ -652,11 +652,7 @@ function requireLogin() {
     state.userName = savedEmail;
     state.profile = savedProfile();
     state.subscriptionTier = savedSubscriptionTier();
-    if (state.profile) {
-      showAppShell();
-    } else {
-      showProfileScreen();
-    }
+    showAppShell();
   } else {
     showLoginScreen();
   }
@@ -713,11 +709,7 @@ function handleLogin(event) {
   state.subscriptionTier = savedSubscriptionTier();
   elements.loginError.textContent = "";
   state.profile = savedProfile();
-  if (authMode === "create" || !state.profile) {
-    showProfileScreen();
-  } else {
-    showAppShell();
-  }
+  showAppShell();
 }
 
 function handleProfileSubmit(event) {
