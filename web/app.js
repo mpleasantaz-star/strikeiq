@@ -265,7 +265,12 @@ const projectDetails = {
     title: "Lane Tracker",
     description: "Track sessions, targets, misses, leaves, and next moves.",
     content: `
+      <section id="lane-profile-context" class="lane-profile-context" aria-label="Lane tracker profile context"></section>
       <form id="shot-form" class="note-form project-form">
+        <div class="lane-form-heading">
+          <h3>Log One Shot</h3>
+          <p>Use the profile defaults, then capture the shot result and next adjustment.</p>
+        </div>
         <div class="form-row">
           <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
           <label>Center<input name="lane_center" id="lane-session-center" list="lane-center-options" placeholder="Home center or bowling alley"></label>
@@ -284,7 +289,9 @@ const projectDetails = {
           <label>Frame<input name="frame_number" placeholder="1-10"></label>
         </div>
         <div class="form-row">
-          <label>Ball<input name="ball" list="lane-ball-options" placeholder="Benchmark solid"></label>
+          <label>Ball
+            <select name="ball" id="lane-shot-ball"></select>
+          </label>
           <label>Lane Condition
             <select name="lane_condition">
               <option value="">Select condition</option>
@@ -296,7 +303,6 @@ const projectDetails = {
             </select>
           </label>
         </div>
-        <datalist id="lane-ball-options"></datalist>
         <div class="form-row">
           <label>Feet Board<input name="feet_board" placeholder="22"></label>
           <label>Arrows Board<input name="arrows_board" placeholder="12"></label>
@@ -351,6 +357,7 @@ const projectDetails = {
         <button type="submit">Log Shot</button>
       </form>
       <div id="lane-summary" class="project-metric"></div>
+      <h3>Saved Lane History</h3>
       <div id="shot-list" class="project-list"></div>
     `,
   },
@@ -1178,12 +1185,53 @@ function hydrateLaneTrackerForm() {
   if (lane.datalist && !lane.datalist.children.length) {
     renderLaneCenterOptions(bowlingCenters.slice(0, 8), "Type manually or use location to populate nearby bowling centers.");
   }
-  const ballOptions = document.querySelector("#lane-ball-options");
-  if (ballOptions) {
-    ballOptions.innerHTML = state.balls
-      .map((ball) => `<option value="${escapeHtml([ball.brand, ball.name].filter(Boolean).join(" "))}"></option>`)
-      .join("");
+  const ballSelect = document.querySelector("#lane-shot-ball");
+  if (ballSelect) {
+    const currentValue = ballSelect.value;
+    const arsenalItems = profileArsenalItems();
+    const catalogItems = state.balls
+      .map((ball) => [ball.brand, ball.name].filter(Boolean).join(" "))
+      .filter(Boolean);
+    const options = [...arsenalItems, ...catalogItems].filter((item, index, items) => {
+      return items.findIndex((candidate) => candidate.toLowerCase() === item.toLowerCase()) === index;
+    });
+    ballSelect.innerHTML = [
+      `<option value="">Select ball</option>`,
+      ...options.map((ball) => `<option value="${escapeHtml(ball)}">${escapeHtml(ball)}${arsenalItems.includes(ball) ? " - profile" : ""}</option>`),
+    ].join("");
+    ballSelect.value = options.includes(currentValue) ? currentValue : arsenalItems[0] || "";
   }
+  renderLaneTrackerContext();
+}
+
+function renderLaneTrackerContext() {
+  const container = document.querySelector("#lane-profile-context");
+  if (!container) return;
+  const profile = state.profile || savedProfile() || {};
+  const arsenalItems = profileArsenalItems(profile);
+  const detailItems = [
+    profile.homeCenter ? `Center: ${profile.homeCenter}` : "Center not set",
+    profile.handedness === "left" ? "Left handed" : "Right handed",
+    titleFromSlug(profile.delivery || "one-handed"),
+    profile.ballWeight ? `Ball weight: ${profile.ballWeight}` : "Ball weight not set",
+    `${arsenalItems.length} arsenal balls`,
+  ];
+  container.innerHTML = `
+    <div>
+      <p class="eyebrow">Profile Defaults</p>
+      <h3>${escapeHtml(profile.homeCenter || "Set your bowling center")}</h3>
+      <p>${escapeHtml(arsenalItems.length ? "Lane Tracker is using your saved profile and arsenal." : "Add your arsenal in Profile Setup so shot logging can use your bowling balls.")}</p>
+    </div>
+    <div class="lane-profile-chips">
+      ${detailItems.map((item) => `<span>${escapeHtml(item)}</span>`).join("")}
+    </div>
+    ${arsenalItems.length ? `
+      <div class="lane-arsenal-strip" aria-label="Profile arsenal">
+        ${arsenalItems.map((ball) => `<button type="button" data-lane-ball="${escapeHtml(ball)}">${escapeHtml(ball)}</button>`).join("")}
+      </div>
+    ` : ""}
+    <button type="button" class="secondary-button" data-edit-profile>Edit Profile</button>
+  `;
 }
 
 function parseArsenalItems(value) {
@@ -1191,6 +1239,10 @@ function parseArsenalItems(value) {
     .split(/[,;\n]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function profileArsenalItems(profile = state.profile || savedProfile()) {
+  return parseArsenalItems(profile?.ballArsenal);
 }
 
 function profileArsenalInputs() {
@@ -3793,6 +3845,15 @@ function bindEvents() {
       return;
     }
 
+    const laneBallButton = event.target.closest("[data-lane-ball]");
+    if (laneBallButton) {
+      const ballSelect = document.querySelector("#lane-shot-ball");
+      if (ballSelect) {
+        ballSelect.value = laneBallButton.dataset.laneBall;
+      }
+      return;
+    }
+
     const profileHomeButton = event.target.closest("[data-profile-home]");
     if (profileHomeButton) {
       showAppShell();
@@ -3847,6 +3908,8 @@ function bindEvents() {
       event.preventDefault();
       const payload = formPayload(form);
       payload.pattern_slug = state.selectedSlug || "";
+      payload.lane_center = payload.lane_center || state.profile?.homeCenter || "";
+      payload.ball = payload.ball || profileArsenalItems()[0] || "";
       await api("/api/shots", { method: "POST", body: JSON.stringify(payload) });
       form.reset();
       hydrateLaneTrackerForm();

@@ -1389,6 +1389,60 @@ h1 {
   line-height: 1.45;
 }
 
+.lane-profile-context {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.34);
+  padding: 14px;
+}
+
+.lane-profile-context h3,
+.lane-form-heading h3 {
+  margin: 0 0 6px;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.lane-profile-context p,
+.lane-form-heading p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.lane-profile-chips,
+.lane-arsenal-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lane-profile-chips span {
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 999px;
+  background: rgba(16, 24, 39, 0.54);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  padding: 6px 9px;
+}
+
+.lane-arsenal-strip button {
+  min-height: 34px;
+  border: 1px solid rgba(76, 201, 240, 0.20);
+  background: rgba(16, 24, 39, 0.70);
+  color: #ffffff;
+  font-size: 0.80rem;
+  padding: 6px 10px;
+}
+
+.lane-form-heading {
+  border-bottom: 1px solid rgba(76, 201, 240, 0.12);
+  padding-bottom: 10px;
+}
+
 .project-metric {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
