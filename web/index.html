@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-profile-center">
+    <link rel="stylesheet" href="/styles.css?v=20260519-center-only-profile">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -33,84 +33,18 @@
       <div class="profile-panel">
         <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
         <p class="eyebrow">Profile Setup</p>
-        <h1>Build Your Bowler Profile</h1>
-        <p class="hero-subtitle">Set up the bowling details StrikeIQ needs for oil patterns, ball choices, spare tracking, shot history, and coaching.</p>
+        <h1>Set Your Home Center</h1>
+        <p class="hero-subtitle">Tell StrikeIQ where you currently bowl so lane tracking, scoring, and coaching can use the right center context.</p>
         <form id="profile-form" class="profile-form">
           <div class="profile-setup-grid">
             <label>
-              Display name
-              <input id="profile-name" name="displayName" autocomplete="name" placeholder="Michael" required>
-            </label>
-            <label>
-              Home center
-              <input id="profile-center" name="homeCenter" list="home-center-options" placeholder="Your main bowling center">
+              Current bowling center
+              <input id="profile-center" name="homeCenter" list="home-center-options" placeholder="Bowlero Glendale" required>
               <datalist id="home-center-options"></datalist>
             </label>
-            <label>
-              Handedness
-              <select id="profile-handedness" name="handedness" required>
-                <option value="right">Right handed</option>
-                <option value="left">Left handed</option>
-              </select>
-            </label>
-            <label>
-              Delivery
-              <select id="profile-delivery" name="delivery" required>
-                <option value="one-handed">One-handed</option>
-                <option value="two-handed">Two-handed</option>
-              </select>
-            </label>
-            <label>
-              Bowler style
-              <select id="profile-style" name="bowlerStyle" required>
-                <option value="balanced">Balanced</option>
-                <option value="speed-dominant">Speed dominant</option>
-                <option value="rev-dominant">Rev dominant</option>
-                <option value="tweener">Tweener</option>
-                <option value="stroker">Stroker</option>
-                <option value="cranker">Cranker</option>
-              </select>
-            </label>
-            <label>
-              Skill level
-              <select id="profile-level" name="skillLevel" required>
-                <option value="league">League bowler</option>
-                <option value="beginner">Beginner</option>
-                <option value="competitive">Competitive</option>
-                <option value="tournament">Tournament</option>
-                <option value="coach">Coach / operator</option>
-              </select>
-            </label>
-            <label>
-              Typical ball speed
-              <input id="profile-speed" name="ballSpeed" inputmode="decimal" placeholder="16.5 mph">
-            </label>
-            <label>
-              Rev rate
-              <input id="profile-rev-rate" name="revRate" inputmode="numeric" placeholder="350 rpm">
-            </label>
-            <label>
-              Ball weight
-              <select id="profile-ball-weight" name="ballWeight">
-                <option value="">Select weight</option>
-                <option value="12 lb">12 lb</option>
-                <option value="13 lb">13 lb</option>
-                <option value="14 lb">14 lb</option>
-                <option value="15 lb">15 lb</option>
-                <option value="16 lb">16 lb</option>
-              </select>
-            </label>
-            <label>
-              League average
-              <input id="profile-average" name="leagueAverage" inputmode="numeric" placeholder="185">
-            </label>
           </div>
-          <label>
-            Goals and notes
-            <textarea id="profile-goals" name="goals" placeholder="Example: improve 10 pin conversion, track tournament moves, build a benchmark arsenal."></textarea>
-          </label>
           <p id="profile-error" class="login-error" role="alert"></p>
-          <button type="submit">Save Profile</button>
+          <button type="submit">Save Center</button>
         </form>
       </div>
     </section>
@@ -364,6 +298,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260519-profile-center" type="module"></script>
+    <script src="/app.js?v=20260519-center-only-profile" type="module"></script>
   </body>
 </html>

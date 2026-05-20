@@ -479,18 +479,22 @@ async function nearbyCentersFromLocation(latitude, longitude) {
 }
 
 function renderCenterOptions({ select, datalist, status }, centers, statusText) {
-  if (!select || !datalist) return;
-  select.innerHTML = centers.length
-    ? `<option value="">Select a nearby center</option>${centers
-        .map((center) => {
-          const distance = Number.isFinite(center.distance) ? ` - ${center.distance.toFixed(1)} mi` : "";
-          return `<option value="${escapeHtml(center.name)}">${escapeHtml(center.name)}${distance}</option>`;
-        })
-        .join("")}`
-    : `<option value="">No nearby centers found</option>`;
-  datalist.innerHTML = centers
-    .map((center) => `<option value="${escapeHtml(center.name)}">${escapeHtml(center.address)}</option>`)
-    .join("");
+  if (!select && !datalist) return;
+  if (select) {
+    select.innerHTML = centers.length
+      ? `<option value="">Select a nearby center</option>${centers
+          .map((center) => {
+            const distance = Number.isFinite(center.distance) ? ` - ${center.distance.toFixed(1)} mi` : "";
+            return `<option value="${escapeHtml(center.name)}">${escapeHtml(center.name)}${distance}</option>`;
+          })
+          .join("")}`
+      : `<option value="">No nearby centers found</option>`;
+  }
+  if (datalist) {
+    datalist.innerHTML = centers
+      .map((center) => `<option value="${escapeHtml(center.name)}">${escapeHtml(center.address)}</option>`)
+      .join("");
+  }
   if (status) {
     status.textContent = statusText;
   }
@@ -572,19 +576,7 @@ function titleFromSlug(value) {
 }
 
 function profileCompletion(profile) {
-  const keys = [
-    "displayName",
-    "homeCenter",
-    "handedness",
-    "delivery",
-    "bowlerStyle",
-    "skillLevel",
-    "ballSpeed",
-    "revRate",
-    "ballWeight",
-    "leagueAverage",
-    "goals",
-  ];
+  const keys = ["homeCenter"];
   const completed = keys.filter((key) => String(profile?.[key] || "").trim()).length;
   return Math.round((completed / keys.length) * 100);
 }
@@ -637,22 +629,12 @@ function showLoginScreen() {
 
 function showProfileScreen() {
   const profile = savedProfile();
-  elements.profileName.value = profile?.displayName || state.userName.split("@")[0] || "";
   elements.profileCenter.value = profile?.homeCenter || "";
-  elements.profileHandedness.value = profile?.handedness || "right";
-  elements.profileDelivery.value = profile?.delivery || "one-handed";
-  elements.profileStyle.value = profile?.bowlerStyle || "balanced";
-  elements.profileLevel.value = profile?.skillLevel || "league";
-  elements.profileSpeed.value = profile?.ballSpeed || "";
-  elements.profileRevRate.value = profile?.revRate || "";
-  elements.profileBallWeight.value = profile?.ballWeight || "";
-  elements.profileAverage.value = profile?.leagueAverage || "";
-  elements.profileGoals.value = profile?.goals || "";
   elements.profileError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
   elements.profileScreen.classList.remove("is-hidden");
   elements.appShell.classList.add("is-hidden");
-  renderHomeCenterOptions(bowlingCenters.slice(0, 8), "Use location to populate nearby bowling centers.");
+  renderHomeCenterOptions(bowlingCenters.slice(0, 8), "");
 }
 
 function showAppShell() {
@@ -746,11 +728,17 @@ function handleProfileSubmit(event) {
     profile[key] = String(profile[key] || "").trim();
   });
 
-  if (!profile.displayName) {
-    elements.profileError.textContent = "Display name is required.";
+  if (!profile.homeCenter) {
+    elements.profileError.textContent = "Current bowling center is required.";
     return;
   }
 
+  const saved = savedProfile() || {};
+  profile.displayName = saved.displayName || state.userName.split("@")[0] || "Bowler";
+  profile.handedness = saved.handedness || "right";
+  profile.delivery = saved.delivery || "one-handed";
+  profile.bowlerStyle = saved.bowlerStyle || "balanced";
+  profile.skillLevel = saved.skillLevel || "league";
   state.profile = profile;
   state.handedness = profile.handedness === "left" ? "left" : "right";
   window.localStorage.setItem(storageKeys.profile, JSON.stringify(profile));
@@ -829,10 +817,6 @@ function renderHomeDashboard() {
 
   const profile = state.profile || savedProfile() || {};
   const displayName = profile.displayName || state.userName.split("@")[0] || "Bowler";
-  const handedness = profile.handedness === "left" ? "Left handed" : "Right handed";
-  const skill = titleFromSlug(profile.skillLevel || "league");
-  const delivery = titleFromSlug(profile.delivery || "one-handed");
-  const style = titleFromSlug(profile.bowlerStyle || "balanced");
   const completion = profileCompletion(profile);
   const ballCount = state.balls.length;
   const spareRate = Number(state.spares.rate || 0);
@@ -844,10 +828,7 @@ function renderHomeDashboard() {
 
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
   elements.homeSubcopy.textContent = [
-    `${skill} bowler`,
-    handedness,
-    delivery,
-    profile.homeCenter || "Home center not set",
+    profile.homeCenter ? `Current center: ${profile.homeCenter}` : "Current center not set",
     `${shotCount} lane entries`,
   ].join(" | ");
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
@@ -855,11 +836,7 @@ function renderHomeDashboard() {
   if (elements.homeProfileDetails) {
     const detailItems = [
       `${completion}% profile`,
-      style,
-      profile.ballWeight,
-      profile.ballSpeed && `${profile.ballSpeed} speed`,
-      profile.revRate && `${profile.revRate} rev rate`,
-      profile.leagueAverage && `${profile.leagueAverage} avg`,
+      profile.homeCenter || "Center not set",
     ].filter(Boolean);
     elements.homeProfileDetails.innerHTML = detailItems
       .map((item) => `<span>${escapeHtml(item)}</span>`)
@@ -871,8 +848,8 @@ function renderHomeDashboard() {
   elements.homeShotCount.textContent = shotCount;
 
   let focus = "Start by opening a section below.";
-  if (completion < 80) {
-    focus = "Finish your bowler profile so StrikeIQ can tune ball, pattern, spare, and AI recommendations.";
+  if (!profile.homeCenter) {
+    focus = "Set your current bowling center so StrikeIQ can organize lane sessions by where you bowl.";
   } else if (!ballCount) {
     focus = "Build your ball database first so lane tracking and coaching can use your ball data.";
   } else if (!shotCount) {
