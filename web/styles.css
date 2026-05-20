@@ -853,6 +853,13 @@ h1 {
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
+.social-links a[aria-disabled="true"],
+.home-copyright a[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.58;
+  pointer-events: none;
+}
+
 .social-links a:hover,
 .social-links a:focus-visible {
   border-color: rgba(76, 201, 240, 0.72);
@@ -895,6 +902,11 @@ h1 {
 .home-copyright a:hover,
 .home-copyright a:focus-visible {
   text-decoration: underline;
+}
+
+.home-copyright a[aria-disabled="true"]:hover,
+.home-copyright a[aria-disabled="true"]:focus-visible {
+  text-decoration: none;
 }
 
 .tool-content {
