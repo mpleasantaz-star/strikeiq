@@ -837,10 +837,19 @@ function renderHomeDashboard() {
   const ballCount = state.balls.length;
   const spareRate = Number(state.spares.rate || 0);
   const shotCount = Number(state.shotStats.total || state.shots.length);
+  const videoCount = Number(state.shotStats.video_total || 0);
+  const averageSpeed = state.shotStats.average_speed ? formatShotMetric(state.shotStats.average_speed, " mph") : "";
+  const averageHook = state.shotStats.average_hook ? formatShotMetric(state.shotStats.average_hook, " in hook") : "";
   const isPro = hasProAccess();
 
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
-  elements.homeSubcopy.textContent = `${skill} bowler | ${handedness} | ${delivery} | ${profile.homeCenter || "Home center not set"}`;
+  elements.homeSubcopy.textContent = [
+    `${skill} bowler`,
+    handedness,
+    delivery,
+    profile.homeCenter || "Home center not set",
+    `${shotCount} lane entries`,
+  ].join(" | ");
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
   elements.homeProfile.textContent = `${displayName}'s StrikeIQ home`;
   if (elements.homeProfileDetails) {
@@ -881,34 +890,44 @@ function renderHomeDashboard() {
     {
       project: "shots",
       title: "Lane Tracker",
-      text: "Capture ball, target, breakpoint, result, and next move.",
+      text: videoCount
+        ? `${videoCount} video-analyzed shots | ${averageSpeed || "speed pending"} | ${averageHook || "hook pending"}`
+        : "Capture ball, target, breakpoint, result, and next move.",
+      status: shotCount ? "Active" : "Start",
     },
     {
       project: "balls",
       title: "Ball Database",
-      text: "Create the ball data used by tracking and coaching.",
+      text: ballCount ? `${ballCount} balls available for tracking and coaching.` : "Create the ball data used by tracking and coaching.",
+      status: ballCount ? "Ready" : "Build",
     },
     {
       project: "spares",
       title: "Scoring",
-      text: "Track frames, strikes, spares, speed, and scores.",
+      text: Number(state.spares.attempts || 0)
+        ? `${state.spares.makes}/${state.spares.attempts} spare makes | ${spareRate}% conversion.`
+        : "Track frames, strikes, spares, speed, and scores.",
+      status: Number(state.spares.attempts || 0) ? "Logged" : "Track",
     },
     {
       project: "chat",
       title: "Friends",
       text: "Use chat, video feedback, and coaching conversations.",
+      status: "Connect",
     },
   ];
 
   elements.homeNextActions.innerHTML = nextActions
-    .map(
-      (action) => `
-        <button type="button" data-project="${escapeHtml(action.project)}">
+    .map((action, index) => {
+      const isPrimary = focus.toLowerCase().includes(action.title.toLowerCase()) || (!index && shotCount);
+      return `
+        <button type="button" class="${isPrimary ? "is-primary" : ""}" data-project="${escapeHtml(action.project)}">
+          <small>${escapeHtml(action.status)}</small>
           <strong>${escapeHtml(action.title)}</strong>
           <span>${escapeHtml(action.text)}</span>
         </button>
-      `
-    )
+      `;
+    })
     .join("");
 
   const recentItems = [
@@ -917,6 +936,7 @@ function renderHomeDashboard() {
       title: shot.result || "Shot logged",
       detail:
         [
+          shot.session_date,
           shot.pattern_name,
           shot.ball,
           shot.speed_mph && `${formatShotMetric(shot.speed_mph, " mph")}`,
@@ -929,7 +949,7 @@ function renderHomeDashboard() {
     ...(state.spares.spares || []).slice(0, 2).map((spare) => ({
       label: "Spare",
       title: spare.leave || "Spare logged",
-      detail: `${spare.makes}/${spare.attempts} made${spare.ball ? ` | ${spare.ball}` : ""}`,
+      detail: [spare.created_at, `${spare.makes}/${spare.attempts} made`, spare.ball].filter(Boolean).join(" | "),
     })),
     ...state.balls.slice(0, 2).map((ball) => ({
       label: "Ball",
