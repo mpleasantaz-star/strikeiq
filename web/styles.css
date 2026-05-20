@@ -1337,6 +1337,22 @@ textarea:focus {
   box-shadow: 0 0 0 3px rgba(76, 201, 240, 0.12);
 }
 
+input.is-readonly {
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.78);
+  color: rgba(226, 232, 240, 0.72);
+}
+
+.field-note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  text-transform: none;
+}
+
 textarea {
   min-height: 96px;
   resize: vertical;

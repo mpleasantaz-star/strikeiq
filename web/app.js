@@ -35,6 +35,7 @@ const elements = {
   profileScreen: document.querySelector("#profile-screen"),
   profileForm: document.querySelector("#profile-form"),
   profileName: document.querySelector("#profile-name"),
+  profileNameNote: document.querySelector("#profile-name-note"),
   profileCenter: document.querySelector("#profile-center"),
   findHomeCenters: document.querySelector("#find-home-centers"),
   nearbyHomeCenters: document.querySelector("#nearby-home-centers"),
@@ -580,9 +581,18 @@ function titleFromSlug(value) {
     .join(" ");
 }
 
+function emailUsername() {
+  return (state.userName || "").split("@")[0] || "Bowler";
+}
+
+function displayNameForProfile(profile) {
+  return hasProAccess() ? (profile?.displayName || emailUsername()) : emailUsername();
+}
+
 function profileCompletion(profile) {
+  const profileForCompletion = { ...profile, displayName: displayNameForProfile(profile) };
   const keys = ["displayName", "homeCenter", "handedness", "delivery", "ballWeight", "ballArsenal"];
-  const completed = keys.filter((key) => String(profile?.[key] || "").trim()).length;
+  const completed = keys.filter((key) => String(profileForCompletion?.[key] || "").trim()).length;
   return Math.round((completed / keys.length) * 100);
 }
 
@@ -599,6 +609,9 @@ function setSubscriptionTier(tier) {
   window.localStorage.setItem(storageKeys.subscriptionTier, state.subscriptionTier);
   renderAccessState();
   renderHomeDashboard();
+  if (!elements.profileScreen.classList.contains("is-hidden")) {
+    syncProfileUsernameAccess(savedProfile());
+  }
   if (projectRequiresPro(state.project)) {
     renderToolProject(state.project);
   }
@@ -632,9 +645,21 @@ function showLoginScreen() {
   elements.appShell.classList.add("is-hidden");
 }
 
+function syncProfileUsernameAccess(profile) {
+  const isPro = hasProAccess();
+  elements.profileName.readOnly = !isPro;
+  elements.profileName.classList.toggle("is-readonly", !isPro);
+  elements.profileName.value = isPro ? (profile?.displayName || emailUsername()) : emailUsername();
+  if (elements.profileNameNote) {
+    elements.profileNameNote.textContent = isPro
+      ? "Pro accounts can edit and save a custom username."
+      : "Free accounts use the name from the signup email. Upgrade to Pro to edit it.";
+  }
+}
+
 function showProfileScreen() {
   const profile = savedProfile();
-  elements.profileName.value = profile?.displayName || state.userName.split("@")[0] || "";
+  syncProfileUsernameAccess(profile);
   elements.profileCenter.value = profile?.homeCenter || "";
   elements.profileHandedness.value = profile?.handedness || "right";
   elements.profileDelivery.value = profile?.delivery || "one-handed";
@@ -734,6 +759,9 @@ function handleProfileSubmit(event) {
   const arsenalItems = parseArsenalItems(profile.ballArsenal);
   profile.ballArsenal = arsenalItems.join("\n");
   profile.ballArsenalCount = String(arsenalCount);
+  if (!hasProAccess()) {
+    profile.displayName = emailUsername();
+  }
 
   if (!profile.displayName) {
     elements.profileError.textContent = "Username is required.";
@@ -835,7 +863,7 @@ function renderHomeDashboard() {
   if (!elements.homeGreeting) return;
 
   const profile = state.profile || savedProfile() || {};
-  const displayName = profile.displayName || state.userName.split("@")[0] || "Bowler";
+  const displayName = displayNameForProfile(profile);
   const handedness = profile.handedness === "left" ? "Left handed" : "Right handed";
   const delivery = titleFromSlug(profile.delivery || "one-handed");
   const completion = profileCompletion(profile);
@@ -3692,7 +3720,7 @@ function bindEvents() {
     } else if (form.id === "community-post-form") {
       event.preventDefault();
       const payload = formPayload(form);
-      payload.user_name = state.profile?.displayName || state.userName || "StrikeIQ member";
+      payload.user_name = displayNameForProfile(state.profile) || "StrikeIQ member";
       state.chatChannel = String(payload.channel || state.chatChannel);
       const status = document.querySelector("#community-post-status");
       if (status) status.textContent = "Posting feedback...";
