@@ -12,6 +12,7 @@ import subprocess
 import sys
 import sqlite3
 import re
+import uuid
 
 
 ROOT = Path(__file__).resolve().parent
@@ -339,6 +340,24 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS lane_video_analyses (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          analysis_run_id TEXT NOT NULL UNIQUE,
+          tracking_mode TEXT,
+          video_name TEXT,
+          video_size INTEGER,
+          video_type TEXT,
+          lane_center TEXT,
+          ball TEXT,
+          detection_options_json TEXT NOT NULL DEFAULT '{}',
+          result_json TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'ready',
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     ensure_shot_log_columns(connection)
     connection.execute(
         """
@@ -360,6 +379,7 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at)")
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_shot_logs_analysis_run ON shot_logs(analysis_run_id)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_lane_video_analyses_created ON lane_video_analyses(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover)")
@@ -1065,7 +1085,7 @@ def get_shot_stats() -> dict:
             """
             SELECT
               COUNT(*) AS total,
-              SUM(CASE WHEN shot_source = 'video_analysis_import' THEN 1 ELSE 0 END) AS video_total,
+              SUM(CASE WHEN shot_source LIKE 'video%' THEN 1 ELSE 0 END) AS video_total,
               SUM(CASE WHEN lower(coalesce(result, '')) LIKE '%strike%' THEN 1 ELSE 0 END) AS strikes,
               ROUND(AVG(speed_mph), 1) AS average_speed,
               ROUND(AVG(hook_inches), 1) AS average_hook
@@ -1092,6 +1112,108 @@ def get_shot_stats() -> dict:
         "average_hook": summary["average_hook"],
         "common_leave": common_leave["leave_pin"] if common_leave else None,
     }
+
+
+def create_lane_video_analysis(payload: dict) -> dict:
+    tracking_mode = optional_text(payload, "tracking_mode") or "recorded_video"
+    video = payload.get("video") if isinstance(payload.get("video"), dict) else {}
+    context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
+    detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else {}
+    video_name = str(video.get("name") or optional_text(payload, "video_name") or f"{tracking_mode.replace('_', ' ')} capture").strip()
+    video_type = str(video.get("type") or "").strip() or None
+    try:
+        video_size = int(video.get("size") or 0)
+    except (TypeError, ValueError):
+        video_size = 0
+    ball = str(context.get("ball") or payload.get("ball") or "").strip() or "Selected ball"
+    lane_center = str(context.get("lane_center") or payload.get("lane_center") or "").strip() or "Practice center"
+    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}"
+    seed = sum(ord(char) for char in seed_text)
+    speed_mph = round(15.2 + (seed % 31) / 10, 2)
+    hook_inches = round(12.0 + ((seed // 3) % 95) / 5, 2)
+    boards_crossed = round(8.0 + ((seed // 7) % 70) / 5, 2)
+    release_board = str(14 + seed % 12)
+    arrows_board = str(8 + seed % 9)
+    breakpoint = f"{5 + seed % 8} board at {38 + seed % 12} ft"
+    entry_board = f"{16 + (seed % 4) * 0.5:.1f}"
+    miss_options = ["Flush", "High", "Light", "Through breakpoint"]
+    pocket_options = ["Flush", "Light mixer", "High pocket", "Review angle"]
+    pin_options = ["Strike", "10 pin", "4 pin", "2-8 leave"]
+    miss_direction = miss_options[seed % len(miss_options)]
+    pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
+    pin_result = pin_options[(seed // 11) % len(pin_options)]
+    confidence = 72 + seed % 22
+    result = "Strike" if pin_result == "Strike" else pin_result
+    output_preview = (
+        f"Development analysis for {video_name}: detected {ball} at {speed_mph:.2f} mph, "
+        f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
+        f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
+        f"pocket read {pocket_quality}, pin result {pin_result}."
+    )
+    analysis_run_id = f"lane-video-{uuid.uuid4().hex[:12]}"
+    fields = {
+        "analysis_run_id": analysis_run_id,
+        "tracking_mode": tracking_mode,
+        "shot_source": "video_capture",
+        "video_name": video_name,
+        "ball": ball if ball != "Selected ball" else "",
+        "lane_center": lane_center if lane_center != "Practice center" else "",
+        "speed_mph": f"{speed_mph:.2f}",
+        "ball_speed": f"{speed_mph:.2f} mph",
+        "hook_inches": f"{hook_inches:.2f}",
+        "boards_crossed": f"{boards_crossed:.2f}",
+        "release_board": release_board,
+        "arrows_board": arrows_board,
+        "breakpoint": breakpoint,
+        "entry_board": entry_board,
+        "miss_direction": miss_direction,
+        "pocket_quality": pocket_quality,
+        "pin_result": pin_result,
+        "impact_result": pin_result,
+        "confidence": str(confidence),
+        "confidence_label": "Development analysis",
+        "result": result,
+        "output_preview": output_preview,
+    }
+    result_payload = {
+        "analysis_run_id": analysis_run_id,
+        "status": "ready",
+        "message": "Development video analysis complete. Replace this estimator with the production vision model later.",
+        "fields": fields,
+    }
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        connection.execute(
+            """
+            INSERT INTO lane_video_analyses (
+              analysis_run_id,
+              tracking_mode,
+              video_name,
+              video_size,
+              video_type,
+              lane_center,
+              ball,
+              detection_options_json,
+              result_json,
+              status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                analysis_run_id,
+                tracking_mode,
+                video_name,
+                video_size,
+                video_type,
+                lane_center,
+                ball,
+                json.dumps(detection, ensure_ascii=True),
+                json.dumps(result_payload, ensure_ascii=True),
+                "ready",
+            ),
+        )
+        connection.commit()
+    return result_payload
 
 
 def create_shot(payload: dict) -> dict:
@@ -1126,6 +1248,7 @@ def create_shot(payload: dict) -> dict:
               adjustment,
               next_move,
               notes,
+              analysis_run_id,
               video_name,
               hook_inches,
               boards_crossed,
@@ -1146,7 +1269,7 @@ def create_shot(payload: dict) -> dict:
               tracking_mode,
               shot_source
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 pattern_id,
@@ -1169,6 +1292,7 @@ def create_shot(payload: dict) -> dict:
                 optional_text(payload, "adjustment"),
                 optional_text(payload, "next_move"),
                 optional_text(payload, "notes"),
+                optional_text(payload, "analysis_run_id"),
                 optional_text(payload, "video_name"),
                 optional_float_from_payload(payload, "hook_inches"),
                 optional_float_from_payload(payload, "boards_crossed"),
@@ -2004,6 +2128,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_spare(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/spare-sessions":
                 self.send_json(create_spare_session(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/lane-video/analyze":
+                self.send_json(create_lane_video_analysis(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/shots":
                 self.send_json(create_shot(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/chat/posts":

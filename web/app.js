@@ -288,6 +288,7 @@ const projectDetails = {
           </div>
           <input type="hidden" name="tracking_mode" id="lane-tracking-mode" value="recorded_video">
           <input type="hidden" name="shot_source" id="lane-shot-source" value="video_capture">
+          <input type="hidden" name="analysis_run_id" id="lane-analysis-run-id">
           <div class="lane-video-panels">
             <div class="lane-video-panel is-active" data-lane-video-panel="recorded_video">
               <label>Recorded Shot
@@ -328,8 +329,8 @@ const projectDetails = {
             <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
           </label>
           <div class="lane-video-actions">
-            <button type="button" class="secondary-button" data-lane-detection-preview>Preview Detection Fields</button>
-            <p id="lane-video-status" class="empty-state">Frontend capture workflow ready. Real AI detection connects in the backend phase.</p>
+            <button type="button" class="secondary-button" data-lane-video-analyze>Analyze Selected Video</button>
+            <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
           </div>
         </section>
         <div class="lane-form-heading">
@@ -1314,8 +1315,8 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
   });
   if (status) {
     status.textContent = mode === "live_video"
-      ? "Live camera mode selected. Camera streaming will connect when the mobile/backend detector is enabled."
-      : "Recorded video mode selected. Choose a clip now; AI detection connects in the backend phase.";
+      ? "Live camera mode selected. The backend can create a development analysis run now; camera streaming comes later."
+      : "Recorded video mode selected. Choose a clip, then run backend analysis.";
   }
 }
 
@@ -1333,33 +1334,56 @@ function handleLaneVideoFile(fileInput) {
   }
 }
 
-function previewLaneDetectionFields() {
+function applyLaneAnalysisFields(fields = {}) {
   const form = document.querySelector("#shot-form");
   if (!form) return;
-  const selectedBall = document.querySelector("#lane-shot-ball")?.value || profileArsenalItems()[0] || "Selected ball";
-  const output = document.querySelector("#lane-output-preview");
-  const fields = {
-    speed_mph: "16.50",
-    hook_inches: "18.20",
-    boards_crossed: "17.10",
-    release_board: "18",
-    entry_board: "17.5",
-    pocket_quality: "Flush",
-    pin_result: "Strike",
-    confidence: "88",
-    confidence_label: "Preview",
-    ball_speed: "16.5 mph",
-    result: "Video preview",
-  };
   Object.entries(fields).forEach(([name, value]) => {
     const field = form.elements[name];
-    if (field && !field.value) field.value = value;
+    if (!field || value === null || value === undefined) return;
+    field.value = value;
   });
-  if (output && !output.value) {
-    output.value = `Preview only: detected ${selectedBall}, release board 18, breakpoint 8, entry board 17.5, 16.5 mph, flush pocket.`;
-  }
+}
+
+function laneDetectionOptions() {
+  return {
+    lane_boards: Boolean(document.querySelector("input[name='detect_lane']")?.checked),
+    ball_path: Boolean(document.querySelector("input[name='detect_ball']")?.checked),
+    release_point: Boolean(document.querySelector("input[name='detect_release']")?.checked),
+    pin_result: Boolean(document.querySelector("input[name='detect_pins']")?.checked),
+  };
+}
+
+async function analyzeLaneVideo() {
+  const form = document.querySelector("#shot-form");
+  if (!form) return;
+  const button = document.querySelector("[data-lane-video-analyze]");
   const status = document.querySelector("#lane-video-status");
-  if (status) status.textContent = "Preview fields filled. These are sample values until real AI video detection is connected.";
+  const file = document.querySelector("#lane-video-file")?.files?.[0];
+  const payload = formPayload(form);
+  const request = {
+    tracking_mode: payload.tracking_mode || "recorded_video",
+    video_name: payload.video_name || file?.name || "",
+    video: file ? { name: file.name, size: file.size, type: file.type || "video" } : null,
+    detection: laneDetectionOptions(),
+    context: {
+      lane_center: payload.lane_center || state.profile?.homeCenter || "",
+      ball: payload.ball || profileArsenalItems()[0] || "",
+      handedness: state.profile?.handedness || "",
+      delivery: state.profile?.delivery || "",
+      ball_weight: state.profile?.ballWeight || "",
+    },
+  };
+  if (status) status.textContent = "Analyzing lane video through the local backend...";
+  if (button) button.disabled = true;
+  try {
+    const analysis = await api("/api/lane-video/analyze", { method: "POST", body: JSON.stringify(request) });
+    applyLaneAnalysisFields(analysis.fields || {});
+    if (status) status.textContent = analysis.message || "Analysis complete.";
+  } catch (error) {
+    if (status) status.textContent = `Analysis unavailable: ${error.message}`;
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 function parseArsenalItems(value) {
@@ -3961,8 +3985,8 @@ function bindEvents() {
       return;
     }
 
-    if (event.target.closest("[data-lane-detection-preview]")) {
-      previewLaneDetectionFields();
+    if (event.target.closest("[data-lane-video-analyze]")) {
+      analyzeLaneVideo();
       return;
     }
 
