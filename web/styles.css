@@ -197,6 +197,31 @@ h1 {
   text-decoration: underline;
 }
 
+.auth-publish-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  border-top: 1px solid rgba(76, 201, 240, 0.12);
+  padding-top: 12px;
+}
+
+.auth-publish-links a {
+  color: var(--muted);
+  cursor: not-allowed;
+  font-size: 0.78rem;
+  font-weight: 800;
+  opacity: 0.62;
+  pointer-events: none;
+  text-decoration: none;
+}
+
+.auth-publish-links a::after {
+  content: " pending";
+  color: var(--muted-2);
+  font-weight: 700;
+}
+
 .profile-setup-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
