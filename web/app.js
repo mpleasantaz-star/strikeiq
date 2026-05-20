@@ -48,6 +48,8 @@ const elements = {
   profileRevRate: document.querySelector("#profile-rev-rate"),
   profileBallWeight: document.querySelector("#profile-ball-weight"),
   profileArsenal: document.querySelector("#profile-arsenal"),
+  profileArsenalCount: document.querySelector("#profile-arsenal-count"),
+  profileArsenalFields: document.querySelector("#profile-arsenal-fields"),
   profileArsenalSuggestions: document.querySelector("#profile-arsenal-suggestions"),
   profileAverage: document.querySelector("#profile-average"),
   profileGoals: document.querySelector("#profile-goals"),
@@ -94,6 +96,7 @@ const elements = {
 };
 
 let authMode = "create";
+let activeArsenalInput = null;
 
 const storageKeys = {
   accountEmail: "strikeiq.accountEmail",
@@ -636,8 +639,7 @@ function showProfileScreen() {
   elements.profileHandedness.value = profile?.handedness || "right";
   elements.profileDelivery.value = profile?.delivery || "one-handed";
   elements.profileBallWeight.value = profile?.ballWeight || "";
-  elements.profileArsenal.value = profile?.ballArsenal || "";
-  renderProfileArsenalSuggestions();
+  hydrateProfileArsenalFields(profile?.ballArsenal || "", profile?.ballArsenalCount);
   elements.profileError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
   elements.profileScreen.classList.remove("is-hidden");
@@ -723,11 +725,15 @@ function handleLogin(event) {
 function handleProfileSubmit(event) {
   event.preventDefault();
   const form = event.currentTarget;
+  updateProfileArsenalValue();
   const profile = formPayload(form);
   Object.keys(profile).forEach((key) => {
     profile[key] = String(profile[key] || "").trim();
   });
-  profile.ballArsenal = String(profile.ballArsenal || "").replace(/[,\s;]+$/, "");
+  const arsenalCount = Math.max(1, Math.min(12, Number(profile.ballArsenalCount) || 1));
+  const arsenalItems = parseArsenalItems(profile.ballArsenal);
+  profile.ballArsenal = arsenalItems.join("\n");
+  profile.ballArsenalCount = String(arsenalCount);
 
   if (!profile.displayName) {
     elements.profileError.textContent = "Username is required.";
@@ -741,6 +747,11 @@ function handleProfileSubmit(event) {
 
   if (!profile.ballWeight) {
     elements.profileError.textContent = "Ball weight is required.";
+    return;
+  }
+
+  if (arsenalItems.length < arsenalCount) {
+    elements.profileError.textContent = "Add one ball for each arsenal slot or lower the number of balls.";
     return;
   }
 
@@ -852,7 +863,7 @@ function renderHomeDashboard() {
       handedness,
       delivery,
       profile.ballWeight,
-      profile.ballArsenal && "Arsenal saved",
+      profile.ballArsenal && `${parseArsenalItems(profile.ballArsenal).length} arsenal balls`,
     ].filter(Boolean);
     elements.homeProfileDetails.innerHTML = detailItems
       .map((item) => `<span>${escapeHtml(item)}</span>`)
@@ -1028,19 +1039,60 @@ function hydrateLaneTrackerForm() {
   }
 }
 
+function parseArsenalItems(value) {
+  return String(value || "")
+    .split(/[,;\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function profileArsenalInputs() {
+  return [...document.querySelectorAll(".profile-arsenal-ball")];
+}
+
+function updateProfileArsenalValue() {
+  if (!elements.profileArsenal) return;
+  const items = profileArsenalInputs().map((input) => input.value.trim()).filter(Boolean);
+  elements.profileArsenal.value = items.join("\n");
+}
+
+function setProfileArsenalCount(count) {
+  if (!elements.profileArsenalCount || !elements.profileArsenalFields) return;
+  const boundedCount = Math.max(1, Math.min(12, Number(count) || 1));
+  const existing = profileArsenalInputs().map((input) => input.value.trim());
+  elements.profileArsenalCount.value = String(boundedCount);
+  elements.profileArsenalFields.innerHTML = Array.from({ length: boundedCount }, (_, index) => {
+    const value = existing[index] || "";
+    return `
+      <label>
+        Ball ${index + 1}
+        <input class="profile-arsenal-ball" type="text" value="${escapeHtml(value)}" placeholder="Type make, manufacturer, style, or ball name" autocomplete="off">
+      </label>
+    `;
+  }).join("");
+  activeArsenalInput = profileArsenalInputs().find((input) => !input.value.trim()) || profileArsenalInputs()[0] || null;
+  updateProfileArsenalValue();
+  renderProfileArsenalSuggestions();
+}
+
+function hydrateProfileArsenalFields(savedArsenal, savedCount) {
+  const items = parseArsenalItems(savedArsenal);
+  const count = Math.max(1, Math.min(12, Number(savedCount) || items.length || 1));
+  setProfileArsenalCount(count);
+  profileArsenalInputs().forEach((input, index) => {
+    input.value = items[index] || "";
+  });
+  activeArsenalInput = profileArsenalInputs().find((input) => !input.value.trim()) || profileArsenalInputs()[0] || null;
+  updateProfileArsenalValue();
+  renderProfileArsenalSuggestions();
+}
+
 function currentArsenalQuery() {
-  const value = elements.profileArsenal?.value || "";
-  const activeToken = value.split(/[,;\n]/).pop() || "";
-  return activeToken.trim().toLowerCase();
+  return (activeArsenalInput?.value || "").trim().toLowerCase();
 }
 
 function selectedArsenalItems() {
-  return new Set(
-    (elements.profileArsenal?.value || "")
-      .split(/[,;\n]/)
-      .map((item) => item.trim().toLowerCase())
-      .filter(Boolean),
-  );
+  return new Set(profileArsenalInputs().map((input) => input.value.trim().toLowerCase()).filter(Boolean));
 }
 
 function ballSearchText(ball) {
@@ -1057,7 +1109,7 @@ function ballSearchText(ball) {
 }
 
 function renderProfileArsenalSuggestions() {
-  if (!elements.profileArsenalSuggestions || !elements.profileArsenal) return;
+  if (!elements.profileArsenalSuggestions || !activeArsenalInput) return;
   const query = currentArsenalQuery();
   if (query.length < 2 || !state.balls.length) {
     elements.profileArsenalSuggestions.innerHTML = "";
@@ -1095,15 +1147,13 @@ function renderProfileArsenalSuggestions() {
 }
 
 function addBallToProfileArsenal(label) {
-  if (!elements.profileArsenal) return;
-  const value = elements.profileArsenal.value;
-  const tokens = value.split(/[,;\n]/).map((item) => item.trim());
-  const baseTokens = /[,;\n]\s*$/.test(value) ? tokens : tokens.slice(0, -1);
-  const nextItems = [...baseTokens.filter(Boolean), label].filter((item, index, items) => {
-    return items.findIndex((candidate) => candidate.toLowerCase() === item.toLowerCase()) === index;
-  });
-  elements.profileArsenal.value = nextItems.length ? `${nextItems.join(", ")}, ` : "";
-  elements.profileArsenal.focus();
+  if (!activeArsenalInput) return;
+  activeArsenalInput.value = label;
+  updateProfileArsenalValue();
+  const inputs = profileArsenalInputs();
+  const nextInput = inputs[inputs.indexOf(activeArsenalInput) + 1];
+  activeArsenalInput = nextInput || activeArsenalInput;
+  activeArsenalInput.focus();
   elements.profileArsenalSuggestions.innerHTML = "";
   elements.profileArsenalSuggestions.classList.remove("is-visible");
 }
@@ -3536,8 +3586,7 @@ function bindEvents() {
       elements.profileCenter.value = elements.nearbyHomeCenters.value;
     }
   });
-  elements.profileArsenal?.addEventListener("input", renderProfileArsenalSuggestions);
-  elements.profileArsenal?.addEventListener("focus", renderProfileArsenalSuggestions);
+  elements.profileArsenalCount?.addEventListener("change", () => setProfileArsenalCount(elements.profileArsenalCount.value));
   document.addEventListener("change", (event) => {
     const laneSelect = event.target.closest("#nearby-lane-centers");
     if (!laneSelect?.value) return;
@@ -3545,6 +3594,19 @@ function bindEvents() {
     if (laneInput) {
       laneInput.value = laneSelect.value;
     }
+  });
+  document.addEventListener("input", (event) => {
+    const arsenalInput = event.target.closest(".profile-arsenal-ball");
+    if (!arsenalInput) return;
+    activeArsenalInput = arsenalInput;
+    updateProfileArsenalValue();
+    renderProfileArsenalSuggestions();
+  });
+  document.addEventListener("focusin", (event) => {
+    const arsenalInput = event.target.closest(".profile-arsenal-ball");
+    if (!arsenalInput) return;
+    activeArsenalInput = arsenalInput;
+    renderProfileArsenalSuggestions();
   });
   elements.authToggle.addEventListener("click", () => setAuthMode(authMode === "create" ? "login" : "create"));
   elements.logout.addEventListener("click", handleLogout);

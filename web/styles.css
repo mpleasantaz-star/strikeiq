@@ -175,6 +175,22 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.arsenal-builder {
+  display: grid;
+  gap: 12px;
+}
+
+.arsenal-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.arsenal-fields label {
+  grid-template-columns: minmax(76px, 92px) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
 .arsenal-suggestions {
   display: none;
   gap: 8px;
@@ -2600,6 +2616,10 @@ button:hover {
 
   .profile-setup-grid,
   .paywall-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .arsenal-fields label {
     grid-template-columns: 1fr;
   }
 

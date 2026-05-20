@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-arsenal-suggest">
+    <link rel="stylesheet" href="/styles.css?v=20260519-arsenal-lines">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -71,11 +71,28 @@
                 <option value="16 lb">16 lb</option>
               </select>
             </label>
-            <label class="profile-wide-field">
-              Ball arsenal
-              <textarea id="profile-arsenal" name="ballArsenal" placeholder="Type a ball name, manufacturer, cover style, or motion. Example: Storm Phaze II, Hammer Black Widow 3.0"></textarea>
+            <div class="profile-wide-field arsenal-builder">
+              <input id="profile-arsenal" name="ballArsenal" type="hidden">
+              <label>
+                Number of balls in arsenal
+                <select id="profile-arsenal-count" name="ballArsenalCount" required>
+                  <option value="1">1 ball</option>
+                  <option value="2">2 balls</option>
+                  <option value="3">3 balls</option>
+                  <option value="4">4 balls</option>
+                  <option value="5">5 balls</option>
+                  <option value="6">6 balls</option>
+                  <option value="7">7 balls</option>
+                  <option value="8">8 balls</option>
+                  <option value="9">9 balls</option>
+                  <option value="10">10 balls</option>
+                  <option value="11">11 balls</option>
+                  <option value="12">12 balls</option>
+                </select>
+              </label>
+              <div id="profile-arsenal-fields" class="arsenal-fields" aria-label="Ball arsenal fields"></div>
               <div id="profile-arsenal-suggestions" class="arsenal-suggestions" aria-live="polite"></div>
-            </label>
+            </div>
           </div>
           <section class="locked-profile-section" aria-label="Locked Pro profile options">
             <div class="locked-profile-heading">
@@ -371,6 +388,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260519-arsenal-suggest" type="module"></script>
+    <script src="/app.js?v=20260519-arsenal-lines" type="module"></script>
   </body>
 </html>
