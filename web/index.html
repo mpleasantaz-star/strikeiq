@@ -40,6 +40,7 @@
         <p class="eyebrow">Profile Setup</p>
         <h1>Set Up Your Profile</h1>
         <p class="hero-subtitle">Add the core details StrikeIQ uses for lane tracking, scoring, arsenal notes, and coaching context.</p>
+        <div id="profile-progress" class="profile-progress" aria-live="polite"></div>
         <form id="profile-form" class="profile-form">
           <div class="profile-setup-grid">
             <label>
@@ -140,7 +141,10 @@
             </div>
           </section>
           <p id="profile-error" class="login-error" role="alert"></p>
-          <button type="submit">Save Profile</button>
+          <div class="profile-actions">
+            <button type="submit">Save Profile</button>
+            <button type="button" class="secondary-button" data-profile-home>View Home</button>
+          </div>
         </form>
       </div>
     </section>

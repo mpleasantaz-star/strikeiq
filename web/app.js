@@ -34,6 +34,7 @@ const elements = {
   loginError: document.querySelector("#login-error"),
   profileScreen: document.querySelector("#profile-screen"),
   profileForm: document.querySelector("#profile-form"),
+  profileProgress: document.querySelector("#profile-progress"),
   profileName: document.querySelector("#profile-name"),
   profileNameNote: document.querySelector("#profile-name-note"),
   profileCenter: document.querySelector("#profile-center"),
@@ -599,6 +600,55 @@ function profileCompletion(profile) {
   return Math.round((completed / keys.length) * 100);
 }
 
+function currentProfileDraft() {
+  updateProfileArsenalValue();
+  const draft = elements.profileForm ? formPayload(elements.profileForm) : {};
+  Object.keys(draft).forEach((key) => {
+    draft[key] = String(draft[key] || "").trim();
+  });
+  if (!hasProAccess()) {
+    draft.displayName = emailUsername();
+  }
+  return draft;
+}
+
+function profileRequirementItems(profile) {
+  return [
+    { label: "Username", complete: Boolean(displayNameForProfile(profile).trim()) },
+    { label: "Bowling center", complete: Boolean(profile?.homeCenter) },
+    { label: "Hand", complete: Boolean(profile?.handedness) },
+    { label: "Delivery", complete: Boolean(profile?.delivery) },
+    { label: "Ball weight", complete: Boolean(profile?.ballWeight) },
+    { label: "Ball arsenal", complete: parseArsenalItems(profile?.ballArsenal).length >= Number(profile?.ballArsenalCount || 1) },
+  ];
+}
+
+function renderProfileProgress() {
+  if (!elements.profileProgress) return;
+  const draft = currentProfileDraft();
+  const items = profileRequirementItems(draft);
+  const completeCount = items.filter((item) => item.complete).length;
+  const percent = Math.round((completeCount / items.length) * 100);
+  elements.profileProgress.innerHTML = `
+    <div class="profile-progress-header">
+      <span>Setup Progress</span>
+      <strong>${percent}%</strong>
+    </div>
+    <meter min="0" max="100" value="${percent}">${percent}%</meter>
+    <div class="profile-progress-list">
+      ${items
+        .map(
+          (item) => `
+            <span class="${item.complete ? "is-complete" : ""}">
+              ${item.complete ? "Complete" : "Needed"}: ${escapeHtml(item.label)}
+            </span>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function hasProAccess() {
   return state.subscriptionTier === "pro";
 }
@@ -673,6 +723,7 @@ function showProfileScreen() {
   elements.profileScreen.classList.remove("is-hidden");
   elements.appShell.classList.add("is-hidden");
   renderHomeCenterOptions(bowlingCenters.slice(0, 8), "");
+  renderProfileProgress();
 }
 
 function showAppShell() {
@@ -713,6 +764,7 @@ function handleLogin(event) {
   event.preventDefault();
   const email = elements.loginEmail.value.trim().toLowerCase();
   const password = elements.loginPassword.value;
+  const creatingAccount = authMode === "create";
 
   if (!email) {
     elements.loginError.textContent = "Email address is required.";
@@ -734,20 +786,31 @@ function handleLogin(event) {
     return;
   }
 
+  const savedEmail = window.localStorage.getItem(storageKeys.accountEmail);
   if (authMode === "login") {
-    const savedEmail = window.localStorage.getItem(storageKeys.accountEmail);
     if (savedEmail && savedEmail !== email) {
       elements.loginError.textContent = "No local account found for that email. Create an account first.";
       return;
     }
   }
 
+  if (creatingAccount && savedEmail && savedEmail !== email) {
+    window.localStorage.removeItem(storageKeys.profile);
+  }
+
   window.localStorage.setItem(storageKeys.accountEmail, email);
   state.userName = email;
-  state.subscriptionTier = savedSubscriptionTier();
+  state.subscriptionTier = creatingAccount ? "free" : savedSubscriptionTier();
+  if (creatingAccount) {
+    window.localStorage.setItem(storageKeys.subscriptionTier, "free");
+  }
   elements.loginError.textContent = "";
   state.profile = savedProfile();
-  showAppShell();
+  if (creatingAccount) {
+    showProfileScreen();
+  } else {
+    showAppShell();
+  }
 }
 
 function handleProfileSubmit(event) {
@@ -1157,6 +1220,7 @@ function setProfileArsenalCount(count) {
   activeArsenalInput = profileArsenalInputs().find((input) => !input.value.trim()) || profileArsenalInputs()[0] || null;
   updateProfileArsenalValue();
   renderProfileArsenalSuggestions();
+  renderProfileProgress();
 }
 
 function hydrateProfileArsenalFields(savedArsenal, savedCount) {
@@ -1240,6 +1304,7 @@ function addBallToProfileArsenal(label) {
   activeArsenalInput.focus();
   elements.profileArsenalSuggestions.innerHTML = "";
   elements.profileArsenalSuggestions.classList.remove("is-visible");
+  renderProfileProgress();
 }
 
 function formatShotMetric(value, suffix = "") {
@@ -3668,10 +3733,14 @@ function bindEvents() {
   elements.nearbyHomeCenters?.addEventListener("change", () => {
     if (elements.nearbyHomeCenters.value) {
       elements.profileCenter.value = elements.nearbyHomeCenters.value;
+      renderProfileProgress();
     }
   });
   elements.profileArsenalCount?.addEventListener("change", () => setProfileArsenalCount(elements.profileArsenalCount.value));
   document.addEventListener("change", (event) => {
+    if (event.target.closest("#profile-form")) {
+      renderProfileProgress();
+    }
     const laneSelect = event.target.closest("#nearby-lane-centers");
     if (!laneSelect?.value) return;
     const laneInput = document.querySelector("#lane-session-center");
@@ -3680,6 +3749,9 @@ function bindEvents() {
     }
   });
   document.addEventListener("input", (event) => {
+    if (event.target.closest("#profile-form")) {
+      renderProfileProgress();
+    }
     const arsenalInput = event.target.closest(".profile-arsenal-ball");
     if (!arsenalInput) return;
     activeArsenalInput = arsenalInput;
@@ -3718,6 +3790,12 @@ function bindEvents() {
     const editProfileButton = event.target.closest("[data-edit-profile]");
     if (editProfileButton) {
       showProfileScreen();
+      return;
+    }
+
+    const profileHomeButton = event.target.closest("[data-profile-home]");
+    if (profileHomeButton) {
+      showAppShell();
       return;
     }
 

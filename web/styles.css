@@ -222,6 +222,62 @@ h1 {
   font-weight: 700;
 }
 
+.profile-progress {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.34);
+  padding: 12px;
+}
+
+.profile-progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.profile-progress-header span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.profile-progress-header strong {
+  color: #ffffff;
+  font-family: var(--strikeiq-font-brand);
+  font-size: 1.18rem;
+}
+
+.profile-progress meter {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--accent-2);
+}
+
+.profile-progress-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.profile-progress-list span {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 5px 8px;
+}
+
+.profile-progress-list span.is-complete {
+  border-color: rgba(34, 197, 94, 0.30);
+  color: var(--green);
+}
+
 .profile-setup-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -284,6 +340,19 @@ h1 {
   font-weight: 800;
   letter-spacing: 0;
   text-transform: none;
+}
+
+.profile-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.secondary-button {
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  background: rgba(5, 7, 10, 0.42);
+  color: #ffffff;
 }
 
 .locked-profile-section {
@@ -2918,6 +2987,10 @@ button:hover {
 
   .profile-setup-grid,
   .paywall-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-actions {
     grid-template-columns: 1fr;
   }
 
