@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-core-profile">
+    <link rel="stylesheet" href="/styles.css?v=20260519-pro-profile-lock">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -76,6 +76,45 @@
               <textarea id="profile-arsenal" name="ballArsenal" placeholder="List the bowling balls you currently throw. Example: Phaze II, Hy-Road Pearl, spare ball."></textarea>
             </label>
           </div>
+          <section class="locked-profile-section" aria-label="Locked Pro profile options">
+            <div class="locked-profile-heading">
+              <div>
+                <p class="eyebrow">Pro Profile</p>
+                <h2>Advanced Details</h2>
+              </div>
+              <span>Locked</span>
+            </div>
+            <div class="profile-setup-grid locked-profile-grid" aria-disabled="true">
+              <label>
+                Ball speed
+                <input value="16.5 mph" disabled>
+              </label>
+              <label>
+                Rev rate
+                <input value="350 rpm" disabled>
+              </label>
+              <label>
+                Axis tilt / rotation
+                <input value="Coming with Pro" disabled>
+              </label>
+              <label>
+                League average
+                <input value="185" disabled>
+              </label>
+              <label>
+                Preferred breakpoint
+                <input value="Board and arrow targets" disabled>
+              </label>
+              <label>
+                Lane surface notes
+                <input value="Wood, synthetic, transition notes" disabled>
+              </label>
+              <label class="profile-wide-field">
+                Coach notes
+                <textarea disabled>Save advanced notes and AI recommendations with Pro.</textarea>
+              </label>
+            </div>
+          </section>
           <p id="profile-error" class="login-error" role="alert"></p>
           <button type="submit">Save Profile</button>
         </form>
@@ -331,6 +370,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260519-core-profile" type="module"></script>
+    <script src="/app.js?v=20260519-pro-profile-lock" type="module"></script>
   </body>
 </html>

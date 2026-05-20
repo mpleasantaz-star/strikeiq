@@ -175,6 +175,57 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.locked-profile-section {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.36);
+  padding: 16px;
+  position: relative;
+}
+
+.locked-profile-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.locked-profile-heading h2 {
+  margin: 3px 0 0;
+  color: #ffffff;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.locked-profile-heading span {
+  border: 1px solid rgba(76, 201, 240, 0.28);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 7px 11px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.locked-profile-grid {
+  opacity: 0.52;
+}
+
+.locked-profile-grid input,
+.locked-profile-grid textarea,
+.locked-profile-grid select {
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.78);
+  color: rgba(226, 232, 240, 0.68);
+}
+
 .home-center-tools,
 .center-picker-tools {
   display: grid;
