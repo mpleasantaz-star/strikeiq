@@ -267,6 +267,71 @@ const projectDetails = {
     content: `
       <section id="lane-profile-context" class="lane-profile-context" aria-label="Lane tracker profile context"></section>
       <form id="shot-form" class="note-form project-form">
+        <section class="lane-video-console" aria-label="Lane video capture and detection">
+          <div class="lane-video-header">
+            <div>
+              <p class="eyebrow">Primary Tracker</p>
+              <h3>Video Capture</h3>
+              <p>Choose live tracking or upload a recorded shot, then review lane and ball detection data before saving the shot.</p>
+            </div>
+            <span id="lane-video-mode-label">Recorded Video</span>
+          </div>
+          <div class="lane-mode-toggle" role="radiogroup" aria-label="Video tracking mode">
+            <label>
+              <input type="radio" name="tracking_mode_choice" value="recorded_video" checked>
+              <span>Recorded Video</span>
+            </label>
+            <label>
+              <input type="radio" name="tracking_mode_choice" value="live_video">
+              <span>Live Camera</span>
+            </label>
+          </div>
+          <input type="hidden" name="tracking_mode" id="lane-tracking-mode" value="recorded_video">
+          <input type="hidden" name="shot_source" id="lane-shot-source" value="video_capture">
+          <div class="lane-video-panels">
+            <div class="lane-video-panel is-active" data-lane-video-panel="recorded_video">
+              <label>Recorded Shot
+                <input id="lane-video-file" type="file" accept="video/mp4,video/quicktime,video/*">
+              </label>
+              <p id="lane-video-file-status" class="empty-state">Select a practice clip from your phone, tablet, or computer.</p>
+            </div>
+            <div class="lane-video-panel" data-lane-video-panel="live_video">
+              <strong>Live Capture Preview</strong>
+              <p>Use this mode at the lanes when the mobile camera and backend detector are connected.</p>
+              <button type="button" class="secondary-button" data-lane-live-preview>Prepare Live Capture</button>
+            </div>
+          </div>
+          <div class="lane-detection-grid">
+            <article>
+              <span>Lane Detection</span>
+              <strong>Boards, arrows, breakpoint</strong>
+              <small>Maps feet board, target board, breakpoint, and entry board.</small>
+            </article>
+            <article>
+              <span>Ball Detection</span>
+              <strong>Speed, hook, path</strong>
+              <small>Tracks release speed, hook shape, boards crossed, and motion.</small>
+            </article>
+            <article>
+              <span>Impact Detection</span>
+              <strong>Pocket and pins</strong>
+              <small>Reads pocket quality, pin result, miss direction, and leaves.</small>
+            </article>
+          </div>
+          <div class="lane-detection-options">
+            <label><input type="checkbox" name="detect_lane" checked> Lane boards</label>
+            <label><input type="checkbox" name="detect_ball" checked> Ball path</label>
+            <label><input type="checkbox" name="detect_release" checked> Release point</label>
+            <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
+          </div>
+          <label>Detection Summary
+            <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
+          </label>
+          <div class="lane-video-actions">
+            <button type="button" class="secondary-button" data-lane-detection-preview>Preview Detection Fields</button>
+            <p id="lane-video-status" class="empty-state">Frontend capture workflow ready. Real AI detection connects in the backend phase.</p>
+          </div>
+        </section>
         <div class="lane-form-heading">
           <h3>Log One Shot</h3>
           <p>Use the profile defaults, then capture the shot result and next adjustment.</p>
@@ -1202,6 +1267,7 @@ function hydrateLaneTrackerForm() {
     ballSelect.value = options.includes(currentValue) ? currentValue : arsenalItems[0] || "";
   }
   renderLaneTrackerContext();
+  updateLaneVideoMode();
 }
 
 function renderLaneTrackerContext() {
@@ -1232,6 +1298,68 @@ function renderLaneTrackerContext() {
     ` : ""}
     <button type="button" class="secondary-button" data-edit-profile>Edit Profile</button>
   `;
+}
+
+function updateLaneVideoMode(mode = document.querySelector("input[name='tracking_mode_choice']:checked")?.value || "recorded_video") {
+  const trackingMode = document.querySelector("#lane-tracking-mode");
+  const modeLabel = document.querySelector("#lane-video-mode-label");
+  const status = document.querySelector("#lane-video-status");
+  if (trackingMode) trackingMode.value = mode;
+  document.querySelectorAll("input[name='tracking_mode_choice']").forEach((input) => {
+    input.checked = input.value === mode;
+  });
+  if (modeLabel) modeLabel.textContent = mode === "live_video" ? "Live Camera" : "Recorded Video";
+  document.querySelectorAll("[data-lane-video-panel]").forEach((panel) => {
+    panel.classList.toggle("is-active", panel.dataset.laneVideoPanel === mode);
+  });
+  if (status) {
+    status.textContent = mode === "live_video"
+      ? "Live camera mode selected. Camera streaming will connect when the mobile/backend detector is enabled."
+      : "Recorded video mode selected. Choose a clip now; AI detection connects in the backend phase.";
+  }
+}
+
+function handleLaneVideoFile(fileInput) {
+  const status = document.querySelector("#lane-video-file-status");
+  const videoName = document.querySelector("input[name='video_name']");
+  const file = fileInput.files?.[0];
+  if (!file) {
+    if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
+    return;
+  }
+  if (status) status.textContent = `${file.name} selected for recorded analysis.`;
+  if (videoName && !videoName.value) {
+    videoName.value = file.name.replace(/\.[^.]+$/, "");
+  }
+}
+
+function previewLaneDetectionFields() {
+  const form = document.querySelector("#shot-form");
+  if (!form) return;
+  const selectedBall = document.querySelector("#lane-shot-ball")?.value || profileArsenalItems()[0] || "Selected ball";
+  const output = document.querySelector("#lane-output-preview");
+  const fields = {
+    speed_mph: "16.50",
+    hook_inches: "18.20",
+    boards_crossed: "17.10",
+    release_board: "18",
+    entry_board: "17.5",
+    pocket_quality: "Flush",
+    pin_result: "Strike",
+    confidence: "88",
+    confidence_label: "Preview",
+    ball_speed: "16.5 mph",
+    result: "Video preview",
+  };
+  Object.entries(fields).forEach(([name, value]) => {
+    const field = form.elements[name];
+    if (field && !field.value) field.value = value;
+  });
+  if (output && !output.value) {
+    output.value = `Preview only: detected ${selectedBall}, release board 18, breakpoint 8, entry board 17.5, 16.5 mph, flush pocket.`;
+  }
+  const status = document.querySelector("#lane-video-status");
+  if (status) status.textContent = "Preview fields filled. These are sample values until real AI video detection is connected.";
 }
 
 function parseArsenalItems(value) {
@@ -3794,10 +3922,17 @@ function bindEvents() {
       renderProfileProgress();
     }
     const laneSelect = event.target.closest("#nearby-lane-centers");
-    if (!laneSelect?.value) return;
     const laneInput = document.querySelector("#lane-session-center");
-    if (laneInput) {
+    if (laneSelect?.value && laneInput) {
       laneInput.value = laneSelect.value;
+    }
+    const modeInput = event.target.closest("input[name='tracking_mode_choice']");
+    if (modeInput) {
+      updateLaneVideoMode(modeInput.value);
+    }
+    const videoFile = event.target.closest("#lane-video-file");
+    if (videoFile) {
+      handleLaneVideoFile(videoFile);
     }
   });
   document.addEventListener("input", (event) => {
@@ -3823,6 +3958,16 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("#find-lane-centers")) {
       findNearbyLaneCenters();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-detection-preview]")) {
+      previewLaneDetectionFields();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-live-preview]")) {
+      updateLaneVideoMode("live_video");
       return;
     }
 
