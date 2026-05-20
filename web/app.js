@@ -72,6 +72,8 @@ const elements = {
   homeTier: document.querySelector("#home-tier"),
   homeProfile: document.querySelector("#home-profile"),
   homeFocus: document.querySelector("#home-focus"),
+  homePriorityStrip: document.querySelector("#home-priority-strip"),
+  homeProfileMeter: document.querySelector("#home-profile-meter"),
   homeProfileDetails: document.querySelector("#home-profile-details"),
   homeWorkspaceCount: document.querySelector("#home-workspace-count"),
   homeBallCount: document.querySelector("#home-ball-count"),
@@ -884,6 +886,23 @@ function renderHomeDashboard() {
   ].join(" | ");
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
   elements.homeProfile.textContent = `${displayName}'s StrikeIQ home`;
+  const readinessScore = Math.round(
+    [
+      completion,
+      ballCount ? 100 : 0,
+      shotCount ? 100 : 0,
+      Number(state.spares.attempts || 0) ? 100 : 0,
+    ].reduce((sum, value) => sum + value, 0) / 4
+  );
+  if (elements.homeProfileMeter) {
+    elements.homeProfileMeter.innerHTML = `
+      <div>
+        <span>Readiness</span>
+        <strong>${readinessScore}%</strong>
+      </div>
+      <meter min="0" max="100" value="${readinessScore}">${readinessScore}%</meter>
+    `;
+  }
   if (elements.homeProfileDetails) {
     const detailItems = [
       `${completion}% profile`,
@@ -917,6 +936,42 @@ function renderHomeDashboard() {
     focus = "Your tracking base is active. Use Friends after logging lane data.";
   }
   elements.homeFocus.textContent = focus;
+
+  if (elements.homePriorityStrip) {
+    const priorityItems = [
+      {
+        label: "Profile",
+        value: `${completion}%`,
+        status: completion >= 100 ? "Ready" : "Finish setup",
+      },
+      {
+        label: "Arsenal",
+        value: String(ballCount),
+        status: ballCount ? "Catalog loaded" : "Add balls",
+      },
+      {
+        label: "Lanes",
+        value: String(shotCount),
+        status: shotCount ? "History active" : "Track first shot",
+      },
+      {
+        label: "Scoring",
+        value: `${spareRate}%`,
+        status: Number(state.spares.attempts || 0) ? "Conversions logged" : "Start scoring",
+      },
+    ];
+    elements.homePriorityStrip.innerHTML = priorityItems
+      .map(
+        (item) => `
+          <article>
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(item.value)}</strong>
+            <small>${escapeHtml(item.status)}</small>
+          </article>
+        `
+      )
+      .join("");
+  }
 
   const nextActions = [
     {

@@ -490,6 +490,44 @@ h1 {
   background: rgba(5, 7, 10, 0.42);
 }
 
+.home-priority-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.home-priority-strip article {
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.34);
+  padding: 10px;
+}
+
+.home-priority-strip span,
+.home-priority-strip small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.home-priority-strip strong {
+  display: block;
+  margin: 4px 0 2px;
+  color: #ffffff;
+  font-family: var(--strikeiq-font-brand);
+  font-size: 1.3rem;
+}
+
+.home-priority-strip small {
+  color: var(--accent-2);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .home-profile-panel {
   align-content: start;
   display: grid;
@@ -517,6 +555,40 @@ h1 {
   margin: 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.home-profile-meter {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.30);
+  padding: 10px;
+}
+
+.home-profile-meter div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.home-profile-meter div span {
+  border: 0;
+  color: var(--muted);
+  padding: 0;
+}
+
+.home-profile-meter strong {
+  color: #ffffff;
+  font-family: var(--strikeiq-font-brand);
+  font-size: 1.1rem;
+}
+
+.home-profile-meter meter {
+  width: 100%;
+  height: 10px;
+  accent-color: var(--accent-2);
 }
 
 .home-profile-details {
@@ -2544,6 +2616,7 @@ button:hover {
 
   .home-dashboard,
   .home-split,
+  .home-priority-strip,
   .home-metrics {
     grid-template-columns: 1fr;
   }
