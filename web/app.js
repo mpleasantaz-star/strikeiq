@@ -47,6 +47,7 @@ const elements = {
   profileSpeed: document.querySelector("#profile-speed"),
   profileRevRate: document.querySelector("#profile-rev-rate"),
   profileBallWeight: document.querySelector("#profile-ball-weight"),
+  profileArsenal: document.querySelector("#profile-arsenal"),
   profileAverage: document.querySelector("#profile-average"),
   profileGoals: document.querySelector("#profile-goals"),
   profileError: document.querySelector("#profile-error"),
@@ -576,7 +577,7 @@ function titleFromSlug(value) {
 }
 
 function profileCompletion(profile) {
-  const keys = ["homeCenter"];
+  const keys = ["displayName", "homeCenter", "handedness", "delivery", "ballWeight", "ballArsenal"];
   const completed = keys.filter((key) => String(profile?.[key] || "").trim()).length;
   return Math.round((completed / keys.length) * 100);
 }
@@ -629,7 +630,12 @@ function showLoginScreen() {
 
 function showProfileScreen() {
   const profile = savedProfile();
+  elements.profileName.value = profile?.displayName || state.userName.split("@")[0] || "";
   elements.profileCenter.value = profile?.homeCenter || "";
+  elements.profileHandedness.value = profile?.handedness || "right";
+  elements.profileDelivery.value = profile?.delivery || "one-handed";
+  elements.profileBallWeight.value = profile?.ballWeight || "";
+  elements.profileArsenal.value = profile?.ballArsenal || "";
   elements.profileError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
   elements.profileScreen.classList.remove("is-hidden");
@@ -720,15 +726,22 @@ function handleProfileSubmit(event) {
     profile[key] = String(profile[key] || "").trim();
   });
 
+  if (!profile.displayName) {
+    elements.profileError.textContent = "Username is required.";
+    return;
+  }
+
   if (!profile.homeCenter) {
     elements.profileError.textContent = "Current bowling center is required.";
     return;
   }
 
+  if (!profile.ballWeight) {
+    elements.profileError.textContent = "Ball weight is required.";
+    return;
+  }
+
   const saved = savedProfile() || {};
-  profile.displayName = saved.displayName || state.userName.split("@")[0] || "Bowler";
-  profile.handedness = saved.handedness || "right";
-  profile.delivery = saved.delivery || "one-handed";
   profile.bowlerStyle = saved.bowlerStyle || "balanced";
   profile.skillLevel = saved.skillLevel || "league";
   state.profile = profile;
@@ -809,6 +822,8 @@ function renderHomeDashboard() {
 
   const profile = state.profile || savedProfile() || {};
   const displayName = profile.displayName || state.userName.split("@")[0] || "Bowler";
+  const handedness = profile.handedness === "left" ? "Left handed" : "Right handed";
+  const delivery = titleFromSlug(profile.delivery || "one-handed");
   const completion = profileCompletion(profile);
   const ballCount = state.balls.length;
   const spareRate = Number(state.spares.rate || 0);
@@ -821,6 +836,8 @@ function renderHomeDashboard() {
   elements.homeGreeting.textContent = `Welcome, ${displayName}`;
   elements.homeSubcopy.textContent = [
     profile.homeCenter ? `Current center: ${profile.homeCenter}` : "Current center not set",
+    handedness,
+    delivery,
     `${shotCount} lane entries`,
   ].join(" | ");
   elements.homeTier.textContent = isPro ? "Pro" : "Free";
@@ -829,6 +846,10 @@ function renderHomeDashboard() {
     const detailItems = [
       `${completion}% profile`,
       profile.homeCenter || "Center not set",
+      handedness,
+      delivery,
+      profile.ballWeight,
+      profile.ballArsenal && "Arsenal saved",
     ].filter(Boolean);
     elements.homeProfileDetails.innerHTML = detailItems
       .map((item) => `<span>${escapeHtml(item)}</span>`)
@@ -840,8 +861,8 @@ function renderHomeDashboard() {
   elements.homeShotCount.textContent = shotCount;
 
   let focus = "Start by opening a section below.";
-  if (!profile.homeCenter) {
-    focus = "Set your current bowling center so StrikeIQ can organize lane sessions by where you bowl.";
+  if (completion < 100) {
+    focus = "Complete your core profile so StrikeIQ can connect center, hand, delivery, arsenal, and ball weight context.";
   } else if (!ballCount) {
     focus = "Build your ball database first so lane tracking and coaching can use your ball data.";
   } else if (!shotCount) {

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-home-first">
+    <link rel="stylesheet" href="/styles.css?v=20260519-core-profile">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -33,18 +33,51 @@
       <div class="profile-panel">
         <img src="/brand/strikeiq-logo-lockup.png" alt="StrikeIQ">
         <p class="eyebrow">Profile Setup</p>
-        <h1>Set Your Home Center</h1>
-        <p class="hero-subtitle">Tell StrikeIQ where you currently bowl so lane tracking, scoring, and coaching can use the right center context.</p>
+        <h1>Set Up Your Profile</h1>
+        <p class="hero-subtitle">Add the core details StrikeIQ uses for lane tracking, scoring, arsenal notes, and coaching context.</p>
         <form id="profile-form" class="profile-form">
           <div class="profile-setup-grid">
             <label>
-              Current bowling center
+              Username
+              <input id="profile-name" name="displayName" autocomplete="name" placeholder="mpleasantaz" required>
+            </label>
+            <label>
+              Bowling center
               <input id="profile-center" name="homeCenter" list="home-center-options" placeholder="Bowlero Glendale" required>
               <datalist id="home-center-options"></datalist>
             </label>
+            <label>
+              Bowling hand
+              <select id="profile-handedness" name="handedness" required>
+                <option value="right">Right handed</option>
+                <option value="left">Left handed</option>
+              </select>
+            </label>
+            <label>
+              Delivery
+              <select id="profile-delivery" name="delivery" required>
+                <option value="one-handed">One-handed</option>
+                <option value="two-handed">Two-handed</option>
+              </select>
+            </label>
+            <label>
+              Ball weight
+              <select id="profile-ball-weight" name="ballWeight" required>
+                <option value="">Select weight</option>
+                <option value="12 lb">12 lb</option>
+                <option value="13 lb">13 lb</option>
+                <option value="14 lb">14 lb</option>
+                <option value="15 lb">15 lb</option>
+                <option value="16 lb">16 lb</option>
+              </select>
+            </label>
+            <label class="profile-wide-field">
+              Ball arsenal
+              <textarea id="profile-arsenal" name="ballArsenal" placeholder="List the bowling balls you currently throw. Example: Phaze II, Hy-Road Pearl, spare ball."></textarea>
+            </label>
           </div>
           <p id="profile-error" class="login-error" role="alert"></p>
-          <button type="submit">Save Center</button>
+          <button type="submit">Save Profile</button>
         </form>
       </div>
     </section>
@@ -298,6 +331,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260519-home-first" type="module"></script>
+    <script src="/app.js?v=20260519-core-profile" type="module"></script>
   </body>
 </html>
