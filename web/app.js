@@ -48,6 +48,7 @@ const elements = {
   profileRevRate: document.querySelector("#profile-rev-rate"),
   profileBallWeight: document.querySelector("#profile-ball-weight"),
   profileArsenal: document.querySelector("#profile-arsenal"),
+  profileArsenalSuggestions: document.querySelector("#profile-arsenal-suggestions"),
   profileAverage: document.querySelector("#profile-average"),
   profileGoals: document.querySelector("#profile-goals"),
   profileError: document.querySelector("#profile-error"),
@@ -636,6 +637,7 @@ function showProfileScreen() {
   elements.profileDelivery.value = profile?.delivery || "one-handed";
   elements.profileBallWeight.value = profile?.ballWeight || "";
   elements.profileArsenal.value = profile?.ballArsenal || "";
+  renderProfileArsenalSuggestions();
   elements.profileError.textContent = "";
   elements.loginScreen.classList.add("is-hidden");
   elements.profileScreen.classList.remove("is-hidden");
@@ -725,6 +727,7 @@ function handleProfileSubmit(event) {
   Object.keys(profile).forEach((key) => {
     profile[key] = String(profile[key] || "").trim();
   });
+  profile.ballArsenal = String(profile.ballArsenal || "").replace(/[,\s;]+$/, "");
 
   if (!profile.displayName) {
     elements.profileError.textContent = "Username is required.";
@@ -1025,6 +1028,86 @@ function hydrateLaneTrackerForm() {
   }
 }
 
+function currentArsenalQuery() {
+  const value = elements.profileArsenal?.value || "";
+  const activeToken = value.split(/[,;\n]/).pop() || "";
+  return activeToken.trim().toLowerCase();
+}
+
+function selectedArsenalItems() {
+  return new Set(
+    (elements.profileArsenal?.value || "")
+      .split(/[,;\n]/)
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+function ballSearchText(ball) {
+  return [
+    ball.brand,
+    ball.name,
+    ball.cover,
+    ball.core,
+    ball.surface,
+    ball.condition,
+    ball.motion,
+    ball.notes,
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderProfileArsenalSuggestions() {
+  if (!elements.profileArsenalSuggestions || !elements.profileArsenal) return;
+  const query = currentArsenalQuery();
+  if (query.length < 2 || !state.balls.length) {
+    elements.profileArsenalSuggestions.innerHTML = "";
+    elements.profileArsenalSuggestions.classList.remove("is-visible");
+    return;
+  }
+
+  const selected = selectedArsenalItems();
+  const matches = state.balls
+    .filter((ball) => {
+      const label = [ball.brand, ball.name].filter(Boolean).join(" ").trim();
+      return label && !selected.has(label.toLowerCase()) && ballSearchText(ball).includes(query);
+    })
+    .slice(0, 6);
+
+  if (!matches.length) {
+    elements.profileArsenalSuggestions.innerHTML = `<p>No matching balls found.</p>`;
+    elements.profileArsenalSuggestions.classList.add("is-visible");
+    return;
+  }
+
+  elements.profileArsenalSuggestions.innerHTML = matches
+    .map((ball) => {
+      const label = [ball.brand, ball.name].filter(Boolean).join(" ").trim();
+      const meta = [ball.cover, ball.condition, ball.motion].filter(Boolean).join(" | ");
+      return `
+        <button type="button" data-arsenal-ball="${escapeHtml(label)}">
+          <strong>${escapeHtml(label)}</strong>
+          ${meta ? `<span>${escapeHtml(meta)}</span>` : ""}
+        </button>
+      `;
+    })
+    .join("");
+  elements.profileArsenalSuggestions.classList.add("is-visible");
+}
+
+function addBallToProfileArsenal(label) {
+  if (!elements.profileArsenal) return;
+  const value = elements.profileArsenal.value;
+  const tokens = value.split(/[,;\n]/).map((item) => item.trim());
+  const baseTokens = /[,;\n]\s*$/.test(value) ? tokens : tokens.slice(0, -1);
+  const nextItems = [...baseTokens.filter(Boolean), label].filter((item, index, items) => {
+    return items.findIndex((candidate) => candidate.toLowerCase() === item.toLowerCase()) === index;
+  });
+  elements.profileArsenal.value = nextItems.length ? `${nextItems.join(", ")}, ` : "";
+  elements.profileArsenal.focus();
+  elements.profileArsenalSuggestions.innerHTML = "";
+  elements.profileArsenalSuggestions.classList.remove("is-visible");
+}
+
 function formatShotMetric(value, suffix = "") {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return "";
@@ -1042,6 +1125,7 @@ async function loadBalls() {
   state.balls = await api("/api/balls");
   renderHomeDashboard();
   renderBallDatabase();
+  renderProfileArsenalSuggestions();
 }
 
 function ballMatchesFilters(ball) {
@@ -3452,6 +3536,8 @@ function bindEvents() {
       elements.profileCenter.value = elements.nearbyHomeCenters.value;
     }
   });
+  elements.profileArsenal?.addEventListener("input", renderProfileArsenalSuggestions);
+  elements.profileArsenal?.addEventListener("focus", renderProfileArsenalSuggestions);
   document.addEventListener("change", (event) => {
     const laneSelect = event.target.closest("#nearby-lane-centers");
     if (!laneSelect?.value) return;
@@ -3467,6 +3553,12 @@ function bindEvents() {
   document.addEventListener("click", (event) => {
     if (event.target.closest("#find-lane-centers")) {
       findNearbyLaneCenters();
+      return;
+    }
+
+    const arsenalButton = event.target.closest("[data-arsenal-ball]");
+    if (arsenalButton) {
+      addBallToProfileArsenal(arsenalButton.dataset.arsenalBall);
       return;
     }
 

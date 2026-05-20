@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>StrikeIQ</title>
-    <link rel="stylesheet" href="/styles.css?v=20260519-pro-profile-lock">
+    <link rel="stylesheet" href="/styles.css?v=20260519-arsenal-suggest">
   </head>
   <body>
     <section id="login-screen" class="login-screen" aria-label="StrikeIQ login">
@@ -73,7 +73,8 @@
             </label>
             <label class="profile-wide-field">
               Ball arsenal
-              <textarea id="profile-arsenal" name="ballArsenal" placeholder="List the bowling balls you currently throw. Example: Phaze II, Hy-Road Pearl, spare ball."></textarea>
+              <textarea id="profile-arsenal" name="ballArsenal" placeholder="Type a ball name, manufacturer, cover style, or motion. Example: Storm Phaze II, Hammer Black Widow 3.0"></textarea>
+              <div id="profile-arsenal-suggestions" class="arsenal-suggestions" aria-live="polite"></div>
             </label>
           </div>
           <section class="locked-profile-section" aria-label="Locked Pro profile options">
@@ -370,6 +371,6 @@
     </main>
     </div>
 
-    <script src="/app.js?v=20260519-pro-profile-lock" type="module"></script>
+    <script src="/app.js?v=20260519-arsenal-suggest" type="module"></script>
   </body>
 </html>
