@@ -1562,6 +1562,40 @@ function laneVisualValue(fields, primaryName, fallbackName = "") {
   return fallbackField?.value || "";
 }
 
+function lanePinSvg(pinNumber) {
+  const pinId = `lane-pin-${pinNumber}`;
+  return `
+    <svg class="lane-pin-svg" viewBox="0 0 64 156" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="${pinId}-body" x1="12%" y1="16%" x2="90%" y2="78%">
+          <stop offset="0%" stop-color="#fffdf6"></stop>
+          <stop offset="34%" stop-color="#fff6df"></stop>
+          <stop offset="58%" stop-color="#f4ddb8"></stop>
+          <stop offset="100%" stop-color="#b27638"></stop>
+        </linearGradient>
+        <radialGradient id="${pinId}-highlight" cx="33%" cy="35%" r="62%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"></stop>
+          <stop offset="54%" stop-color="#ffffff" stop-opacity="0.24"></stop>
+          <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
+        </radialGradient>
+        <linearGradient id="${pinId}-red" x1="18%" y1="0%" x2="82%" y2="100%">
+          <stop offset="0%" stop-color="#f35549"></stop>
+          <stop offset="48%" stop-color="#c51e2a"></stop>
+          <stop offset="100%" stop-color="#7e0e18"></stop>
+        </linearGradient>
+      </defs>
+      <ellipse class="pin-floor-shadow" cx="32" cy="145" rx="23" ry="7"></ellipse>
+      <path class="pin-main-body" fill="url(#${pinId}-body)" d="M26.4 7.6C20.8 11.2 20.8 18.9 23.1 27.3C25.2 35.3 25.1 44.6 21.5 55.2C18.3 64.7 10.3 74.8 7.5 89.3C4.8 103.5 9.5 120.6 16.4 132.2C13.4 136.4 11.6 140.2 11.8 144.4C16.5 150.2 23.1 153.1 32 153.1C40.9 153.1 47.5 150.2 52.2 144.4C52.4 140.2 50.6 136.4 47.6 132.2C54.5 120.6 59.2 103.5 56.5 89.3C53.7 74.8 45.7 64.7 42.5 55.2C38.9 44.6 38.8 35.3 40.9 27.3C43.2 18.9 43.2 11.2 37.6 7.6C34.1 5.3 29.9 5.3 26.4 7.6Z"></path>
+      <path class="pin-body-highlight" fill="url(#${pinId}-highlight)" d="M25.1 10.7C21.4 17.4 25 31.1 24.1 42.1C23.1 54.1 15.8 67.3 13.4 84.2C10.8 102.3 17.7 118.6 22.6 130.4C24.8 135.8 22.7 142 18.5 146.5C24.3 150.1 31.4 150.1 36.7 147.2C30.2 144.6 27.3 137.2 28.2 127.6C29.1 117.9 23.7 109.2 22.6 97.6C20.7 77.9 25.8 63.7 30.2 51.2C34.9 37.8 31.2 20.7 28.2 10.4C27.2 10.2 26.1 10.3 25.1 10.7Z"></path>
+      <path class="pin-side-shade" d="M40.2 27.8C38.8 36.6 39.2 46.7 43 57.9C46.1 67.2 53.7 77.4 56.3 90.6C58.7 103.3 54.5 120.2 47.6 132.2C50.6 136.4 52.4 140.2 52.2 144.4C47.5 150.2 40.9 153.1 32 153.1C36.8 149.2 39.9 141 38.7 130.2C37.4 118 43.3 109.1 44 96.5C44.8 81.1 37 69.8 33.5 56.7C30.5 45.6 32.8 34.7 35.8 27.2C37.1 27.8 38.7 28 40.2 27.8Z"></path>
+      <path class="pin-red-band upper" fill="url(#${pinId}-red)" d="M22.4 35.8C28.5 38.6 35.5 38.6 41.6 35.8C42.1 39.1 42.2 42.2 41.8 45.2C35.4 48.2 28.6 48.2 22.2 45.2C21.8 42.2 21.9 39.1 22.4 35.8Z"></path>
+      <path class="pin-red-band lower" fill="url(#${pinId}-red)" d="M20.6 49.8C27.9 53.4 36.1 53.4 43.4 49.8C44.3 53.2 45.7 56.6 47.5 60.2C37.2 64.6 26.8 64.6 16.5 60.2C18.3 56.6 19.7 53.2 20.6 49.8Z"></path>
+      <ellipse class="pin-top-glow" cx="32" cy="13.8" rx="7.8" ry="5.4"></ellipse>
+      <ellipse class="pin-base" cx="32" cy="144" rx="16.5" ry="5.1"></ellipse>
+    </svg>
+  `;
+}
+
 function renderLaneBreakdownVisual(fields = null) {
   const visual = document.querySelector("#lane-breakdown-visual");
   const metricsContainer = document.querySelector("#lane-breakdown-metrics");
@@ -1629,7 +1663,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => `<i data-pin="${index + 1}"></i>`).join("")}</div>
+              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => `<span class="lane-3d-pin" data-pin="${index + 1}">${lanePinSvg(index + 1)}</span>`).join("")}</div>
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
                 <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
                 <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
