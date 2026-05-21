@@ -372,6 +372,7 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
           video_type TEXT,
           lane_center TEXT,
           ball TEXT,
+          calibration_json TEXT NOT NULL DEFAULT '{}',
           detection_options_json TEXT NOT NULL DEFAULT '{}',
           result_json TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'ready',
@@ -417,6 +418,7 @@ def ensure_lane_video_analysis_columns(connection: sqlite3.Connection) -> None:
     columns = {row["name"] for row in connection.execute("PRAGMA table_info(lane_video_analyses)").fetchall()}
     migrations = {
         "upload_id": "ALTER TABLE lane_video_analyses ADD COLUMN upload_id TEXT",
+        "calibration_json": "ALTER TABLE lane_video_analyses ADD COLUMN calibration_json TEXT NOT NULL DEFAULT '{}'",
     }
     for column, statement in migrations.items():
         if column not in columns:
@@ -880,6 +882,7 @@ def get_lane_video_analyses() -> list[dict]:
               a.video_type,
               a.lane_center,
               a.ball,
+              a.calibration_json,
               a.detection_options_json,
               a.result_json,
               a.status,
@@ -896,6 +899,7 @@ def get_lane_video_analyses() -> list[dict]:
     analyses: list[dict] = []
     for row in rows:
         result_payload = json.loads(row["result_json"] or "{}")
+        calibration = json.loads(row["calibration_json"] or "{}")
         detection_options = json.loads(row["detection_options_json"] or "{}")
         fields = result_payload.get("fields") if isinstance(result_payload, dict) else {}
         analyses.append(
@@ -908,6 +912,7 @@ def get_lane_video_analyses() -> list[dict]:
                 "video_type": row["video_type"],
                 "lane_center": row["lane_center"],
                 "ball": row["ball"],
+                "calibration": calibration,
                 "detection": detection_options,
                 "fields": fields if isinstance(fields, dict) else {},
                 "status": row["status"],
@@ -1289,6 +1294,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
     video = payload.get("video") if isinstance(payload.get("video"), dict) else {}
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else {}
+    calibration = payload.get("calibration") if isinstance(payload.get("calibration"), dict) else {}
     upload_id = optional_text(payload, "upload_id")
     upload = get_lane_video_upload(upload_id)
     if upload_id and not upload:
@@ -1322,9 +1328,14 @@ def create_lane_video_analysis(payload: dict) -> dict:
     pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
     pin_result = pin_options[(seed // 11) % len(pin_options)]
     confidence = 72 + seed % 22
+    calibration_readiness = int(calibration.get("readiness") or 0)
+    if calibration_readiness >= 100:
+        confidence = min(96, confidence + 4)
     result = "Strike" if pin_result == "Strike" else pin_result
+    camera_angle = str(calibration.get("camera_angle") or "behind_bowler").replace("_", " ")
     output_preview = (
-        f"Development analysis for {video_name}: detected {ball} at {speed_mph:.2f} mph, "
+        f"Development analysis for {video_name} using {camera_angle} calibration ({calibration_readiness}% ready): "
+        f"detected {ball} at {speed_mph:.2f} mph, "
         f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
         f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
         f"pocket read {pocket_quality}, pin result {pin_result}."
@@ -1350,7 +1361,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "pin_result": pin_result,
         "impact_result": pin_result,
         "confidence": str(confidence),
-        "confidence_label": "Development analysis",
+        "confidence_label": "Calibrated development analysis" if calibration_readiness >= 100 else "Development analysis",
         "result": result,
         "output_preview": output_preview,
     }
@@ -1374,11 +1385,12 @@ def create_lane_video_analysis(payload: dict) -> dict:
               video_type,
               lane_center,
               ball,
+              calibration_json,
               detection_options_json,
               result_json,
               status
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_run_id,
@@ -1389,6 +1401,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
                 video_type,
                 lane_center,
                 ball,
+                json.dumps(calibration, ensure_ascii=True),
                 json.dumps(detection, ensure_ascii=True),
                 json.dumps(result_payload, ensure_ascii=True),
                 "ready",

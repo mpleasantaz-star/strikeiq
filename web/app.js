@@ -304,6 +304,40 @@ const projectDetails = {
               <button type="button" class="secondary-button" data-lane-live-preview>Prepare Live Capture</button>
             </div>
           </div>
+          <section class="lane-calibration-panel" aria-label="Lane calibration setup">
+            <div class="lane-calibration-heading">
+              <div>
+                <p class="eyebrow">Setup</p>
+                <h3>Lane Calibration</h3>
+              </div>
+              <span id="lane-calibration-status">Needs Review</span>
+            </div>
+            <div class="form-row">
+              <label>Camera Angle
+                <select id="lane-camera-angle">
+                  <option value="behind_bowler">Behind bowler</option>
+                  <option value="side_tripod">Side tripod</option>
+                  <option value="ball_return">Ball return view</option>
+                  <option value="pin_deck">Pin deck view</option>
+                </select>
+              </label>
+              <label>Target Board<input id="lane-calibration-target" inputmode="numeric" placeholder="12"></label>
+            </div>
+            <div class="form-row">
+              <label>Foul Line Board<input id="lane-calibration-release" inputmode="numeric" placeholder="18"></label>
+              <label>Breakpoint Board<input id="lane-calibration-breakpoint" inputmode="numeric" placeholder="8"></label>
+            </div>
+            <div class="lane-calibration-checklist">
+              <label><input type="checkbox" id="lane-calibration-foul" checked> Foul line visible</label>
+              <label><input type="checkbox" id="lane-calibration-arrows" checked> Arrows visible</label>
+              <label><input type="checkbox" id="lane-calibration-edges" checked> Lane edges visible</label>
+              <label><input type="checkbox" id="lane-calibration-pins" checked> Pin deck visible</label>
+            </div>
+            <div class="lane-calibration-actions">
+              <button type="button" class="secondary-button" data-lane-calibration-preview>Confirm Calibration</button>
+              <p id="lane-calibration-summary" class="empty-state">Confirm the lane markers before analysis so board readings are traceable.</p>
+            </div>
+          </section>
           <div class="lane-detection-grid">
             <article>
               <span>Lane Detection</span>
@@ -1281,6 +1315,7 @@ function hydrateLaneTrackerForm() {
   }
   renderLaneTrackerContext();
   updateLaneVideoMode();
+  updateLaneCalibrationSummary();
 }
 
 function renderLaneTrackerContext() {
@@ -1369,6 +1404,42 @@ function laneDetectionOptions() {
     release_point: Boolean(document.querySelector("input[name='detect_release']")?.checked),
     pin_result: Boolean(document.querySelector("input[name='detect_pins']")?.checked),
   };
+}
+
+function laneCalibrationData() {
+  const markers = {
+    foul_line: Boolean(document.querySelector("#lane-calibration-foul")?.checked),
+    arrows: Boolean(document.querySelector("#lane-calibration-arrows")?.checked),
+    lane_edges: Boolean(document.querySelector("#lane-calibration-edges")?.checked),
+    pin_deck: Boolean(document.querySelector("#lane-calibration-pins")?.checked),
+  };
+  const visibleCount = Object.values(markers).filter(Boolean).length;
+  return {
+    camera_angle: document.querySelector("#lane-camera-angle")?.value || "behind_bowler",
+    release_board_hint: document.querySelector("#lane-calibration-release")?.value.trim() || "",
+    target_board_hint: document.querySelector("#lane-calibration-target")?.value.trim() || "",
+    breakpoint_board_hint: document.querySelector("#lane-calibration-breakpoint")?.value.trim() || "",
+    markers,
+    readiness: Math.round((visibleCount / Object.keys(markers).length) * 100),
+  };
+}
+
+function updateLaneCalibrationSummary() {
+  const calibration = laneCalibrationData();
+  const status = document.querySelector("#lane-calibration-status");
+  const summary = document.querySelector("#lane-calibration-summary");
+  const angleLabel = titleFromSlug(calibration.camera_angle.replace(/_/g, "-"));
+  if (status) {
+    status.textContent = calibration.readiness === 100 ? "Ready" : `${calibration.readiness}% Ready`;
+  }
+  if (summary) {
+    const hints = [
+      calibration.release_board_hint && `release ${calibration.release_board_hint}`,
+      calibration.target_board_hint && `target ${calibration.target_board_hint}`,
+      calibration.breakpoint_board_hint && `breakpoint ${calibration.breakpoint_board_hint}`,
+    ].filter(Boolean);
+    summary.textContent = `${angleLabel} calibration ${calibration.readiness}% ready${hints.length ? ` with ${hints.join(", ")}` : ""}.`;
+  }
 }
 
 function readFileAsBase64(file) {
@@ -1468,6 +1539,7 @@ async function analyzeLaneVideo() {
     upload_id: "",
     video: file ? { name: file.name, size: file.size, type: file.type || "video" } : null,
     detection: laneDetectionOptions(),
+    calibration: laneCalibrationData(),
     context: {
       lane_center: payload.lane_center || state.profile?.homeCenter || "",
       ball: payload.ball || profileArsenalItems()[0] || "",
@@ -4080,16 +4152,23 @@ function bindEvents() {
     if (videoFile) {
       handleLaneVideoFile(videoFile);
     }
+    if (event.target.closest(".lane-calibration-panel")) {
+      updateLaneCalibrationSummary();
+    }
   });
   document.addEventListener("input", (event) => {
     if (event.target.closest("#profile-form")) {
       renderProfileProgress();
     }
     const arsenalInput = event.target.closest(".profile-arsenal-ball");
-    if (!arsenalInput) return;
-    activeArsenalInput = arsenalInput;
-    updateProfileArsenalValue();
-    renderProfileArsenalSuggestions();
+    if (arsenalInput) {
+      activeArsenalInput = arsenalInput;
+      updateProfileArsenalValue();
+      renderProfileArsenalSuggestions();
+    }
+    if (event.target.closest(".lane-calibration-panel")) {
+      updateLaneCalibrationSummary();
+    }
   });
   document.addEventListener("focusin", (event) => {
     const arsenalInput = event.target.closest(".profile-arsenal-ball");
@@ -4109,6 +4188,13 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-video-analyze]")) {
       analyzeLaneVideo();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-calibration-preview]")) {
+      updateLaneCalibrationSummary();
+      const status = document.querySelector("#lane-video-status");
+      if (status) status.textContent = "Calibration confirmed for the next analysis run.";
       return;
     }
 
