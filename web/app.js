@@ -1457,17 +1457,26 @@ async function uploadLaneVideoFile(file) {
       type: file.type || "video",
     };
   }
-  const response = await fetch("/api/lane-video/upload-binary", {
-    method: "POST",
-    headers: {
-      "Content-Type": file.type || "application/octet-stream",
-      "X-Video-Name": encodeURIComponent(file.name),
-      "X-Video-Type": file.type || "video",
-    },
-    body: file,
-  });
-  const upload = await response.json();
+  let response;
+  try {
+    response = await fetch("/api/lane-video/upload-binary", {
+      method: "POST",
+      headers: {
+        "Content-Type": file.type || "application/octet-stream",
+        "X-Video-Name": encodeURIComponent(file.name),
+        "X-Video-Type": file.type || "video",
+      },
+      body: file,
+    });
+  } catch (error) {
+    throw new Error("Upload route unavailable. Restart the StrikeIQ backend so the larger video upload endpoint is active.");
+  }
+  const text = await response.text();
+  const upload = text ? JSON.parse(text) : {};
   if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error("Large video upload endpoint is not active. Restart the StrikeIQ backend and try again.");
+    }
     throw new Error(upload.error || "Video upload failed");
   }
   const uploadId = document.querySelector("#lane-video-upload-id");

@@ -2289,6 +2289,11 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_shot_stats())
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
+            elif parsed.path == "/api/lane-video/capabilities":
+                self.send_json({
+                    "binary_upload": True,
+                    "max_upload_mb": MAX_LANE_VIDEO_UPLOAD_BYTES // (1024 * 1024),
+                })
             elif parsed.path == "/api/lane-video/analyses":
                 self.send_json(get_lane_video_analyses())
             elif parsed.path == "/api/chat/posts":
