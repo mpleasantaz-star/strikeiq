@@ -1590,6 +1590,18 @@ function renderLaneBreakdownVisual(fields = null) {
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
+  const pinRack = [
+    { pin: 7, x: 38, y: 12, scale: 0.92 },
+    { pin: 8, x: 66, y: 12, scale: 0.92 },
+    { pin: 9, x: 94, y: 12, scale: 0.92 },
+    { pin: 10, x: 122, y: 12, scale: 0.92 },
+    { pin: 4, x: 52, y: 28, scale: 0.98 },
+    { pin: 5, x: 80, y: 28, scale: 0.98 },
+    { pin: 6, x: 108, y: 28, scale: 0.98 },
+    { pin: 2, x: 66, y: 44, scale: 1.04 },
+    { pin: 3, x: 94, y: 44, scale: 1.04 },
+    { pin: 1, x: 80, y: 60, scale: 1.12 },
+  ];
   const labelSide = entryBoard > 20 ? "left" : "right";
   const mode = state.laneBreakdownView?.mode === "2d" ? "2d" : "3d";
   const rotation = Number(state.laneBreakdownView?.rotation) || 0;
@@ -1699,10 +1711,14 @@ function renderLaneBreakdownVisual(fields = null) {
           <polygon points="92,187 88.8,199 95.2,199"></polygon><polygon points="105,187 101.8,199 108.2,199"></polygon><polygon points="118,187 114.8,199 121.2,199"></polygon>
         </g>
         <g class="lane-breakdown-pins" aria-hidden="true">
-          <ellipse cx="56" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="72" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="88" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="104" cy="18" rx="2.3" ry="3.4"></ellipse>
-          <ellipse cx="64" cy="28" rx="2.5" ry="3.7"></ellipse><ellipse cx="80" cy="28" rx="2.5" ry="3.7"></ellipse><ellipse cx="96" cy="28" rx="2.5" ry="3.7"></ellipse>
-          <ellipse cx="72" cy="38" rx="2.7" ry="4.0"></ellipse><ellipse cx="88" cy="38" rx="2.7" ry="4.0"></ellipse>
-          <ellipse cx="80" cy="48" rx="3.0" ry="4.4"></ellipse>
+          ${pinRack.map((pin) => `
+            <g class="lane-breakdown-pin" transform="translate(${pin.x} ${pin.y}) scale(${pin.scale})">
+              <ellipse class="pin-shadow" cx="0" cy="6.8" rx="6.1" ry="2.1"></ellipse>
+              <path class="pin-body" d="M-2.0,-7.0 C-4.7,-5.4 -5.8,-1.7 -4.3,1.8 C-3.3,4.2 -5.8,7.1 -3.2,9.0 C-1.3,10.3 1.3,10.3 3.2,9.0 C5.8,7.1 3.3,4.2 4.3,1.8 C5.8,-1.7 4.7,-5.4 2.0,-7.0 C1.1,-7.7 -1.1,-7.7 -2.0,-7.0 Z"></path>
+              <path class="pin-band" d="M-3.7,-1.9 C-1.2,-0.9 1.2,-0.9 3.7,-1.9 L4.3,0.7 C1.4,1.7 -1.4,1.7 -4.3,0.7 Z"></path>
+              <ellipse class="pin-neck" cx="0" cy="-6.5" rx="2.0" ry="1.4"></ellipse>
+            </g>
+          `).join("")}
         </g>
         <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
         <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
