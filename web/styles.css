@@ -1710,6 +1710,179 @@ h1 {
   flex: 1 1 220px;
 }
 
+.lane-breakdown-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(16, 24, 39, 0.54);
+  padding: 12px;
+}
+
+.lane-breakdown-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.lane-breakdown-heading h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.98rem;
+}
+
+#lane-breakdown-state {
+  flex: 0 0 auto;
+  border: 1px solid rgba(76, 201, 240, 0.22);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 900;
+  padding: 6px 9px;
+  text-transform: uppercase;
+}
+
+.lane-breakdown-visual {
+  min-width: 0;
+}
+
+.lane-breakdown-map {
+  display: grid;
+  gap: 8px;
+}
+
+.lane-breakdown-board-labels {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.lane-breakdown-board-labels span {
+  text-align: center;
+}
+
+.lane-breakdown-svg {
+  display: block;
+  width: 100%;
+  height: clamp(300px, 48vw, 430px);
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.72);
+  overflow: visible;
+}
+
+.lane-breakdown-surface {
+  fill: rgba(10, 132, 255, 0.08);
+  stroke: rgba(76, 201, 240, 0.24);
+}
+
+.lane-breakdown-board {
+  stroke: rgba(76, 201, 240, 0.08);
+  stroke-width: 0.42;
+}
+
+.lane-breakdown-reference {
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-dasharray: 3 3;
+  stroke-width: 0.72;
+}
+
+.lane-breakdown-zone,
+.lane-breakdown-marker text {
+  fill: rgba(222, 237, 255, 0.82);
+  font-size: 5px;
+  font-weight: 900;
+}
+
+.lane-breakdown-pins circle {
+  fill: #ffffff;
+  stroke: #4cc9f0;
+  stroke-width: 0.6;
+}
+
+.lane-breakdown-path-glow {
+  fill: none;
+  filter: url("#laneTrackGlow");
+  opacity: 0.75;
+  stroke: rgba(76, 201, 240, 0.42);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 6;
+}
+
+.lane-breakdown-path {
+  fill: none;
+  stroke: url("#laneTrackGradient");
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.6;
+}
+
+.lane-breakdown-marker circle {
+  fill: #05070a;
+  stroke: #ffffff;
+  stroke-width: 1.4;
+}
+
+.lane-breakdown-marker.release circle {
+  stroke: #4cc9f0;
+}
+
+.lane-breakdown-marker.arrows circle {
+  stroke: #0a84ff;
+}
+
+.lane-breakdown-marker.breakpoint circle {
+  stroke: #ffffff;
+}
+
+.lane-breakdown-marker.entry circle {
+  fill: #4cc9f0;
+  stroke: #ffffff;
+}
+
+.lane-breakdown-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lane-breakdown-metrics article {
+  min-width: 0;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.42);
+  padding: 9px;
+}
+
+.lane-breakdown-metrics span,
+.lane-breakdown-metrics strong {
+  display: block;
+  min-width: 0;
+}
+
+.lane-breakdown-metrics span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.lane-breakdown-metrics strong {
+  color: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.lane-breakdown-metrics p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .lane-analysis-history {
   display: grid;
   gap: 10px;
@@ -3142,7 +3315,8 @@ button:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .home-metrics {
+  .home-metrics,
+  .lane-breakdown-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -3178,6 +3352,7 @@ button:hover {
 
   .home-priority-strip,
   .home-metrics,
+  .lane-breakdown-metrics,
   .quick-read {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3288,6 +3463,7 @@ button:hover {
 
   .lane-video-header,
   .lane-video-actions,
+  .lane-breakdown-heading,
   .lane-analysis-heading,
   .lane-analysis-record,
   .lane-calibration-heading,
@@ -3316,7 +3492,8 @@ button:hover {
   .home-dashboard,
   .home-split,
   .home-priority-strip,
-  .home-metrics {
+  .home-metrics,
+  .lane-breakdown-metrics {
     grid-template-columns: 1fr;
   }
 

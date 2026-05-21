@@ -365,6 +365,17 @@ const projectDetails = {
           <label>Detection Summary
             <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
           </label>
+          <section class="lane-breakdown-panel" aria-label="Lane video visual breakdown">
+            <div class="lane-breakdown-heading">
+              <div>
+                <p class="eyebrow">Visual Review</p>
+                <h3>Breakdown Visuals</h3>
+              </div>
+              <span id="lane-breakdown-state">Preview</span>
+            </div>
+            <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
+            <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
+          </section>
           <div class="lane-video-actions">
             <button type="button" class="secondary-button" data-lane-video-analyze>Upload And Analyze Video</button>
             <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
@@ -1317,6 +1328,7 @@ function hydrateLaneTrackerForm() {
   renderLaneTrackerContext();
   updateLaneVideoMode();
   updateLaneCalibrationSummary();
+  renderLaneBreakdownVisual();
 }
 
 function renderLaneTrackerContext() {
@@ -1396,6 +1408,143 @@ function applyLaneAnalysisFields(fields = {}) {
     if (!field || value === null || value === undefined) return;
     field.value = value;
   });
+  renderLaneBreakdownVisual(fields);
+}
+
+function laneMetricNumber(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const match = String(value ?? "").match(/-?\d+(\.\d+)?/);
+  const number = match ? Number(match[0]) : NaN;
+  return Number.isFinite(number) ? number : null;
+}
+
+function laneMetricText(value, suffix = "") {
+  if (value === null || value === undefined || String(value).trim() === "") return "";
+  return formatShotMetric(value, suffix);
+}
+
+function laneBoardValue(value, fallback) {
+  const number = laneMetricNumber(value);
+  return clamp(number ?? fallback, 1, 39);
+}
+
+function laneBoardPercent(board) {
+  return clamp(((board - 1) / 38) * 100, 0, 100);
+}
+
+function laneVisualValue(fields, primaryName, fallbackName = "") {
+  if (fields?.[primaryName] !== undefined && fields?.[primaryName] !== null && fields?.[primaryName] !== "") {
+    return fields[primaryName];
+  }
+  if (fallbackName && fields?.[fallbackName] !== undefined && fields?.[fallbackName] !== null && fields?.[fallbackName] !== "") {
+    return fields[fallbackName];
+  }
+  const form = document.querySelector("#shot-form");
+  const primaryField = form?.elements?.[primaryName];
+  if (primaryField?.value) return primaryField.value;
+  const fallbackField = fallbackName ? form?.elements?.[fallbackName] : null;
+  return fallbackField?.value || "";
+}
+
+function renderLaneBreakdownVisual(fields = null) {
+  const visual = document.querySelector("#lane-breakdown-visual");
+  const metricsContainer = document.querySelector("#lane-breakdown-metrics");
+  const stateLabel = document.querySelector("#lane-breakdown-state");
+  if (!visual || !metricsContainer) return;
+
+  const form = document.querySelector("#shot-form");
+  const calibration = laneCalibrationData();
+  const sourceFields = fields || (form ? formPayload(form) : {});
+  const releaseBoard = laneBoardValue(laneVisualValue(sourceFields, "release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 18);
+  const arrowsBoard = laneBoardValue(laneVisualValue(sourceFields, "arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 12);
+  const breakpointBoard = laneBoardValue(laneVisualValue(sourceFields, "breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 8);
+  const entryBoard = laneBoardValue(laneVisualValue(sourceFields, "entry_board"), 17.5);
+  const hasAnalysis = Boolean(
+    laneVisualValue(sourceFields, "analysis_run_id") ||
+    laneVisualValue(sourceFields, "speed_mph") ||
+    laneVisualValue(sourceFields, "hook_inches") ||
+    laneVisualValue(sourceFields, "pin_result") ||
+    laneVisualValue(sourceFields, "pocket_quality")
+  );
+  const markers = [
+    { label: "Release", board: releaseBoard, y: 238, className: "release" },
+    { label: "Arrows", board: arrowsBoard, y: 176, className: "arrows" },
+    { label: "Breakpoint", board: breakpointBoard, y: 92, className: "breakpoint" },
+    { label: "Entry", board: entryBoard, y: 32, className: "entry" },
+  ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
+  const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
+  const laneBoards = Array.from({ length: 11 }, (_, index) => index * 10);
+  const labelSide = entryBoard > 20 ? "left" : "right";
+
+  if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
+  visual.innerHTML = `
+    <div class="lane-breakdown-map">
+      <div class="lane-breakdown-board-labels" aria-hidden="true">
+        <span>1</span><span>10</span><span>20</span><span>30</span><span>39</span>
+      </div>
+      <svg class="lane-breakdown-svg" viewBox="0 0 100 280" role="img" aria-label="Bowling ball path from release to pins">
+        <defs>
+          <linearGradient id="laneTrackGradient" x1="0" x2="1" y1="1" y2="0">
+            <stop offset="0%" stop-color="#4cc9f0"></stop>
+            <stop offset="55%" stop-color="#0a84ff"></stop>
+            <stop offset="100%" stop-color="#ffffff"></stop>
+          </linearGradient>
+          <filter id="laneTrackGlow">
+            <feGaussianBlur stdDeviation="2.2" result="blur"></feGaussianBlur>
+            <feMerge>
+              <feMergeNode in="blur"></feMergeNode>
+              <feMergeNode in="SourceGraphic"></feMergeNode>
+            </feMerge>
+          </filter>
+        </defs>
+        <rect x="0.5" y="0.5" width="99" height="279" rx="4" class="lane-breakdown-surface"></rect>
+        ${laneBoards.map((x) => `<line x1="${x}" y1="0" x2="${x}" y2="280" class="lane-breakdown-board"></line>`).join("")}
+        <line x1="0" y1="246" x2="100" y2="246" class="lane-breakdown-reference"></line>
+        <line x1="0" y1="176" x2="100" y2="176" class="lane-breakdown-reference"></line>
+        <line x1="0" y1="36" x2="100" y2="36" class="lane-breakdown-reference"></line>
+        <text x="3" y="242" class="lane-breakdown-zone">Foul</text>
+        <text x="3" y="172" class="lane-breakdown-zone">Arrows</text>
+        <text x="3" y="32" class="lane-breakdown-zone">Pins</text>
+        <g class="lane-breakdown-pins" aria-hidden="true">
+          <circle cx="50" cy="18" r="2.3"></circle>
+          <circle cx="45" cy="24" r="2.1"></circle>
+          <circle cx="55" cy="24" r="2.1"></circle>
+          <circle cx="40" cy="30" r="1.9"></circle>
+          <circle cx="50" cy="30" r="1.9"></circle>
+          <circle cx="60" cy="30" r="1.9"></circle>
+        </g>
+        <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
+        <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
+        ${markers.map((marker) => `
+          <g class="lane-breakdown-marker ${marker.className}">
+            <circle cx="${marker.x}" cy="${marker.y}" r="3.8"></circle>
+            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
+            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y + 7}" text-anchor="${labelSide === "left" ? "end" : "start"}">B${Math.round(marker.board * 10) / 10}</text>
+          </g>
+        `).join("")}
+      </svg>
+    </div>
+  `;
+
+  const speed = laneVisualValue(sourceFields, "speed_mph") || laneVisualValue(sourceFields, "ball_speed");
+  const hook = laneVisualValue(sourceFields, "hook_inches");
+  const boards = laneVisualValue(sourceFields, "boards_crossed");
+  const pocket = laneVisualValue(sourceFields, "pocket_quality") || "Pending";
+  const pins = laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result") || "Pending";
+  const confidence = laneVisualValue(sourceFields, "confidence");
+  const summary = laneVisualValue(sourceFields, "output_preview");
+  const metrics = [
+    ["Speed", laneMetricText(speed, " mph") || escapeHtml(speed) || "Pending"],
+    ["Hook", laneMetricText(hook, " in") || "Pending"],
+    ["Boards", laneMetricText(boards) || "Pending"],
+    ["Pocket", escapeHtml(pocket)],
+    ["Pins", escapeHtml(pins)],
+    ["Confidence", confidence ? `${escapeHtml(confidence)}%` : "Pending"],
+  ];
+  metricsContainer.innerHTML = `
+    ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
+    <p>${escapeHtml(summary || (hasAnalysis ? "Analysis values mapped to the visual breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."))}</p>
+  `;
 }
 
 function laneDetectionOptions() {
@@ -4158,6 +4307,7 @@ function bindEvents() {
     }
     if (event.target.closest(".lane-calibration-panel")) {
       updateLaneCalibrationSummary();
+      renderLaneBreakdownVisual();
     }
   });
   document.addEventListener("input", (event) => {
@@ -4172,6 +4322,10 @@ function bindEvents() {
     }
     if (event.target.closest(".lane-calibration-panel")) {
       updateLaneCalibrationSummary();
+      renderLaneBreakdownVisual();
+    }
+    if (event.target.closest("#shot-form")) {
+      renderLaneBreakdownVisual();
     }
   });
   document.addEventListener("focusin", (event) => {
