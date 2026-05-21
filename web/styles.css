@@ -1712,14 +1712,18 @@ h1 {
 
 .lane-breakdown-panel {
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(260px, 1.18fr) minmax(230px, 0.82fr);
+  gap: 12px;
   border: 1px solid rgba(76, 201, 240, 0.16);
   border-radius: 8px;
-  background: rgba(16, 24, 39, 0.54);
+  background:
+    linear-gradient(135deg, rgba(10, 132, 255, 0.12), rgba(5, 7, 10, 0.08)),
+    rgba(16, 24, 39, 0.54);
   padding: 12px;
 }
 
 .lane-breakdown-heading {
+  grid-column: 1 / -1;
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -1767,11 +1771,11 @@ h1 {
 .lane-breakdown-svg {
   display: block;
   width: 100%;
-  height: clamp(300px, 48vw, 430px);
+  height: clamp(230px, 26vw, 330px);
   border: 1px solid rgba(76, 201, 240, 0.16);
   border-radius: 8px;
   background: rgba(5, 7, 10, 0.72);
-  overflow: visible;
+  overflow: hidden;
 }
 
 .lane-breakdown-surface {
@@ -1845,8 +1849,9 @@ h1 {
 }
 
 .lane-breakdown-metrics {
+  align-content: start;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -1855,7 +1860,7 @@ h1 {
   border: 1px solid rgba(76, 201, 240, 0.14);
   border-radius: 8px;
   background: rgba(5, 7, 10, 0.42);
-  padding: 9px;
+  padding: 10px;
 }
 
 .lane-breakdown-metrics span,
@@ -1873,6 +1878,7 @@ h1 {
 
 .lane-breakdown-metrics strong {
   color: #ffffff;
+  font-size: 1.02rem;
   overflow-wrap: anywhere;
 }
 
@@ -1880,7 +1886,47 @@ h1 {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
+  font-size: 0.86rem;
   line-height: 1.45;
+}
+
+.lane-analysis-notes {
+  grid-column: 1 / -1;
+  border-top: 1px solid rgba(76, 201, 240, 0.12);
+  padding-top: 2px;
+}
+
+.lane-analysis-notes summary {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  color: var(--accent-2);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.lane-analysis-notes summary::-webkit-details-marker {
+  display: none;
+}
+
+.lane-analysis-notes summary::after {
+  content: "+";
+  margin-left: auto;
+  color: #ffffff;
+}
+
+.lane-analysis-notes[open] summary::after {
+  content: "-";
+}
+
+.lane-analysis-notes label {
+  gap: 6px;
+}
+
+.lane-analysis-notes textarea {
+  min-height: 96px;
 }
 
 .lane-analysis-history {
@@ -3495,6 +3541,14 @@ button:hover {
   .home-metrics,
   .lane-breakdown-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .lane-breakdown-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .lane-breakdown-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .layout > *,

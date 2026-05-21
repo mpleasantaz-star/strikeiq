@@ -362,19 +362,23 @@ const projectDetails = {
             <label><input type="checkbox" name="detect_release" checked> Release point</label>
             <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
           </div>
-          <label>Detection Summary
-            <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
-          </label>
           <section class="lane-breakdown-panel" aria-label="Lane video visual breakdown">
             <div class="lane-breakdown-heading">
               <div>
                 <p class="eyebrow">Visual Review</p>
-                <h3>Breakdown Visuals</h3>
+                <h3>Shot Breakdown</h3>
               </div>
               <span id="lane-breakdown-state">Preview</span>
             </div>
             <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
             <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
+            <details class="lane-analysis-notes">
+              <summary>Analysis notes</summary>
+              <label>
+                <span>Detection Summary</span>
+                <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
+              </label>
+            </details>
           </section>
           <div class="lane-video-actions">
             <button type="button" class="secondary-button" data-lane-video-analyze>Upload And Analyze Video</button>
@@ -1532,7 +1536,6 @@ function renderLaneBreakdownVisual(fields = null) {
   const pocket = laneVisualValue(sourceFields, "pocket_quality") || "Pending";
   const pins = laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result") || "Pending";
   const confidence = laneVisualValue(sourceFields, "confidence");
-  const summary = laneVisualValue(sourceFields, "output_preview");
   const metrics = [
     ["Speed", laneMetricText(speed, " mph") || escapeHtml(speed) || "Pending"],
     ["Hook", laneMetricText(hook, " in") || "Pending"],
@@ -1543,7 +1546,7 @@ function renderLaneBreakdownVisual(fields = null) {
   ];
   metricsContainer.innerHTML = `
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
-    <p>${escapeHtml(summary || (hasAnalysis ? "Analysis values mapped to the visual breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."))}</p>
+    <p>${hasAnalysis ? "Analysis mapped to visual path and shot metrics. Open notes for the full breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."}</p>
   `;
 }
 
