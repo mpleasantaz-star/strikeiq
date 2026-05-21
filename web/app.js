@@ -15,6 +15,7 @@ const state = {
   selectedSlug: null,
   laneVisual: null,
   laneLiveStream: null,
+  laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1 },
   handedness: "right",
   targetPath: null,
   project: "hub",
@@ -381,6 +382,15 @@ const projectDetails = {
                 <h3>Shot Breakdown</h3>
               </div>
               <span id="lane-breakdown-state">Preview</span>
+            </div>
+            <div class="lane-breakdown-controls" aria-label="Visual review controls">
+              <button type="button" data-lane-breakdown-view="2d">2D</button>
+              <button type="button" data-lane-breakdown-view="3d">3D</button>
+              <button type="button" data-lane-breakdown-rotate="-45">Rotate Left</button>
+              <button type="button" data-lane-breakdown-rotate="45">Rotate Right</button>
+              <button type="button" data-lane-breakdown-zoom="1">Zoom In</button>
+              <button type="button" data-lane-breakdown-zoom="-1">Zoom Out</button>
+              <button type="button" data-lane-breakdown-reset>Reset</button>
             </div>
             <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
             <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
@@ -1559,10 +1569,43 @@ function renderLaneBreakdownVisual(fields = null) {
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
   const labelSide = entryBoard > 20 ? "left" : "right";
+  const mode = state.laneBreakdownView?.mode === "2d" ? "2d" : "3d";
+  const rotation = Number(state.laneBreakdownView?.rotation) || 0;
+  const zoom = clamp(Number(state.laneBreakdownView?.zoom) || 1, 0.75, 1.65);
+  state.laneBreakdownView = { mode, rotation, zoom };
 
   if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
+  document.querySelectorAll("[data-lane-breakdown-view]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.laneBreakdownView === mode);
+  });
   visual.innerHTML = `
-    <div class="lane-breakdown-map">
+    <div class="lane-breakdown-viewer is-${mode}" style="--lane-3d-rotation: ${rotation}deg; --lane-3d-zoom: ${zoom};">
+      <div class="lane-breakdown-3d" aria-label="3D lane review">
+        <div class="lane-3d-stage">
+          <div class="lane-3d-table">
+            <div class="lane-3d-gutter left"></div>
+            <div class="lane-3d-surface">
+              <div class="lane-3d-oil"></div>
+              <div class="lane-3d-foul"></div>
+              <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => `<i data-pin="${index + 1}"></i>`).join("")}</div>
+              <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
+                <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
+                <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
+              </svg>
+              ${markers.map((marker) => `
+                <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
+                  <b>${marker.label}</b>
+                  <small>B${Math.round(marker.board * 10) / 10}</small>
+                </span>
+              `).join("")}
+            </div>
+            <div class="lane-3d-gutter right"></div>
+          </div>
+        </div>
+      </div>
+      <div class="lane-breakdown-map">
       <div class="lane-breakdown-board-labels" aria-hidden="true">
         <span>1</span><span>10</span><span>20</span><span>30</span><span>39</span>
       </div>
@@ -1644,6 +1687,7 @@ function renderLaneBreakdownVisual(fields = null) {
           </g>
         `).join("")}
       </svg>
+      </div>
     </div>
   `;
 
@@ -1665,6 +1709,16 @@ function renderLaneBreakdownVisual(fields = null) {
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
     <p>${hasAnalysis ? "Analysis mapped to visual path and shot metrics. Open notes for the full breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."}</p>
   `;
+}
+
+function updateLaneBreakdownView(updates = {}) {
+  const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+  state.laneBreakdownView = {
+    mode: updates.mode || current.mode || "3d",
+    rotation: Number.isFinite(updates.rotation) ? updates.rotation : Number(current.rotation) || 0,
+    zoom: clamp(Number.isFinite(updates.zoom) ? updates.zoom : Number(current.zoom) || 1, 0.75, 1.65),
+  };
+  renderLaneBreakdownVisual();
 }
 
 function laneDetectionOptions() {
@@ -4466,6 +4520,37 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-video-analyze]")) {
       analyzeLaneVideo();
+      return;
+    }
+
+    const breakdownViewButton = event.target.closest("[data-lane-breakdown-view]");
+    if (breakdownViewButton) {
+      updateLaneBreakdownView({ mode: breakdownViewButton.dataset.laneBreakdownView });
+      return;
+    }
+
+    const breakdownRotateButton = event.target.closest("[data-lane-breakdown-rotate]");
+    if (breakdownRotateButton) {
+      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+      updateLaneBreakdownView({
+        mode: "3d",
+        rotation: (Number(current.rotation) || 0) + Number(breakdownRotateButton.dataset.laneBreakdownRotate || 0),
+      });
+      return;
+    }
+
+    const breakdownZoomButton = event.target.closest("[data-lane-breakdown-zoom]");
+    if (breakdownZoomButton) {
+      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+      updateLaneBreakdownView({
+        mode: "3d",
+        zoom: (Number(current.zoom) || 1) + Number(breakdownZoomButton.dataset.laneBreakdownZoom || 0) * 0.15,
+      });
+      return;
+    }
+
+    if (event.target.closest("[data-lane-breakdown-reset]")) {
+      updateLaneBreakdownView({ mode: "3d", rotation: 0, zoom: 1 });
       return;
     }
 
