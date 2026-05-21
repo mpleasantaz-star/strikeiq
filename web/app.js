@@ -15,7 +15,8 @@ const state = {
   selectedSlug: null,
   laneVisual: null,
   laneLiveStream: null,
-  laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1 },
+  laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1, tilt: 58 },
+  laneBreakdownDrag: null,
   handedness: "right",
   targetPath: null,
   project: "hub",
@@ -390,10 +391,12 @@ const projectDetails = {
             <div class="lane-breakdown-controls" aria-label="Visual review controls">
               <button type="button" data-lane-breakdown-view="2d">2D</button>
               <button type="button" data-lane-breakdown-view="3d">3D</button>
-              <button type="button" data-lane-breakdown-rotate="-45">Rotate Left</button>
-              <button type="button" data-lane-breakdown-rotate="45">Rotate Right</button>
-              <button type="button" data-lane-breakdown-zoom="1">Zoom In</button>
-              <button type="button" data-lane-breakdown-zoom="-1">Zoom Out</button>
+              <button type="button" data-lane-breakdown-rotate="-45" aria-label="Rotate left">Left</button>
+              <button type="button" data-lane-breakdown-rotate="45" aria-label="Rotate right">Right</button>
+              <button type="button" data-lane-breakdown-tilt="-8" aria-label="Lower view angle">Lower</button>
+              <button type="button" data-lane-breakdown-tilt="8" aria-label="Raise view angle">Raise</button>
+              <button type="button" data-lane-breakdown-zoom="1" aria-label="Zoom in">Zoom +</button>
+              <button type="button" data-lane-breakdown-zoom="-1" aria-label="Zoom out">Zoom -</button>
               <button type="button" data-lane-breakdown-reset>Reset</button>
             </div>
             <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
@@ -1591,15 +1594,21 @@ function renderLaneBreakdownVisual(fields = null) {
   const mode = state.laneBreakdownView?.mode === "2d" ? "2d" : "3d";
   const rotation = Number(state.laneBreakdownView?.rotation) || 0;
   const zoom = clamp(Number(state.laneBreakdownView?.zoom) || 1, 0.75, 1.65);
-  state.laneBreakdownView = { mode, rotation, zoom };
+  const tilt = clamp(Number(state.laneBreakdownView?.tilt) || 58, 38, 70);
+  state.laneBreakdownView = { mode, rotation, zoom, tilt };
 
   if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
   document.querySelectorAll("[data-lane-breakdown-view]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.laneBreakdownView === mode);
   });
   visual.innerHTML = `
-    <div class="lane-breakdown-viewer is-${mode}" style="--lane-3d-rotation: ${rotation}deg; --lane-3d-zoom: ${zoom};">
-      <div class="lane-breakdown-3d" aria-label="3D lane review">
+    <div class="lane-breakdown-viewer is-${mode}" style="--lane-3d-rotation: ${rotation}deg; --lane-3d-zoom: ${zoom}; --lane-3d-tilt: ${tilt}deg;">
+      <div class="lane-breakdown-3d" data-lane-breakdown-drag aria-label="3D lane review">
+        <div class="lane-3d-hud">
+          <span>Drag to rotate</span>
+          <span>${Math.round(((rotation % 360) + 360) % 360)} deg</span>
+          <span>${Math.round(zoom * 100)}%</span>
+        </div>
         <div class="lane-3d-stage">
           <div class="lane-3d-table">
             <div class="lane-3d-gutter left"></div>
@@ -1731,11 +1740,12 @@ function renderLaneBreakdownVisual(fields = null) {
 }
 
 function updateLaneBreakdownView(updates = {}) {
-  const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+  const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
   state.laneBreakdownView = {
     mode: updates.mode || current.mode || "3d",
     rotation: Number.isFinite(updates.rotation) ? updates.rotation : Number(current.rotation) || 0,
     zoom: clamp(Number.isFinite(updates.zoom) ? updates.zoom : Number(current.zoom) || 1, 0.75, 1.65),
+    tilt: clamp(Number.isFinite(updates.tilt) ? updates.tilt : Number(current.tilt) || 58, 38, 70),
   };
   renderLaneBreakdownVisual();
 }
@@ -4521,6 +4531,46 @@ function bindEvents() {
       renderLaneBreakdownVisual();
     }
   });
+  document.addEventListener("pointerdown", (event) => {
+    const viewer = event.target.closest("[data-lane-breakdown-drag]");
+    if (!viewer) return;
+    const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
+    state.laneBreakdownDrag = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      rotation: Number(current.rotation) || 0,
+      tilt: Number(current.tilt) || 58,
+    };
+    viewer.setPointerCapture?.(event.pointerId);
+    viewer.classList.add("is-dragging");
+  });
+  document.addEventListener("pointermove", (event) => {
+    const drag = state.laneBreakdownDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const nextRotation = drag.rotation + (event.clientX - drag.x) * 0.55;
+    const nextTilt = clamp(drag.tilt - (event.clientY - drag.y) * 0.16, 38, 70);
+    updateLaneBreakdownView({ mode: "3d", rotation: nextRotation, tilt: nextTilt });
+  });
+  document.addEventListener("pointerup", (event) => {
+    if (state.laneBreakdownDrag?.pointerId !== event.pointerId) return;
+    document.querySelector("[data-lane-breakdown-drag]")?.classList.remove("is-dragging");
+    state.laneBreakdownDrag = null;
+  });
+  document.addEventListener("pointercancel", (event) => {
+    if (state.laneBreakdownDrag?.pointerId !== event.pointerId) return;
+    document.querySelector("[data-lane-breakdown-drag]")?.classList.remove("is-dragging");
+    state.laneBreakdownDrag = null;
+  });
+  document.addEventListener("wheel", (event) => {
+    if (!event.target.closest("[data-lane-breakdown-drag]")) return;
+    event.preventDefault();
+    const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
+    updateLaneBreakdownView({
+      mode: "3d",
+      zoom: (Number(current.zoom) || 1) + (event.deltaY < 0 ? 0.08 : -0.08),
+    });
+  }, { passive: false });
   document.addEventListener("focusin", (event) => {
     const arsenalInput = event.target.closest(".profile-arsenal-ball");
     if (!arsenalInput) return;
@@ -4550,7 +4600,7 @@ function bindEvents() {
 
     const breakdownRotateButton = event.target.closest("[data-lane-breakdown-rotate]");
     if (breakdownRotateButton) {
-      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
       updateLaneBreakdownView({
         mode: "3d",
         rotation: (Number(current.rotation) || 0) + Number(breakdownRotateButton.dataset.laneBreakdownRotate || 0),
@@ -4560,7 +4610,7 @@ function bindEvents() {
 
     const breakdownZoomButton = event.target.closest("[data-lane-breakdown-zoom]");
     if (breakdownZoomButton) {
-      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1 };
+      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
       updateLaneBreakdownView({
         mode: "3d",
         zoom: (Number(current.zoom) || 1) + Number(breakdownZoomButton.dataset.laneBreakdownZoom || 0) * 0.15,
@@ -4568,8 +4618,18 @@ function bindEvents() {
       return;
     }
 
+    const breakdownTiltButton = event.target.closest("[data-lane-breakdown-tilt]");
+    if (breakdownTiltButton) {
+      const current = state.laneBreakdownView || { mode: "3d", rotation: 0, zoom: 1, tilt: 58 };
+      updateLaneBreakdownView({
+        mode: "3d",
+        tilt: (Number(current.tilt) || 58) + Number(breakdownTiltButton.dataset.laneBreakdownTilt || 0),
+      });
+      return;
+    }
+
     if (event.target.closest("[data-lane-breakdown-reset]")) {
-      updateLaneBreakdownView({ mode: "3d", rotation: 0, zoom: 1 });
+      updateLaneBreakdownView({ mode: "3d", rotation: 0, zoom: 1, tilt: 58 });
       return;
     }
 
