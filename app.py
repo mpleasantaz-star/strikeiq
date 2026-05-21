@@ -866,6 +866,59 @@ def get_lane_video_upload(upload_id: str | None) -> dict | None:
     return dict(row) if row else None
 
 
+def get_lane_video_analyses() -> list[dict]:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        rows = connection.execute(
+            """
+            SELECT
+              a.analysis_run_id,
+              a.upload_id,
+              a.tracking_mode,
+              a.video_name,
+              a.video_size,
+              a.video_type,
+              a.lane_center,
+              a.ball,
+              a.detection_options_json,
+              a.result_json,
+              a.status,
+              a.created_at,
+              u.relative_path,
+              u.sha256
+            FROM lane_video_analyses a
+            LEFT JOIN lane_video_uploads u ON u.upload_id = a.upload_id
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 25
+            """
+        ).fetchall()
+
+    analyses: list[dict] = []
+    for row in rows:
+        result_payload = json.loads(row["result_json"] or "{}")
+        detection_options = json.loads(row["detection_options_json"] or "{}")
+        fields = result_payload.get("fields") if isinstance(result_payload, dict) else {}
+        analyses.append(
+            {
+                "analysis_run_id": row["analysis_run_id"],
+                "upload_id": row["upload_id"],
+                "tracking_mode": row["tracking_mode"],
+                "video_name": row["video_name"],
+                "video_size": row["video_size"],
+                "video_type": row["video_type"],
+                "lane_center": row["lane_center"],
+                "ball": row["ball"],
+                "detection": detection_options,
+                "fields": fields if isinstance(fields, dict) else {},
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "relative_path": row["relative_path"],
+                "sha256": row["sha256"],
+            }
+        )
+    return analyses
+
+
 def create_custom_pattern(payload: dict) -> dict:
     name = require_text(payload, "name", "Pattern name")
     length_ft = int_from_payload(payload, "length_ft", 40, 1)
@@ -2218,6 +2271,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_shot_stats())
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
+            elif parsed.path == "/api/lane-video/analyses":
+                self.send_json(get_lane_video_analyses())
             elif parsed.path == "/api/chat/posts":
                 self.send_json(get_chat_posts())
             elif parsed.path == "/api/tags":

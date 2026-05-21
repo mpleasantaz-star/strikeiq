@@ -7,6 +7,7 @@ const state = {
   spareSessions: [],
   spareSession: null,
   shots: [],
+  laneAnalyses: [],
   shotStats: { total: 0, video_total: 0, strikes: 0, average_speed: null, average_hook: null, common_leave: null },
   chat: [],
   communityPosts: [],
@@ -333,6 +334,16 @@ const projectDetails = {
             <button type="button" class="secondary-button" data-lane-video-analyze>Upload And Analyze Video</button>
             <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
           </div>
+          <section class="lane-analysis-history" aria-label="Recent lane video analyses">
+            <div class="lane-analysis-heading">
+              <div>
+                <p class="eyebrow">Review</p>
+                <h3>Recent Analyses</h3>
+              </div>
+              <button type="button" class="secondary-button" data-refresh-lane-analyses>Refresh</button>
+            </div>
+            <div id="lane-analysis-history"></div>
+          </section>
         </section>
         <div class="lane-form-heading">
           <h3>Log One Shot</h3>
@@ -1400,6 +1411,49 @@ async function uploadLaneVideoFile(file) {
   return upload;
 }
 
+async function loadLaneVideoAnalyses() {
+  state.laneAnalyses = await api("/api/lane-video/analyses").catch(() => []);
+  renderLaneAnalysisHistory();
+}
+
+function renderLaneAnalysisHistory() {
+  const container = document.querySelector("#lane-analysis-history");
+  if (!container) return;
+  if (!state.laneAnalyses.length) {
+    container.innerHTML = `<p class="empty-state">No video analysis runs yet. Upload and analyze a shot to build this history.</p>`;
+    return;
+  }
+  container.innerHTML = state.laneAnalyses.map((analysis) => {
+    const fields = analysis.fields || {};
+    const metrics = [
+      fields.speed_mph && `${formatShotMetric(fields.speed_mph, " mph")}`,
+      fields.hook_inches && `${formatShotMetric(fields.hook_inches, " in hook")}`,
+      fields.boards_crossed && `${formatShotMetric(fields.boards_crossed, " boards")}`,
+      fields.pocket_quality && `Pocket ${fields.pocket_quality}`,
+      fields.pin_result && `Pins ${fields.pin_result}`,
+    ].filter(Boolean);
+    return `
+      <article class="lane-analysis-record">
+        <div>
+          <strong>${escapeHtml(analysis.video_name || "Lane video analysis")}</strong>
+          <span>${escapeHtml([analysis.tracking_mode === "live_video" ? "Live Camera" : "Recorded Video", analysis.lane_center, analysis.ball].filter(Boolean).join(" | "))}</span>
+          <small>${escapeHtml([analysis.upload_id ? "Stored upload" : "No upload", formatBytes(analysis.video_size), analysis.created_at].filter(Boolean).join(" | "))}</small>
+        </div>
+        <p>${escapeHtml(metrics.join(" | ") || fields.output_preview || "Analysis fields ready.")}</p>
+        <button type="button" class="secondary-button" data-lane-analysis-run="${escapeHtml(analysis.analysis_run_id)}">Apply</button>
+      </article>
+    `;
+  }).join("");
+}
+
+function applyLaneAnalysisRun(runId) {
+  const analysis = state.laneAnalyses.find((item) => item.analysis_run_id === runId);
+  if (!analysis) return;
+  applyLaneAnalysisFields(analysis.fields || {});
+  const status = document.querySelector("#lane-video-status");
+  if (status) status.textContent = `${analysis.video_name || "Analysis"} applied to the shot form.`;
+}
+
 async function analyzeLaneVideo() {
   const form = document.querySelector("#shot-form");
   if (!form) return;
@@ -1438,6 +1492,7 @@ async function analyzeLaneVideo() {
     const analysis = await api("/api/lane-video/analyze", { method: "POST", body: JSON.stringify(request) });
     applyLaneAnalysisFields(analysis.fields || {});
     if (status) status.textContent = analysis.message || "Analysis complete.";
+    await loadLaneVideoAnalyses();
   } catch (error) {
     if (status) status.textContent = `Analysis unavailable: ${error.message}`;
   } finally {
@@ -1575,6 +1630,13 @@ function formatShotMetric(value, suffix = "") {
   if (!Number.isFinite(numeric)) return "";
   const rounded = Math.round(numeric * 10) / 10;
   return `${rounded}${suffix}`;
+}
+
+function formatBytes(value) {
+  const bytes = Number(value);
+  if (!Number.isFinite(bytes) || bytes <= 0) return "No file size";
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${Math.round((bytes / (1024 * 1024)) * 10) / 10} MB`;
 }
 
 function renderProjectList(containerId, items, emptyText, renderItem) {
@@ -1906,6 +1968,7 @@ async function loadSpares() {
 
 async function loadShots() {
   state.shots = await api("/api/shots");
+  await loadLaneVideoAnalyses();
   state.shotStats = await api("/api/shots/stats").catch(() => ({
     total: state.shots.length,
     video_total: state.shots.filter((shot) => shot.shot_source === "video_analysis_import").length,
@@ -4046,6 +4109,17 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-video-analyze]")) {
       analyzeLaneVideo();
+      return;
+    }
+
+    if (event.target.closest("[data-refresh-lane-analyses]")) {
+      loadLaneVideoAnalyses();
+      return;
+    }
+
+    const laneAnalysisButton = event.target.closest("[data-lane-analysis-run]");
+    if (laneAnalysisButton) {
+      applyLaneAnalysisRun(laneAnalysisButton.dataset.laneAnalysisRun);
       return;
     }
 

@@ -1610,6 +1610,66 @@ h1 {
   flex: 1 1 220px;
 }
 
+.lane-analysis-history {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(76, 201, 240, 0.12);
+  padding-top: 12px;
+}
+
+.lane-analysis-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.lane-analysis-heading h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 0.98rem;
+}
+
+#lane-analysis-history {
+  display: grid;
+  gap: 8px;
+}
+
+.lane-analysis-record {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.38);
+  padding: 10px;
+}
+
+.lane-analysis-record strong,
+.lane-analysis-record span,
+.lane-analysis-record small,
+.lane-analysis-record p {
+  display: block;
+  min-width: 0;
+}
+
+.lane-analysis-record strong {
+  color: #ffffff;
+}
+
+.lane-analysis-record span,
+.lane-analysis-record small {
+  color: var(--muted);
+}
+
+.lane-analysis-record p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .project-metric {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -3125,8 +3185,11 @@ button:hover {
   }
 
   .lane-video-header,
-  .lane-video-actions {
+  .lane-video-actions,
+  .lane-analysis-heading,
+  .lane-analysis-record {
     display: grid;
+    grid-template-columns: 1fr;
   }
 
   .ball-record {
