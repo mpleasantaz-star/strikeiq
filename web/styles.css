@@ -1772,49 +1772,81 @@ h1 {
   display: block;
   width: 100%;
   height: clamp(230px, 26vw, 330px);
-  border: 1px solid rgba(76, 201, 240, 0.16);
+  border: 1px solid rgba(76, 201, 240, 0.18);
   border-radius: 8px;
-  background: rgba(5, 7, 10, 0.72);
+  background: #05070a;
+  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.48);
   overflow: hidden;
 }
 
+.lane-breakdown-room {
+  fill: #05070a;
+}
+
+.lane-breakdown-gutter {
+  fill: #071525;
+  stroke: rgba(76, 201, 240, 0.16);
+  stroke-width: 0.6;
+}
+
 .lane-breakdown-surface {
-  fill: rgba(10, 132, 255, 0.08);
-  stroke: rgba(76, 201, 240, 0.24);
+  fill: url("#laneWoodPattern");
+  stroke: rgba(74, 38, 15, 0.72);
+  stroke-width: 0.6;
+}
+
+.lane-breakdown-oil {
+  fill: rgba(160, 221, 255, 0.14);
+}
+
+.lane-breakdown-lane-shine {
+  fill: url("#laneOilSheen");
+  opacity: 0.46;
 }
 
 .lane-breakdown-board {
-  stroke: rgba(76, 201, 240, 0.08);
-  stroke-width: 0.42;
+  stroke: rgba(84, 44, 18, 0.24);
+  stroke-width: 0.34;
 }
 
 .lane-breakdown-reference {
-  stroke: rgba(255, 255, 255, 0.28);
+  stroke: rgba(255, 255, 255, 0.42);
   stroke-dasharray: 3 3;
-  stroke-width: 0.72;
+  stroke-width: 0.62;
 }
 
 .lane-breakdown-zone,
 .lane-breakdown-marker text {
-  fill: rgba(222, 237, 255, 0.82);
+  fill: rgba(255, 255, 255, 0.86);
   font-size: 5px;
   font-weight: 900;
+  paint-order: stroke;
+  stroke: rgba(5, 7, 10, 0.82);
+  stroke-width: 1.1px;
 }
 
-.lane-breakdown-pins circle {
+.lane-breakdown-dots circle,
+.lane-breakdown-arrows polygon {
+  fill: rgba(36, 18, 8, 0.50);
+  stroke: rgba(255, 245, 211, 0.46);
+  stroke-width: 0.25;
+}
+
+.lane-breakdown-pins ellipse {
   fill: #ffffff;
-  stroke: #4cc9f0;
-  stroke-width: 0.6;
+  stroke: rgba(176, 23, 23, 0.74);
+  stroke-width: 0.55;
+  filter: url("#laneBallShadow");
 }
 
 .lane-breakdown-path-glow {
   fill: none;
   filter: url("#laneTrackGlow");
-  opacity: 0.75;
-  stroke: rgba(76, 201, 240, 0.42);
+  opacity: 0.68;
+  stroke: rgba(1, 38, 83, 0.52);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 6;
+  stroke-width: 7.6;
 }
 
 .lane-breakdown-path {
@@ -1822,13 +1854,20 @@ h1 {
   stroke: url("#laneTrackGradient");
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.6;
+  stroke-width: 2.2;
+}
+
+.lane-breakdown-ball {
+  fill: url("#laneBallGradient");
+  filter: url("#laneBallShadow");
+  stroke: rgba(255, 255, 255, 0.88);
+  stroke-width: 0.8;
 }
 
 .lane-breakdown-marker circle {
-  fill: #05070a;
+  fill: rgba(5, 7, 10, 0.76);
   stroke: #ffffff;
-  stroke-width: 1.4;
+  stroke-width: 1.1;
 }
 
 .lane-breakdown-marker.release circle {
