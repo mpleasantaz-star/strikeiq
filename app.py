@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import parse_qs, unquote, urlencode, urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 import base64
@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.sqlite"))
 STATIC_DIR = ROOT / "web"
 LANE_VIDEO_DIR = Path(os.environ.get("LANE_VIDEO_DIR", ROOT / "data" / "lane_videos"))
-MAX_LANE_VIDEO_UPLOAD_BYTES = 30 * 1024 * 1024
+MAX_LANE_VIDEO_UPLOAD_BYTES = int(os.environ.get("MAX_LANE_VIDEO_UPLOAD_MB", "500")) * 1024 * 1024
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
 LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
@@ -797,20 +797,12 @@ def safe_video_extension(name: str, video_type: str | None) -> str:
     }.get(video_type or "", ".mp4")
 
 
-def create_lane_video_upload(payload: dict) -> dict:
-    original_name = require_text(payload, "name", "Video name")
-    video_type = optional_text(payload, "type") or "video"
-    content_base64 = require_text(payload, "content_base64", "Video content")
-    if "," in content_base64 and content_base64.strip().lower().startswith("data:"):
-        content_base64 = content_base64.split(",", 1)[1]
-    try:
-        video_bytes = base64.b64decode(content_base64, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "Video content must be base64 encoded") from exc
+def save_lane_video_upload(original_name: str, video_type: str, video_bytes: bytes) -> dict:
     if not video_bytes:
         raise ApiError(HTTPStatus.BAD_REQUEST, "Video content is empty")
     if len(video_bytes) > MAX_LANE_VIDEO_UPLOAD_BYTES:
-        raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Video upload must be 30 MB or smaller for local development")
+        max_mb = MAX_LANE_VIDEO_UPLOAD_BYTES // (1024 * 1024)
+        raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, f"Video upload must be {max_mb} MB or smaller for local development")
 
     upload_id = f"lane-upload-{uuid.uuid4().hex[:12]}"
     extension = safe_video_extension(original_name, video_type)
@@ -850,6 +842,19 @@ def create_lane_video_upload(payload: dict) -> dict:
         "type": video_type,
         "sha256": digest,
     }
+
+
+def create_lane_video_upload(payload: dict) -> dict:
+    original_name = require_text(payload, "name", "Video name")
+    video_type = optional_text(payload, "type") or "video"
+    content_base64 = require_text(payload, "content_base64", "Video content")
+    if "," in content_base64 and content_base64.strip().lower().startswith("data:"):
+        content_base64 = content_base64.split(",", 1)[1]
+    try:
+        video_bytes = base64.b64decode(content_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Video content must be base64 encoded") from exc
+    return save_lane_video_upload(original_name, video_type, video_bytes)
 
 
 def get_lane_video_upload(upload_id: str | None) -> dict | None:
@@ -2327,6 +2332,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_spare_session(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/lane-video/upload":
                 self.send_json(create_lane_video_upload(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/lane-video/upload-binary":
+                self.send_json(self.read_lane_video_binary_upload(), HTTPStatus.CREATED)
             elif parsed.path == "/api/lane-video/analyze":
                 self.send_json(create_lane_video_analysis(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/shots":
@@ -2357,6 +2364,20 @@ class AppHandler(SimpleHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)
         return json.loads(raw.decode("utf-8") or "{}")
+
+    def read_lane_video_binary_upload(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "Content-Length is required") from exc
+        if length <= 0:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "Video content is empty")
+        if length > MAX_LANE_VIDEO_UPLOAD_BYTES:
+            max_mb = MAX_LANE_VIDEO_UPLOAD_BYTES // (1024 * 1024)
+            raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, f"Video upload must be {max_mb} MB or smaller for local development")
+        original_name = unquote(self.headers.get("X-Video-Name") or "lane-video.mp4")
+        video_type = self.headers.get("X-Video-Type") or self.headers.get("Content-Type") or "video"
+        return save_lane_video_upload(original_name, video_type, self.rfile.read(length))
 
     def send_json(self, data: object, status: HTTPStatus = HTTPStatus.OK) -> None:
         body = json.dumps(data).encode("utf-8")

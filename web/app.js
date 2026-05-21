@@ -112,6 +112,7 @@ const storageKeys = {
 
 const proProjects = new Set(["sync"]);
 const homeWorkspaceCount = 5;
+const maxLaneVideoUploadBytes = 500 * 1024 * 1024;
 const chatChannels = [
   ["# general", "Main discussion for the community"],
   ["# lane-talk", "Moves, transition, and shape changes"],
@@ -1378,8 +1379,8 @@ function handleLaneVideoFile(fileInput) {
     return;
   }
   if (status) {
-    status.textContent = file.size > 30 * 1024 * 1024
-      ? `${file.name} is selected, but local uploads are limited to 30 MB.`
+    status.textContent = file.size > maxLaneVideoUploadBytes
+      ? `${file.name} is selected, but local uploads are limited to ${formatBytes(maxLaneVideoUploadBytes)}.`
       : `${file.name} selected for upload and analysis.`;
   }
   if (videoName && !videoName.value) {
@@ -1442,19 +1443,10 @@ function updateLaneCalibrationSummary() {
   }
 }
 
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener("load", () => resolve(String(reader.result || "").split(",", 2)[1] || ""));
-    reader.addEventListener("error", () => reject(reader.error || new Error("Unable to read video file")));
-    reader.readAsDataURL(file);
-  });
-}
-
 async function uploadLaneVideoFile(file) {
   if (!file) return null;
-  if (file.size > 30 * 1024 * 1024) {
-    throw new Error("Video upload must be 30 MB or smaller for local development.");
+  if (file.size > maxLaneVideoUploadBytes) {
+    throw new Error(`Video upload must be ${formatBytes(maxLaneVideoUploadBytes)} or smaller for local development.`);
   }
   const existingUploadId = document.querySelector("#lane-video-upload-id")?.value;
   if (existingUploadId) {
@@ -1465,16 +1457,19 @@ async function uploadLaneVideoFile(file) {
       type: file.type || "video",
     };
   }
-  const contentBase64 = await readFileAsBase64(file);
-  const upload = await api("/api/lane-video/upload", {
+  const response = await fetch("/api/lane-video/upload-binary", {
     method: "POST",
-    body: JSON.stringify({
-      name: file.name,
-      size: file.size,
-      type: file.type || "video",
-      content_base64: contentBase64,
-    }),
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      "X-Video-Name": encodeURIComponent(file.name),
+      "X-Video-Type": file.type || "video",
+    },
+    body: file,
   });
+  const upload = await response.json();
+  if (!response.ok) {
+    throw new Error(upload.error || "Video upload failed");
+  }
   const uploadId = document.querySelector("#lane-video-upload-id");
   if (uploadId) uploadId.value = upload.upload_id || "";
   const fileStatus = document.querySelector("#lane-video-file-status");
