@@ -14,6 +14,7 @@ const state = {
   chatChannel: "# video-feedback",
   selectedSlug: null,
   laneVisual: null,
+  laneLiveStream: null,
   handedness: "right",
   targetPath: null,
   project: "hub",
@@ -301,8 +302,19 @@ const projectDetails = {
             </div>
             <div class="lane-video-panel" data-lane-video-panel="live_video">
               <strong>Live Capture Preview</strong>
-              <p>Use this mode at the lanes when the mobile camera and backend detector are connected.</p>
-              <button type="button" class="secondary-button" data-lane-live-preview>Prepare Live Capture</button>
+              <p>Start the camera to line up the lane before recording or running a development analysis.</p>
+              <div class="lane-live-camera-shell">
+                <video id="lane-live-video" muted playsinline autoplay></video>
+                <div id="lane-live-placeholder">
+                  <span>Camera Preview</span>
+                  <small>Use the rear camera and keep the foul line, arrows, and pins in frame.</small>
+                </div>
+              </div>
+              <div class="lane-live-actions">
+                <button type="button" class="secondary-button" data-lane-live-preview>Start Camera</button>
+                <button type="button" class="secondary-button" data-lane-live-stop>Stop Camera</button>
+              </div>
+              <p id="lane-live-status" class="empty-state">Camera is off.</p>
             </div>
           </div>
           <section class="lane-calibration-panel" aria-label="Lane calibration setup">
@@ -1379,9 +1391,77 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
   });
   if (status) {
     status.textContent = mode === "live_video"
-      ? "Live camera mode selected. The backend can create a development analysis run now; camera streaming comes later."
+      ? "Live camera mode selected. Tap Start Camera to preview the lane, or Upload And Analyze Video to create a development analysis."
       : "Recorded video mode selected. Choose a clip, then run backend analysis.";
   }
+  if (mode !== "live_video") {
+    stopLaneLiveCamera(true);
+  }
+}
+
+async function startLaneLiveCamera() {
+  updateLaneVideoMode("live_video");
+  const video = document.querySelector("#lane-live-video");
+  const placeholder = document.querySelector("#lane-live-placeholder");
+  const status = document.querySelector("#lane-live-status");
+  const mainStatus = document.querySelector("#lane-video-status");
+  if (!video) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    const message = "Camera preview is not available in this browser. Use recorded upload for now.";
+    if (status) status.textContent = message;
+    if (mainStatus) mainStatus.textContent = message;
+    return;
+  }
+  stopLaneLiveCamera(true);
+  if (status) status.textContent = "Requesting camera permission...";
+  if (mainStatus) mainStatus.textContent = "Opening live camera preview...";
+  const permissionTimer = window.setTimeout(() => {
+    if (!state.laneLiveStream) {
+      if (status) status.textContent = "Waiting for camera permission. Choose Allow in the browser prompt, or use recorded video upload.";
+      if (mainStatus) mainStatus.textContent = "Waiting for camera permission. Live preview starts after camera access is allowed.";
+    }
+  }, 1400);
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    window.clearTimeout(permissionTimer);
+    state.laneLiveStream = stream;
+    video.srcObject = stream;
+    video.classList.add("is-active");
+    if (placeholder) placeholder.classList.add("is-hidden");
+    if (status) status.textContent = "Live preview active. Keep the lane markers visible before analysis.";
+    if (mainStatus) mainStatus.textContent = "Live preview active. The current backend can create a development analysis run from the live mode context.";
+  } catch (error) {
+    const message = error?.name === "NotAllowedError"
+      ? "Camera permission was blocked. Allow camera access in the browser or use recorded video upload."
+      : "Camera could not start. Use recorded video upload if this device blocks live preview.";
+    window.clearTimeout(permissionTimer);
+    if (status) status.textContent = message;
+    if (mainStatus) mainStatus.textContent = message;
+  }
+}
+
+function stopLaneLiveCamera(silent = false) {
+  if (state.laneLiveStream) {
+    state.laneLiveStream.getTracks().forEach((track) => track.stop());
+    state.laneLiveStream = null;
+  }
+  const video = document.querySelector("#lane-live-video");
+  const placeholder = document.querySelector("#lane-live-placeholder");
+  const status = document.querySelector("#lane-live-status");
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.classList.remove("is-active");
+  }
+  if (placeholder) placeholder.classList.remove("is-hidden");
+  if (!silent && status) status.textContent = "Camera stopped.";
 }
 
 function handleLaneVideoFile(fileInput) {
@@ -4408,7 +4488,12 @@ function bindEvents() {
     }
 
     if (event.target.closest("[data-lane-live-preview]")) {
-      updateLaneVideoMode("live_video");
+      startLaneLiveCamera();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-live-stop]")) {
+      stopLaneLiveCamera();
       return;
     }
 
