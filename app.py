@@ -4,7 +4,10 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+import base64
+import binascii
 import csv
+import hashlib
 import json
 import math
 import os
@@ -18,6 +21,8 @@ import uuid
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.sqlite"))
 STATIC_DIR = ROOT / "web"
+LANE_VIDEO_DIR = Path(os.environ.get("LANE_VIDEO_DIR", ROOT / "data" / "lane_videos"))
+MAX_LANE_VIDEO_UPLOAD_BYTES = 30 * 1024 * 1024
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
 LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
@@ -342,9 +347,25 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     )
     connection.execute(
         """
+        CREATE TABLE IF NOT EXISTS lane_video_uploads (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          upload_id TEXT NOT NULL UNIQUE,
+          original_name TEXT NOT NULL,
+          stored_name TEXT NOT NULL,
+          relative_path TEXT NOT NULL,
+          video_size INTEGER NOT NULL,
+          video_type TEXT,
+          sha256 TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    connection.execute(
+        """
         CREATE TABLE IF NOT EXISTS lane_video_analyses (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           analysis_run_id TEXT NOT NULL UNIQUE,
+          upload_id TEXT,
           tracking_mode TEXT,
           video_name TEXT,
           video_size INTEGER,
@@ -354,10 +375,12 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
           detection_options_json TEXT NOT NULL DEFAULT '{}',
           result_json TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'ready',
-          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (upload_id) REFERENCES lane_video_uploads(upload_id) ON DELETE SET NULL
         )
         """
     )
+    ensure_lane_video_analysis_columns(connection)
     ensure_shot_log_columns(connection)
     connection.execute(
         """
@@ -379,6 +402,7 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_pattern ON shot_logs(oil_pattern_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_shot_logs_session ON shot_logs(session_date, lane_center, created_at)")
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_shot_logs_analysis_run ON shot_logs(analysis_run_id)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_lane_video_uploads_created ON lane_video_uploads(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_lane_video_analyses_created ON lane_video_analyses(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
@@ -387,6 +411,16 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active)")
     seed_ball_catalog(connection)
     seed_lane_tracker_sessions(connection)
+
+
+def ensure_lane_video_analysis_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(lane_video_analyses)").fetchall()}
+    migrations = {
+        "upload_id": "ALTER TABLE lane_video_analyses ADD COLUMN upload_id TEXT",
+    }
+    for column, statement in migrations.items():
+        if column not in columns:
+            connection.execute(statement)
 
 
 def ensure_shot_log_columns(connection: sqlite3.Connection) -> None:
@@ -747,6 +781,89 @@ def optional_int_from_payload(payload: dict, key: str, default: int = 0) -> int:
         return int(raw)
     except ValueError as exc:
         raise ApiError(HTTPStatus.BAD_REQUEST, f"{key} must be a whole number") from exc
+
+
+def safe_video_extension(name: str, video_type: str | None) -> str:
+    suffix = Path(name or "").suffix.lower()
+    if suffix in {".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv"}:
+        return suffix
+    return {
+        "video/mp4": ".mp4",
+        "video/quicktime": ".mov",
+        "video/webm": ".webm",
+        "video/x-msvideo": ".avi",
+    }.get(video_type or "", ".mp4")
+
+
+def create_lane_video_upload(payload: dict) -> dict:
+    original_name = require_text(payload, "name", "Video name")
+    video_type = optional_text(payload, "type") or "video"
+    content_base64 = require_text(payload, "content_base64", "Video content")
+    if "," in content_base64 and content_base64.strip().lower().startswith("data:"):
+        content_base64 = content_base64.split(",", 1)[1]
+    try:
+        video_bytes = base64.b64decode(content_base64, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Video content must be base64 encoded") from exc
+    if not video_bytes:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "Video content is empty")
+    if len(video_bytes) > MAX_LANE_VIDEO_UPLOAD_BYTES:
+        raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "Video upload must be 30 MB or smaller for local development")
+
+    upload_id = f"lane-upload-{uuid.uuid4().hex[:12]}"
+    extension = safe_video_extension(original_name, video_type)
+    stored_name = f"{upload_id}{extension}"
+    LANE_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
+    stored_path = LANE_VIDEO_DIR / stored_name
+    stored_path.write_bytes(video_bytes)
+    try:
+        relative_path = stored_path.relative_to(ROOT).as_posix()
+    except ValueError:
+        relative_path = stored_path.as_posix()
+    digest = hashlib.sha256(video_bytes).hexdigest()
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        connection.execute(
+            """
+            INSERT INTO lane_video_uploads (
+              upload_id,
+              original_name,
+              stored_name,
+              relative_path,
+              video_size,
+              video_type,
+              sha256
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (upload_id, original_name, stored_name, relative_path, len(video_bytes), video_type, digest),
+        )
+        connection.commit()
+    return {
+        "upload_id": upload_id,
+        "name": original_name,
+        "stored_name": stored_name,
+        "relative_path": relative_path,
+        "size": len(video_bytes),
+        "type": video_type,
+        "sha256": digest,
+    }
+
+
+def get_lane_video_upload(upload_id: str | None) -> dict | None:
+    if not upload_id:
+        return None
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        row = connection.execute(
+            """
+            SELECT upload_id, original_name, stored_name, relative_path, video_size, video_type, sha256, created_at
+            FROM lane_video_uploads
+            WHERE upload_id = ?
+            """,
+            (upload_id,),
+        ).fetchone()
+    return dict(row) if row else None
 
 
 def create_custom_pattern(payload: dict) -> dict:
@@ -1119,10 +1236,19 @@ def create_lane_video_analysis(payload: dict) -> dict:
     video = payload.get("video") if isinstance(payload.get("video"), dict) else {}
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else {}
-    video_name = str(video.get("name") or optional_text(payload, "video_name") or f"{tracking_mode.replace('_', ' ')} capture").strip()
-    video_type = str(video.get("type") or "").strip() or None
+    upload_id = optional_text(payload, "upload_id")
+    upload = get_lane_video_upload(upload_id)
+    if upload_id and not upload:
+        raise ApiError(HTTPStatus.NOT_FOUND, "Video upload not found")
+    video_name = str(
+        (upload or {}).get("original_name")
+        or video.get("name")
+        or optional_text(payload, "video_name")
+        or f"{tracking_mode.replace('_', ' ')} capture"
+    ).strip()
+    video_type = str((upload or {}).get("video_type") or video.get("type") or "").strip() or None
     try:
-        video_size = int(video.get("size") or 0)
+        video_size = int((upload or {}).get("video_size") or video.get("size") or 0)
     except (TypeError, ValueError):
         video_size = 0
     ball = str(context.get("ball") or payload.get("ball") or "").strip() or "Selected ball"
@@ -1178,7 +1304,8 @@ def create_lane_video_analysis(payload: dict) -> dict:
     result_payload = {
         "analysis_run_id": analysis_run_id,
         "status": "ready",
-        "message": "Development video analysis complete. Replace this estimator with the production vision model later.",
+        "message": "Development video analysis complete from stored upload. Replace this estimator with the production vision model later.",
+        "upload_id": upload_id,
         "fields": fields,
     }
     with get_connection() as connection:
@@ -1187,6 +1314,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
             """
             INSERT INTO lane_video_analyses (
               analysis_run_id,
+              upload_id,
               tracking_mode,
               video_name,
               video_size,
@@ -1197,10 +1325,11 @@ def create_lane_video_analysis(payload: dict) -> dict:
               result_json,
               status
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 analysis_run_id,
+                upload_id,
                 tracking_mode,
                 video_name,
                 video_size,
@@ -2128,6 +2257,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_spare(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/spare-sessions":
                 self.send_json(create_spare_session(self.read_json()), HTTPStatus.CREATED)
+            elif parsed.path == "/api/lane-video/upload":
+                self.send_json(create_lane_video_upload(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/lane-video/analyze":
                 self.send_json(create_lane_video_analysis(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/shots":

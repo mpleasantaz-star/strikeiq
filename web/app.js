@@ -289,6 +289,7 @@ const projectDetails = {
           <input type="hidden" name="tracking_mode" id="lane-tracking-mode" value="recorded_video">
           <input type="hidden" name="shot_source" id="lane-shot-source" value="video_capture">
           <input type="hidden" name="analysis_run_id" id="lane-analysis-run-id">
+          <input type="hidden" id="lane-video-upload-id">
           <div class="lane-video-panels">
             <div class="lane-video-panel is-active" data-lane-video-panel="recorded_video">
               <label>Recorded Shot
@@ -329,7 +330,7 @@ const projectDetails = {
             <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
           </label>
           <div class="lane-video-actions">
-            <button type="button" class="secondary-button" data-lane-video-analyze>Analyze Selected Video</button>
+            <button type="button" class="secondary-button" data-lane-video-analyze>Upload And Analyze Video</button>
             <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
           </div>
         </section>
@@ -1323,12 +1324,18 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
 function handleLaneVideoFile(fileInput) {
   const status = document.querySelector("#lane-video-file-status");
   const videoName = document.querySelector("input[name='video_name']");
+  const uploadId = document.querySelector("#lane-video-upload-id");
   const file = fileInput.files?.[0];
+  if (uploadId) uploadId.value = "";
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
     return;
   }
-  if (status) status.textContent = `${file.name} selected for recorded analysis.`;
+  if (status) {
+    status.textContent = file.size > 30 * 1024 * 1024
+      ? `${file.name} is selected, but local uploads are limited to 30 MB.`
+      : `${file.name} selected for upload and analysis.`;
+  }
   if (videoName && !videoName.value) {
     videoName.value = file.name.replace(/\.[^.]+$/, "");
   }
@@ -1353,6 +1360,46 @@ function laneDetectionOptions() {
   };
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => resolve(String(reader.result || "").split(",", 2)[1] || ""));
+    reader.addEventListener("error", () => reject(reader.error || new Error("Unable to read video file")));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadLaneVideoFile(file) {
+  if (!file) return null;
+  if (file.size > 30 * 1024 * 1024) {
+    throw new Error("Video upload must be 30 MB or smaller for local development.");
+  }
+  const existingUploadId = document.querySelector("#lane-video-upload-id")?.value;
+  if (existingUploadId) {
+    return {
+      upload_id: existingUploadId,
+      name: file.name,
+      size: file.size,
+      type: file.type || "video",
+    };
+  }
+  const contentBase64 = await readFileAsBase64(file);
+  const upload = await api("/api/lane-video/upload", {
+    method: "POST",
+    body: JSON.stringify({
+      name: file.name,
+      size: file.size,
+      type: file.type || "video",
+      content_base64: contentBase64,
+    }),
+  });
+  const uploadId = document.querySelector("#lane-video-upload-id");
+  if (uploadId) uploadId.value = upload.upload_id || "";
+  const fileStatus = document.querySelector("#lane-video-file-status");
+  if (fileStatus) fileStatus.textContent = `${upload.name || file.name} stored for analysis.`;
+  return upload;
+}
+
 async function analyzeLaneVideo() {
   const form = document.querySelector("#shot-form");
   if (!form) return;
@@ -1360,9 +1407,11 @@ async function analyzeLaneVideo() {
   const status = document.querySelector("#lane-video-status");
   const file = document.querySelector("#lane-video-file")?.files?.[0];
   const payload = formPayload(form);
+  let upload = null;
   const request = {
     tracking_mode: payload.tracking_mode || "recorded_video",
     video_name: payload.video_name || file?.name || "",
+    upload_id: "",
     video: file ? { name: file.name, size: file.size, type: file.type || "video" } : null,
     detection: laneDetectionOptions(),
     context: {
@@ -1373,9 +1422,19 @@ async function analyzeLaneVideo() {
       ball_weight: state.profile?.ballWeight || "",
     },
   };
-  if (status) status.textContent = "Analyzing lane video through the local backend...";
+  if (status) status.textContent = file ? "Uploading selected video..." : "Creating live-mode development analysis...";
   if (button) button.disabled = true;
   try {
+    upload = await uploadLaneVideoFile(file);
+    if (upload) {
+      request.upload_id = upload.upload_id || "";
+      request.video = {
+        name: upload.name || file.name,
+        size: upload.size || file.size,
+        type: upload.type || file.type || "video",
+      };
+    }
+    if (status) status.textContent = "Analyzing stored lane video through the local backend...";
     const analysis = await api("/api/lane-video/analyze", { method: "POST", body: JSON.stringify(request) });
     applyLaneAnalysisFields(analysis.fields || {});
     if (status) status.textContent = analysis.message || "Analysis complete.";
