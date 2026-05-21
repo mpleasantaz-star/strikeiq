@@ -1616,11 +1616,18 @@ function renderLaneBreakdownVisual(fields = null) {
     laneVisualValue(sourceFields, "pin_result") ||
     laneVisualValue(sourceFields, "pocket_quality")
   );
+  const laneScale = {
+    pinDeckY: 34,
+    headPinY: 58,
+    arrowsY: 214,
+    dotsY: 225,
+    foulY: 268,
+  };
   const markers = [
     { label: "Release", board: releaseBoard, y: 258, className: "release" },
-    { label: "Arrows", board: arrowsBoard, y: 196, className: "arrows" },
+    { label: "Arrows", board: arrowsBoard, y: laneScale.arrowsY, className: "arrows" },
     { label: "Breakpoint", board: breakpointBoard, y: 112, className: "breakpoint" },
-    { label: "Entry", board: entryBoard, y: 52, className: "entry" },
+    { label: "Entry", board: entryBoard, y: laneScale.headPinY, className: "entry" },
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
@@ -1659,11 +1666,16 @@ function renderLaneBreakdownVisual(fields = null) {
           <div class="lane-3d-table">
             <div class="lane-3d-gutter left"></div>
             <div class="lane-3d-surface">
+              <div class="lane-3d-backstop"></div>
+              <div class="lane-3d-pin-deck"></div>
               <div class="lane-3d-oil"></div>
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => `<span class="lane-3d-pin" data-pin="${index + 1}">${lanePinSvg(index + 1)}</span>`).join("")}</div>
+              <span class="lane-3d-distance lane-3d-distance-foul">Foul line</span>
+              <span class="lane-3d-distance lane-3d-distance-arrows">15 ft arrows</span>
+              <span class="lane-3d-distance lane-3d-distance-pins">60 ft head pin</span>
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
                 <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
                 <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
@@ -1723,26 +1735,30 @@ function renderLaneBreakdownVisual(fields = null) {
           </filter>
         </defs>
         <rect x="0.5" y="0.5" width="159" height="299" rx="6" class="lane-breakdown-room"></rect>
+        <rect x="18" y="0.5" width="124" height="22" rx="3" class="lane-breakdown-backstop"></rect>
         <rect x="4" y="0.5" width="20" height="299" rx="6" class="lane-breakdown-gutter"></rect>
         <rect x="136" y="0.5" width="20" height="299" rx="6" class="lane-breakdown-gutter"></rect>
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-surface"></rect>
+        <rect x="24" y="0.5" width="112" height="72" class="lane-breakdown-pin-deck"></rect>
         <rect x="24" y="72" width="112" height="148" class="lane-breakdown-oil"></rect>
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-lane-shine"></rect>
         ${laneBoards.map((x) => `<line x1="${x}" y1="0" x2="${x}" y2="300" class="lane-breakdown-board"></line>`).join("")}
-        <line x1="24" y1="268" x2="136" y2="268" class="lane-breakdown-reference lane-breakdown-foul"></line>
-        <line x1="24" y1="196" x2="136" y2="196" class="lane-breakdown-reference"></line>
-        <line x1="24" y1="52" x2="136" y2="52" class="lane-breakdown-reference"></line>
-        <text x="9" y="265" class="lane-breakdown-zone">Foul</text>
-        <text x="8" y="193" class="lane-breakdown-zone">Arrows</text>
-        <text x="9" y="49" class="lane-breakdown-zone">Pins</text>
+        <line x1="24" y1="${laneScale.foulY}" x2="136" y2="${laneScale.foulY}" class="lane-breakdown-reference lane-breakdown-foul"></line>
+        <line x1="24" y1="${laneScale.arrowsY}" x2="136" y2="${laneScale.arrowsY}" class="lane-breakdown-reference"></line>
+        <line x1="24" y1="${laneScale.headPinY}" x2="136" y2="${laneScale.headPinY}" class="lane-breakdown-reference"></line>
+        <line x1="24" y1="${laneScale.pinDeckY}" x2="136" y2="${laneScale.pinDeckY}" class="lane-breakdown-reference lane-breakdown-pin-deck-line"></line>
+        <text x="9" y="${laneScale.foulY - 3}" class="lane-breakdown-zone">Foul</text>
+        <text x="7" y="${laneScale.arrowsY - 3}" class="lane-breakdown-zone">15 ft</text>
+        <text x="7" y="${laneScale.headPinY - 3}" class="lane-breakdown-zone">60 ft</text>
+        <text x="8" y="${laneScale.pinDeckY - 3}" class="lane-breakdown-zone">Deck</text>
         <g class="lane-breakdown-dots" aria-hidden="true">
-          <circle cx="42" cy="244" r="1.6"></circle><circle cx="55" cy="244" r="1.6"></circle><circle cx="68" cy="244" r="1.6"></circle>
-          <circle cx="80" cy="244" r="1.6"></circle><circle cx="92" cy="244" r="1.6"></circle><circle cx="105" cy="244" r="1.6"></circle><circle cx="118" cy="244" r="1.6"></circle>
+          <circle cx="42" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="55" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="68" cy="${laneScale.dotsY}" r="1.6"></circle>
+          <circle cx="80" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="92" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="105" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="118" cy="${laneScale.dotsY}" r="1.6"></circle>
         </g>
         <g class="lane-breakdown-arrows" aria-hidden="true">
-          <polygon points="42,187 38.8,199 45.2,199"></polygon><polygon points="55,187 51.8,199 58.2,199"></polygon>
-          <polygon points="68,187 64.8,199 71.2,199"></polygon><polygon points="80,187 76.8,199 83.2,199"></polygon>
-          <polygon points="92,187 88.8,199 95.2,199"></polygon><polygon points="105,187 101.8,199 108.2,199"></polygon><polygon points="118,187 114.8,199 121.2,199"></polygon>
+          <polygon points="42,205 38.8,217 45.2,217"></polygon><polygon points="55,205 51.8,217 58.2,217"></polygon>
+          <polygon points="68,205 64.8,217 71.2,217"></polygon><polygon points="80,205 76.8,217 83.2,217"></polygon>
+          <polygon points="92,205 88.8,217 95.2,217"></polygon><polygon points="105,205 101.8,217 108.2,217"></polygon><polygon points="118,205 114.8,217 121.2,217"></polygon>
         </g>
         <g class="lane-breakdown-pins" aria-hidden="true">
           ${pinRack.map((pin) => `
