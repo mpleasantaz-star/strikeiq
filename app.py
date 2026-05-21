@@ -2399,6 +2399,7 @@ class AppHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Permissions-Policy", "camera=(self), microphone=()")
         self.send_header("Cache-Control", "no-store, max-age=0")
         super().end_headers()
 

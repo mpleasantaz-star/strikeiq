@@ -1641,6 +1641,28 @@ h1 {
   gap: 8px;
 }
 
+.lane-live-help {
+  display: grid;
+  gap: 6px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  padding: 10px;
+}
+
+.lane-live-help[hidden] {
+  display: none;
+}
+
+.lane-live-help strong {
+  color: #ffffff;
+}
+
+.lane-live-help p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .lane-calibration-panel {
   display: grid;
   gap: 10px;

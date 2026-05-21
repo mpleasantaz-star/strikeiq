@@ -316,6 +316,10 @@ const projectDetails = {
                 <button type="button" class="secondary-button" data-lane-live-stop>Stop Camera</button>
               </div>
               <p id="lane-live-status" class="empty-state">Camera is off.</p>
+              <div id="lane-live-help" class="lane-live-help" hidden>
+                <strong>Camera access is blocked for this browser.</strong>
+                <p>Open site settings for this page, set Camera to Allow, then reload StrikeIQ and press Start Camera again.</p>
+              </div>
             </div>
           </div>
           <section class="lane-calibration-panel" aria-label="Lane calibration setup">
@@ -1413,22 +1417,21 @@ async function startLaneLiveCamera() {
   updateLaneVideoMode("live_video");
   const video = document.querySelector("#lane-live-video");
   const placeholder = document.querySelector("#lane-live-placeholder");
-  const status = document.querySelector("#lane-live-status");
-  const mainStatus = document.querySelector("#lane-video-status");
   if (!video) return;
+  const permission = await cameraPermissionState();
+  if (permission === "denied") {
+    setLaneLiveStatus("Camera is blocked for this site. Allow Camera in browser site settings, reload StrikeIQ, then try again.", true);
+    return;
+  }
   if (!navigator.mediaDevices?.getUserMedia) {
-    const message = "Camera preview is not available in this browser. Use recorded upload for now.";
-    if (status) status.textContent = message;
-    if (mainStatus) mainStatus.textContent = message;
+    setLaneLiveStatus("Camera preview is not available in this browser. Use recorded upload for now.", true);
     return;
   }
   stopLaneLiveCamera(true);
-  if (status) status.textContent = "Requesting camera permission...";
-  if (mainStatus) mainStatus.textContent = "Opening live camera preview...";
+  setLaneLiveStatus("Requesting camera permission...");
   const permissionTimer = window.setTimeout(() => {
     if (!state.laneLiveStream) {
-      if (status) status.textContent = "Waiting for camera permission. Choose Allow in the browser prompt, or use recorded video upload.";
-      if (mainStatus) mainStatus.textContent = "Waiting for camera permission. Live preview starts after camera access is allowed.";
+      setLaneLiveStatus("Waiting for camera permission. Choose Allow in the browser prompt, or use recorded video upload.", true);
     }
   }, 1400);
   try {
@@ -1445,15 +1448,13 @@ async function startLaneLiveCamera() {
     video.srcObject = stream;
     video.classList.add("is-active");
     if (placeholder) placeholder.classList.add("is-hidden");
-    if (status) status.textContent = "Live preview active. Keep the lane markers visible before analysis.";
-    if (mainStatus) mainStatus.textContent = "Live preview active. The current backend can create a development analysis run from the live mode context.";
+    setLaneLiveStatus("Live preview active. Keep the lane markers visible before analysis.");
   } catch (error) {
     const message = error?.name === "NotAllowedError"
-      ? "Camera permission was blocked. Allow camera access in the browser or use recorded video upload."
+      ? "Camera permission was blocked. Allow Camera in browser site settings, reload StrikeIQ, then try again."
       : "Camera could not start. Use recorded video upload if this device blocks live preview.";
     window.clearTimeout(permissionTimer);
-    if (status) status.textContent = message;
-    if (mainStatus) mainStatus.textContent = message;
+    setLaneLiveStatus(message, true);
   }
 }
 
@@ -1471,7 +1472,25 @@ function stopLaneLiveCamera(silent = false) {
     video.classList.remove("is-active");
   }
   if (placeholder) placeholder.classList.remove("is-hidden");
-  if (!silent && status) status.textContent = "Camera stopped.";
+  if (!silent && status) setLaneLiveStatus("Camera stopped.");
+}
+
+async function cameraPermissionState() {
+  try {
+    const permission = await navigator.permissions?.query({ name: "camera" });
+    return permission?.state || "";
+  } catch {
+    return "";
+  }
+}
+
+function setLaneLiveStatus(message, showHelp = false) {
+  const status = document.querySelector("#lane-live-status");
+  const mainStatus = document.querySelector("#lane-video-status");
+  const help = document.querySelector("#lane-live-help");
+  if (status) status.textContent = message;
+  if (mainStatus) mainStatus.textContent = message;
+  if (help) help.hidden = !showHelp;
 }
 
 function handleLaneVideoFile(fileInput) {
