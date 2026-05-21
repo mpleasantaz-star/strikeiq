@@ -1435,6 +1435,54 @@ h1 {
   padding: 14px;
 }
 
+.lane-tier-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.34);
+  padding: 16px;
+}
+
+.lane-tier-panel h3 {
+  margin: 0 0 7px;
+  color: #ffffff;
+}
+
+.lane-tier-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.lane-tier-panel > span {
+  border: 1px solid rgba(76, 201, 240, 0.42);
+  border-radius: 999px;
+  background: rgba(10, 132, 255, 0.18);
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  padding: 8px 11px;
+  text-transform: uppercase;
+}
+
+.lane-tier-panel-free {
+  border-color: rgba(76, 201, 240, 0.28);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.18), rgba(5, 7, 10, 0.42));
+}
+
+.lane-basic-fields label {
+  border-color: rgba(76, 201, 240, 0.28);
+}
+
+.is-free-tier .lane-form-heading {
+  border-top: 1px solid rgba(76, 201, 240, 0.16);
+  padding-top: 8px;
+}
+
 .lane-profile-context h3,
 .lane-form-heading h3 {
   margin: 0 0 6px;

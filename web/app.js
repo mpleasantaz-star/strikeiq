@@ -272,7 +272,23 @@ const projectDetails = {
     content: `
       <section id="lane-profile-context" class="lane-profile-context" aria-label="Lane tracker profile context"></section>
       <form id="shot-form" class="note-form project-form">
-        <section class="lane-video-console" aria-label="Lane video capture and detection">
+        <section class="lane-tier-panel lane-tier-panel-free" data-lane-tier="free" aria-label="Free lane tracker">
+          <div>
+            <p class="eyebrow">Free Tracker</p>
+            <h3>Basic Shot Log</h3>
+            <p>Free users track the core lane read only: board start, arrow start, ball speed, and pin fall result.</p>
+          </div>
+          <button type="button" class="secondary-button" data-project="upgrade">View Paid Tracker</button>
+        </section>
+        <section class="lane-tier-panel lane-tier-panel-pro" data-lane-tier="pro" aria-label="Paid lane tracker">
+          <div>
+            <p class="eyebrow">Paid Tracker</p>
+            <h3>Video + AI Lane Breakdown</h3>
+            <p>Paid users unlock live or recorded video, calibration, lane and ball detection, visual review, and detailed shot history.</p>
+          </div>
+          <span>Paid</span>
+        </section>
+        <section class="lane-video-console" data-lane-tier="pro" aria-label="Lane video capture and detection">
           <div class="lane-video-header">
             <div>
               <p class="eyebrow">Primary Tracker</p>
@@ -425,14 +441,16 @@ const projectDetails = {
           </section>
         </section>
         <div class="lane-form-heading">
-          <h3>Log One Shot</h3>
-          <p>Use the profile defaults, then capture the shot result and next adjustment.</p>
+          <h3 data-lane-tier="free">Log Basic Shot</h3>
+          <h3 data-lane-tier="pro">Log One Shot</h3>
+          <p data-lane-tier="free">Capture the four essentials from the shot so you can build a simple lane history.</p>
+          <p data-lane-tier="pro">Use the profile defaults, then capture the shot result and next adjustment.</p>
         </div>
-        <div class="form-row">
+        <div class="form-row" data-lane-tier="pro">
           <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
           <label>Center<input name="lane_center" id="lane-session-center" list="lane-center-options" placeholder="Home center or bowling alley"></label>
         </div>
-        <div class="center-picker-tools lane-center-tools">
+        <div class="center-picker-tools lane-center-tools" data-lane-tier="pro">
           <button id="find-lane-centers" type="button">Find Nearby Centers</button>
           <select id="nearby-lane-centers" aria-label="Nearby lane tracker bowling centers">
             <option value="">Select a nearby center</option>
@@ -440,12 +458,12 @@ const projectDetails = {
           <p id="lane-center-status" class="empty-state">Type manually or use location to populate nearby bowling centers.</p>
           <datalist id="lane-center-options"></datalist>
         </div>
-        <div class="form-row">
+        <div class="form-row" data-lane-tier="pro">
           <label>Lane<input name="lane_number" placeholder="Pair 7-8 / lane 12"></label>
           <label>Game<input type="number" name="game_number" min="1" max="20" placeholder="1"></label>
           <label>Frame<input name="frame_number" placeholder="1-10"></label>
         </div>
-        <div class="form-row">
+        <div class="form-row" data-lane-tier="pro">
           <label>Ball
             <select name="ball" id="lane-shot-ball"></select>
           </label>
@@ -460,16 +478,18 @@ const projectDetails = {
             </select>
           </label>
         </div>
-        <div class="form-row">
-          <label>Feet Board<input name="feet_board" placeholder="22"></label>
-          <label>Arrows Board<input name="arrows_board" placeholder="12"></label>
+        <div class="form-row lane-basic-fields">
+          <label>Board Start<input name="feet_board" placeholder="22"></label>
+          <label>Arrow Start<input name="arrows_board" placeholder="12"></label>
+        </div>
+        <div class="form-row lane-basic-fields">
+          <label>Ball Speed<input name="ball_speed" placeholder="16.5 mph"></label>
+          <label>Pin Fall Result<input name="result" placeholder="Strike, 10 pin, split" required></label>
+        </div>
+        <div class="form-row" data-lane-tier="pro">
           <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
         </div>
-        <div class="form-row">
-          <label>Ball Speed<input name="ball_speed" placeholder="16.5 mph"></label>
-          <label>Result<input name="result" placeholder="Strike, high, light" required></label>
-        </div>
-        <div class="analysis-panel">
+        <div class="analysis-panel" data-lane-tier="pro">
           <h3>Video Analysis</h3>
           <div class="form-row">
             <label>Video Name<input name="video_name" placeholder="Practice clip or upload name"></label>
@@ -492,7 +512,7 @@ const projectDetails = {
             <label>Confidence Label<input name="confidence_label" placeholder="Good, Review"></label>
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row" data-lane-tier="pro">
           <label>Miss Direction
             <select name="miss_direction">
               <option value="">Select miss</option>
@@ -508,9 +528,9 @@ const projectDetails = {
           <label>Leave<input name="leave_pin" placeholder="10 pin, 2-8, split"></label>
         </div>
         <input type="hidden" name="pattern_slug" id="shot-pattern-slug">
-        <label>Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
-        <label>Next Move<textarea name="next_move" placeholder="Move feet, change ball, change speed, change target"></textarea></label>
-        <label>Notes<textarea name="notes" placeholder="Reaction, carry, lane read, confidence"></textarea></label>
+        <label data-lane-tier="pro">Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
+        <label data-lane-tier="pro">Next Move<textarea name="next_move" placeholder="Move feet, change ball, change speed, change target"></textarea></label>
+        <label data-lane-tier="pro">Notes<textarea name="notes" placeholder="Reaction, carry, lane read, confidence"></textarea></label>
         <button type="submit">Log Shot</button>
       </form>
       <div id="lane-summary" class="project-metric"></div>
@@ -854,6 +874,37 @@ function renderAccessState() {
       button.removeAttribute("aria-label");
     }
   });
+  renderLaneTierState();
+}
+
+function renderLaneTierState() {
+  const isPro = hasProAccess();
+  document.querySelectorAll("[data-lane-tier]").forEach((item) => {
+    const tier = item.dataset.laneTier;
+    const shouldShow = tier === "pro" ? isPro : !isPro;
+    item.classList.toggle("is-hidden", !shouldShow);
+    item.querySelectorAll("input, select, textarea, button").forEach((control) => {
+      if (control.type === "hidden") return;
+      control.disabled = !shouldShow;
+    });
+  });
+  const shotForm = document.querySelector("#shot-form");
+  if (shotForm) {
+    shotForm.classList.toggle("is-free-tier", !isPro);
+    shotForm.classList.toggle("is-pro-tier", isPro);
+  }
+  if (!isPro) {
+    stopLaneLiveCamera(true);
+    const trackingMode = document.querySelector("#lane-tracking-mode");
+    const shotSource = document.querySelector("#lane-shot-source");
+    if (trackingMode) trackingMode.value = "manual_basic";
+    if (shotSource) shotSource.value = "free_basic";
+  } else {
+    const trackingMode = document.querySelector("#lane-tracking-mode");
+    const shotSource = document.querySelector("#lane-shot-source");
+    if (trackingMode) trackingMode.value = state.laneVideoMode || "recorded_video";
+    if (shotSource) shotSource.value = "video_capture";
+  }
 }
 
 function showLoginScreen() {
@@ -1362,6 +1413,7 @@ function hydrateLaneTrackerForm() {
   updateLaneVideoMode();
   updateLaneCalibrationSummary();
   renderLaneBreakdownVisual();
+  renderLaneTierState();
 }
 
 function renderLaneTrackerContext() {
@@ -2475,9 +2527,12 @@ async function loadShots() {
   hydrateLaneTrackerForm();
   const summary = document.querySelector("#lane-summary");
   if (summary) {
+    const isProLane = hasProAccess();
     const strikes = Number(state.shotStats.strikes || 0);
     const videoImports = Number(state.shotStats.video_total || 0);
-    const speeds = state.shots.map((shot) => Number(shot.speed_mph)).filter(Number.isFinite);
+    const speeds = state.shots
+      .map((shot) => Number(shot.speed_mph) || laneMetricNumber(shot.ball_speed))
+      .filter(Number.isFinite);
     const hooks = state.shots.map((shot) => Number(shot.hook_inches)).filter(Number.isFinite);
     const avgSpeed = Number(state.shotStats.average_speed) || (speeds.length ? speeds.reduce((sum, value) => sum + value, 0) / speeds.length : null);
     const avgHook = Number(state.shotStats.average_hook) || (hooks.length ? hooks.reduce((sum, value) => sum + value, 0) / hooks.length : null);
@@ -2490,38 +2545,47 @@ async function loadShots() {
       }, {});
     const commonLeave = state.shotStats.common_leave || Object.entries(leaves).sort((a, b) => b[1] - a[1])[0]?.[0] || "No leaves logged";
     const latest = state.shots[0];
-    summary.innerHTML = `
-      <span><b>${Number(state.shotStats.total || state.shots.length)}</b> shots</span>
-      <span><b>${videoImports}</b> video analyzed</span>
-      <span><b>${strikes}</b> strikes</span>
-      <span><b>${avgSpeed ? formatShotMetric(avgSpeed, " mph") : "No speed"}</b> avg speed</span>
-      <span><b>${avgHook ? formatShotMetric(avgHook, " in") : "No hook"}</b> avg hook</span>
-      <span><b>${escapeHtml(commonLeave)}</b> common leave</span>
-      <span><b>${escapeHtml(latest?.lane_center || state.profile?.homeCenter || "Center not set")}</b> latest center</span>
-    `;
+    summary.innerHTML = isProLane
+      ? `
+        <span><b>${Number(state.shotStats.total || state.shots.length)}</b> shots</span>
+        <span><b>${videoImports}</b> video analyzed</span>
+        <span><b>${strikes}</b> strikes</span>
+        <span><b>${avgSpeed ? formatShotMetric(avgSpeed, " mph") : "No speed"}</b> avg speed</span>
+        <span><b>${avgHook ? formatShotMetric(avgHook, " in") : "No hook"}</b> avg hook</span>
+        <span><b>${escapeHtml(commonLeave)}</b> common leave</span>
+        <span><b>${escapeHtml(latest?.lane_center || state.profile?.homeCenter || "Center not set")}</b> latest center</span>
+      `
+      : `
+        <span><b>${Number(state.shotStats.total || state.shots.length)}</b> shots</span>
+        <span><b>${strikes}</b> strikes</span>
+        <span><b>${avgSpeed ? formatShotMetric(avgSpeed, " mph") : "No speed"}</b> avg speed</span>
+        <span><b>${escapeHtml(latest?.feet_board || "Not set")}</b> last board start</span>
+        <span><b>${escapeHtml(latest?.arrows_board || "Not set")}</b> last arrow start</span>
+        <span><b>${escapeHtml(latest?.result || "No result")}</b> last pin fall</span>
+      `;
   }
   renderProjectList("#shot-list", state.shots, "No lane entries logged yet.", (shot) => `
     <article class="project-record">
       <strong>${escapeHtml(shot.result)}</strong>
-      <span>${escapeHtml([shot.session_date, shot.lane_center, shot.lane_number && `Lane ${shot.lane_number}`, shot.shot_source === "video_analysis_import" && "Video analysis"].filter(Boolean).join(" | ") || "Session not set")}</span>
-      <p>${escapeHtml([shot.ball || shot.video_name || "Ball not set", shot.pattern_name || "No pattern", shot.lane_condition, shot.confidence_label && `Confidence ${shot.confidence_label}`].filter(Boolean).join(" | "))}</p>
+      <span>${escapeHtml(hasProAccess() ? [shot.session_date, shot.lane_center, shot.lane_number && `Lane ${shot.lane_number}`, shot.shot_source === "video_analysis_import" && "Video analysis"].filter(Boolean).join(" | ") || "Session not set" : "Basic lane tracker")}</span>
+      ${hasProAccess() ? `<p>${escapeHtml([shot.ball || shot.video_name || "Ball not set", shot.pattern_name || "No pattern", shot.lane_condition, shot.confidence_label && `Confidence ${shot.confidence_label}`].filter(Boolean).join(" | "))}</p>` : ""}
       <p>${escapeHtml([
-        shot.release_board && `Release ${shot.release_board}`,
-        shot.feet_board && `Feet ${shot.feet_board}`,
-        shot.arrows_board && `Arrows ${shot.arrows_board}`,
-        shot.target && shot.shot_source !== "video_analysis_import" && `Target ${shot.target}`,
-        shot.breakpoint && `Breakpoint ${shot.breakpoint}`,
-        shot.entry_board && `Entry ${shot.entry_board}`,
-        shot.speed_mph && formatShotMetric(shot.speed_mph, " mph"),
-        shot.hook_inches && formatShotMetric(shot.hook_inches, " in hook"),
-        shot.boards_crossed && formatShotMetric(shot.boards_crossed, " boards"),
+        hasProAccess() && shot.release_board && `Release ${shot.release_board}`,
+        shot.feet_board && `Board start ${shot.feet_board}`,
+        shot.arrows_board && `Arrow start ${shot.arrows_board}`,
+        hasProAccess() && shot.target && shot.shot_source !== "video_analysis_import" && `Target ${shot.target}`,
+        hasProAccess() && shot.breakpoint && `Breakpoint ${shot.breakpoint}`,
+        hasProAccess() && shot.entry_board && `Entry ${shot.entry_board}`,
+        hasProAccess() && shot.speed_mph && formatShotMetric(shot.speed_mph, " mph"),
+        hasProAccess() && shot.hook_inches && formatShotMetric(shot.hook_inches, " in hook"),
+        hasProAccess() && shot.boards_crossed && formatShotMetric(shot.boards_crossed, " boards"),
         !shot.speed_mph && shot.ball_speed && `${shot.ball_speed}`
       ].filter(Boolean).join(" | ") || "Target not set")}</p>
-      ${shot.leave_pin || shot.miss_direction || shot.pocket_quality || shot.pin_result || shot.impact_result ? `<p>${escapeHtml([shot.miss_direction && `Miss ${shot.miss_direction}`, shot.pocket_quality && `Pocket ${shot.pocket_quality}`, shot.pin_result && `Pins ${shot.pin_result}`, shot.impact_result && `Impact ${shot.impact_result}`, shot.leave_pin && `Leave ${shot.leave_pin}`].filter(Boolean).join(" | "))}</p>` : ""}
-      ${shot.adjustment ? `<p><b>Adjustment:</b> ${escapeHtml(shot.adjustment)}</p>` : ""}
-      ${shot.next_move ? `<p><b>Next move:</b> ${escapeHtml(shot.next_move)}</p>` : ""}
-      ${shot.quality_label || shot.consistency_label ? `<p>${escapeHtml([shot.quality_label && `Quality ${shot.quality_label}`, shot.consistency_label && `Consistency ${shot.consistency_label}`].filter(Boolean).join(" | "))}</p>` : ""}
-      ${shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
+      ${hasProAccess() && (shot.leave_pin || shot.miss_direction || shot.pocket_quality || shot.pin_result || shot.impact_result) ? `<p>${escapeHtml([shot.miss_direction && `Miss ${shot.miss_direction}`, shot.pocket_quality && `Pocket ${shot.pocket_quality}`, shot.pin_result && `Pins ${shot.pin_result}`, shot.impact_result && `Impact ${shot.impact_result}`, shot.leave_pin && `Leave ${shot.leave_pin}`].filter(Boolean).join(" | "))}</p>` : ""}
+      ${hasProAccess() && shot.adjustment ? `<p><b>Adjustment:</b> ${escapeHtml(shot.adjustment)}</p>` : ""}
+      ${hasProAccess() && shot.next_move ? `<p><b>Next move:</b> ${escapeHtml(shot.next_move)}</p>` : ""}
+      ${hasProAccess() && (shot.quality_label || shot.consistency_label) ? `<p>${escapeHtml([shot.quality_label && `Quality ${shot.quality_label}`, shot.consistency_label && `Consistency ${shot.consistency_label}`].filter(Boolean).join(" | "))}</p>` : ""}
+      ${hasProAccess() && shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
     </article>
   `);
 }
@@ -4808,9 +4872,15 @@ function bindEvents() {
     } else if (form.id === "shot-form") {
       event.preventDefault();
       const payload = formPayload(form);
-      payload.pattern_slug = state.selectedSlug || "";
-      payload.lane_center = payload.lane_center || state.profile?.homeCenter || "";
-      payload.ball = payload.ball || profileArsenalItems()[0] || "";
+      const isProShot = hasProAccess();
+      payload.pattern_slug = isProShot ? state.selectedSlug || "" : "";
+      payload.lane_center = isProShot ? payload.lane_center || state.profile?.homeCenter || "" : "";
+      payload.ball = isProShot ? payload.ball || profileArsenalItems()[0] || "" : "";
+      if (!isProShot) {
+        payload.shot_source = "free_basic";
+        payload.tracking_mode = "manual_basic";
+        payload.pin_result = payload.result || "";
+      }
       await api("/api/shots", { method: "POST", body: JSON.stringify(payload) });
       form.reset();
       hydrateLaneTrackerForm();
