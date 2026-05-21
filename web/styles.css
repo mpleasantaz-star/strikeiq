@@ -1771,7 +1771,7 @@ h1 {
 .lane-breakdown-svg {
   display: block;
   width: 100%;
-  height: clamp(230px, 26vw, 330px);
+  height: clamp(330px, 56vw, 430px);
   border: 1px solid rgba(76, 201, 240, 0.18);
   border-radius: 8px;
   background: #05070a;
@@ -1815,10 +1815,16 @@ h1 {
   stroke-width: 0.62;
 }
 
+.lane-breakdown-foul {
+  stroke: rgba(255, 255, 255, 0.82);
+  stroke-dasharray: none;
+  stroke-width: 1.2;
+}
+
 .lane-breakdown-zone,
 .lane-breakdown-marker text {
   fill: rgba(255, 255, 255, 0.86);
-  font-size: 5px;
+  font-size: 5.2px;
   font-weight: 900;
   paint-order: stroke;
   stroke: rgba(5, 7, 10, 0.82);
@@ -1846,7 +1852,7 @@ h1 {
   stroke: rgba(1, 38, 83, 0.52);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 7.6;
+  stroke-width: 6.2;
 }
 
 .lane-breakdown-path {
@@ -1854,7 +1860,7 @@ h1 {
   stroke: url("#laneTrackGradient");
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.2;
+  stroke-width: 2.6;
 }
 
 .lane-breakdown-ball {

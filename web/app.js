@@ -1433,7 +1433,7 @@ function laneBoardValue(value, fallback) {
 }
 
 function laneBoardPercent(board) {
-  return 8 + clamp(((board - 1) / 38) * 84, 0, 84);
+  return 24 + clamp(((board - 1) / 38) * 112, 0, 112);
 }
 
 function laneVisualValue(fields, primaryName, fallbackName = "") {
@@ -1471,13 +1471,13 @@ function renderLaneBreakdownVisual(fields = null) {
     laneVisualValue(sourceFields, "pocket_quality")
   );
   const markers = [
-    { label: "Release", board: releaseBoard, y: 238, className: "release" },
-    { label: "Arrows", board: arrowsBoard, y: 176, className: "arrows" },
-    { label: "Breakpoint", board: breakpointBoard, y: 92, className: "breakpoint" },
-    { label: "Entry", board: entryBoard, y: 32, className: "entry" },
+    { label: "Release", board: releaseBoard, y: 258, className: "release" },
+    { label: "Arrows", board: arrowsBoard, y: 196, className: "arrows" },
+    { label: "Breakpoint", board: breakpointBoard, y: 112, className: "breakpoint" },
+    { label: "Entry", board: entryBoard, y: 52, className: "entry" },
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
-  const laneBoards = Array.from({ length: 11 }, (_, index) => 8 + index * 8.4);
+  const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
   const labelSide = entryBoard > 20 ? "left" : "right";
 
   if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
@@ -1486,7 +1486,7 @@ function renderLaneBreakdownVisual(fields = null) {
       <div class="lane-breakdown-board-labels" aria-hidden="true">
         <span>1</span><span>10</span><span>20</span><span>30</span><span>39</span>
       </div>
-      <svg class="lane-breakdown-svg" viewBox="0 0 100 280" preserveAspectRatio="none" role="img" aria-label="Bowling ball path from release to pins">
+      <svg class="lane-breakdown-svg" viewBox="0 0 160 300" role="img" aria-label="Bowling ball path from release to pins">
         <defs>
           <linearGradient id="laneWoodGradient" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0%" stop-color="#f0c66f"></stop>
@@ -1499,10 +1499,10 @@ function renderLaneBreakdownVisual(fields = null) {
             <stop offset="46%" stop-color="#ffffff" stop-opacity="0.30"></stop>
             <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
           </linearGradient>
-          <pattern id="laneWoodPattern" width="9" height="280" patternUnits="userSpaceOnUse">
-            <rect width="9" height="280" fill="url(#laneWoodGradient)"></rect>
-            <path d="M1 0 C4 28, 2 62, 5 93 S8 154, 4 188 S2 240, 7 280" stroke="rgba(96,49,18,0.24)" stroke-width="0.7" fill="none"></path>
-            <path d="M8 0 C5 36, 7 78, 4 116 S1 194, 3 280" stroke="rgba(255,242,185,0.18)" stroke-width="0.55" fill="none"></path>
+          <pattern id="laneWoodPattern" width="12" height="300" patternUnits="userSpaceOnUse">
+            <rect width="12" height="300" fill="url(#laneWoodGradient)"></rect>
+            <path d="M2 0 C5 28, 3 62, 7 98 S11 166, 5 206 S3 258, 10 300" stroke="rgba(96,49,18,0.24)" stroke-width="0.7" fill="none"></path>
+            <path d="M10 0 C7 36, 9 78, 5 124 S1 208, 4 300" stroke="rgba(255,242,185,0.18)" stroke-width="0.55" fill="none"></path>
           </pattern>
           <radialGradient id="laneBallGradient" cx="35%" cy="28%" r="70%">
             <stop offset="0%" stop-color="#ffffff"></stop>
@@ -1525,35 +1525,33 @@ function renderLaneBreakdownVisual(fields = null) {
             <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.42"></feDropShadow>
           </filter>
         </defs>
-        <rect x="0.5" y="0.5" width="99" height="279" rx="4" class="lane-breakdown-room"></rect>
-        <rect x="0.5" y="0.5" width="7.5" height="279" rx="4" class="lane-breakdown-gutter"></rect>
-        <rect x="92" y="0.5" width="7.5" height="279" rx="4" class="lane-breakdown-gutter"></rect>
-        <rect x="8" y="0.5" width="84" height="279" class="lane-breakdown-surface"></rect>
-        <rect x="8" y="52" width="84" height="146" class="lane-breakdown-oil"></rect>
-        <rect x="8" y="0.5" width="84" height="279" class="lane-breakdown-lane-shine"></rect>
-        ${laneBoards.map((x) => `<line x1="${x}" y1="0" x2="${x}" y2="280" class="lane-breakdown-board"></line>`).join("")}
-        <line x1="0" y1="246" x2="100" y2="246" class="lane-breakdown-reference"></line>
-        <line x1="0" y1="176" x2="100" y2="176" class="lane-breakdown-reference"></line>
-        <line x1="0" y1="36" x2="100" y2="36" class="lane-breakdown-reference"></line>
-        <text x="3" y="242" class="lane-breakdown-zone">Foul</text>
-        <text x="3" y="172" class="lane-breakdown-zone">Arrows</text>
-        <text x="3" y="32" class="lane-breakdown-zone">Pins</text>
+        <rect x="0.5" y="0.5" width="159" height="299" rx="6" class="lane-breakdown-room"></rect>
+        <rect x="4" y="0.5" width="20" height="299" rx="6" class="lane-breakdown-gutter"></rect>
+        <rect x="136" y="0.5" width="20" height="299" rx="6" class="lane-breakdown-gutter"></rect>
+        <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-surface"></rect>
+        <rect x="24" y="72" width="112" height="148" class="lane-breakdown-oil"></rect>
+        <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-lane-shine"></rect>
+        ${laneBoards.map((x) => `<line x1="${x}" y1="0" x2="${x}" y2="300" class="lane-breakdown-board"></line>`).join("")}
+        <line x1="24" y1="268" x2="136" y2="268" class="lane-breakdown-reference lane-breakdown-foul"></line>
+        <line x1="24" y1="196" x2="136" y2="196" class="lane-breakdown-reference"></line>
+        <line x1="24" y1="52" x2="136" y2="52" class="lane-breakdown-reference"></line>
+        <text x="9" y="265" class="lane-breakdown-zone">Foul</text>
+        <text x="8" y="193" class="lane-breakdown-zone">Arrows</text>
+        <text x="9" y="49" class="lane-breakdown-zone">Pins</text>
         <g class="lane-breakdown-dots" aria-hidden="true">
-          <circle cx="20" cy="226" r="1.35"></circle><circle cx="30" cy="226" r="1.35"></circle><circle cx="40" cy="226" r="1.35"></circle>
-          <circle cx="50" cy="226" r="1.35"></circle><circle cx="60" cy="226" r="1.35"></circle><circle cx="70" cy="226" r="1.35"></circle><circle cx="80" cy="226" r="1.35"></circle>
+          <circle cx="42" cy="244" r="1.6"></circle><circle cx="55" cy="244" r="1.6"></circle><circle cx="68" cy="244" r="1.6"></circle>
+          <circle cx="80" cy="244" r="1.6"></circle><circle cx="92" cy="244" r="1.6"></circle><circle cx="105" cy="244" r="1.6"></circle><circle cx="118" cy="244" r="1.6"></circle>
         </g>
         <g class="lane-breakdown-arrows" aria-hidden="true">
-          <polygon points="20,169 17.8,178 22.2,178"></polygon><polygon points="30,169 27.8,178 32.2,178"></polygon>
-          <polygon points="40,169 37.8,178 42.2,178"></polygon><polygon points="50,169 47.8,178 52.2,178"></polygon>
-          <polygon points="60,169 57.8,178 62.2,178"></polygon><polygon points="70,169 67.8,178 72.2,178"></polygon><polygon points="80,169 77.8,178 82.2,178"></polygon>
+          <polygon points="42,187 38.8,199 45.2,199"></polygon><polygon points="55,187 51.8,199 58.2,199"></polygon>
+          <polygon points="68,187 64.8,199 71.2,199"></polygon><polygon points="80,187 76.8,199 83.2,199"></polygon>
+          <polygon points="92,187 88.8,199 95.2,199"></polygon><polygon points="105,187 101.8,199 108.2,199"></polygon><polygon points="118,187 114.8,199 121.2,199"></polygon>
         </g>
         <g class="lane-breakdown-pins" aria-hidden="true">
-          <ellipse cx="50" cy="17" rx="2.5" ry="3.7"></ellipse>
-          <ellipse cx="45" cy="24" rx="2.3" ry="3.3"></ellipse>
-          <ellipse cx="55" cy="24" rx="2.3" ry="3.3"></ellipse>
-          <ellipse cx="40" cy="31" rx="2.1" ry="3.0"></ellipse>
-          <ellipse cx="50" cy="31" rx="2.1" ry="3.0"></ellipse>
-          <ellipse cx="60" cy="31" rx="2.1" ry="3.0"></ellipse>
+          <ellipse cx="56" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="72" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="88" cy="18" rx="2.3" ry="3.4"></ellipse><ellipse cx="104" cy="18" rx="2.3" ry="3.4"></ellipse>
+          <ellipse cx="64" cy="28" rx="2.5" ry="3.7"></ellipse><ellipse cx="80" cy="28" rx="2.5" ry="3.7"></ellipse><ellipse cx="96" cy="28" rx="2.5" ry="3.7"></ellipse>
+          <ellipse cx="72" cy="38" rx="2.7" ry="4.0"></ellipse><ellipse cx="88" cy="38" rx="2.7" ry="4.0"></ellipse>
+          <ellipse cx="80" cy="48" rx="3.0" ry="4.4"></ellipse>
         </g>
         <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
         <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
