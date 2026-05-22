@@ -1646,6 +1646,99 @@ h1 {
   border-color: rgba(76, 201, 240, 0.28);
 }
 
+.lane-free-snapshot {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(76, 201, 240, 0.20);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(10, 132, 255, 0.12), rgba(255, 23, 68, 0.08)),
+    rgba(5, 7, 10, 0.42);
+  padding: 14px;
+}
+
+.lane-free-snapshot-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lane-free-snapshot-heading h3,
+.lane-free-snapshot-heading p {
+  margin: 0;
+}
+
+.lane-free-snapshot-heading h3 {
+  color: #ffffff;
+  font-size: 1.04rem;
+}
+
+.lane-free-snapshot-heading p:not(.eyebrow) {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.lane-free-snapshot-heading > span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(76, 201, 240, 0.30);
+  border-radius: 999px;
+  background: rgba(10, 132, 255, 0.14);
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  padding: 7px 10px;
+  text-transform: uppercase;
+}
+
+.lane-free-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lane-free-snapshot-grid article {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(76, 201, 240, 0.12);
+  border-radius: 8px;
+  background: rgba(11, 15, 26, 0.68);
+  padding: 12px;
+}
+
+.lane-free-snapshot-grid strong {
+  color: #ffffff;
+  font-size: 0.92rem;
+}
+
+.lane-free-snapshot-grid article > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lane-free-snapshot-grid span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border-top: 1px solid rgba(76, 201, 240, 0.08);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+  padding-top: 7px;
+}
+
+.lane-free-snapshot-grid b {
+  color: var(--muted);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .is-free-tier .lane-form-heading {
   border-top: 1px solid rgba(76, 201, 240, 0.16);
   padding-top: 8px;
@@ -4483,6 +4576,7 @@ button:hover {
 
   .home-priority-strip,
   .home-metrics,
+  .lane-free-snapshot-grid,
   .lane-breakdown-metrics,
   .lane-output-columns,
   .lane-ideal-grid,
@@ -4596,6 +4690,7 @@ button:hover {
 
   .lane-video-header,
   .lane-video-actions,
+  .lane-free-snapshot-heading,
   .lane-breakdown-heading,
   .lane-output-heading,
   .lane-ideal-heading,
@@ -4628,6 +4723,8 @@ button:hover {
   .home-split,
   .home-priority-strip,
   .home-metrics,
+  .lane-free-snapshot-grid,
+  .lane-free-snapshot-grid article > div,
   .lane-breakdown-metrics,
   .lane-output-columns,
   .lane-ideal-grid {

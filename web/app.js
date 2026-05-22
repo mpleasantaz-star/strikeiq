@@ -293,6 +293,7 @@ const projectDetails = {
           </div>
           <button type="button" class="secondary-button" data-project="upgrade">View Paid Tracker</button>
         </section>
+        <section id="lane-free-snapshot" class="lane-free-snapshot" data-lane-tier="free" aria-label="Free lane tracker snapshot"></section>
         <section class="lane-tier-panel lane-tier-panel-pro" data-lane-tier="pro" aria-label="Paid lane tracker">
           <div>
             <p class="eyebrow">Paid Tracker</p>
@@ -1723,6 +1724,50 @@ function renderLaneOutputContract() {
   `;
 }
 
+function renderLaneFreeSnapshot() {
+  const container = document.querySelector("#lane-free-snapshot");
+  if (!container) return;
+  const form = document.querySelector("#shot-form");
+  const payload = form ? formPayload(form) : {};
+  const latest = Array.isArray(state.shots) ? state.shots[0] : null;
+  const currentItems = [
+    ["Board Start", payload.feet_board || "Not set"],
+    ["Arrow Start", payload.arrows_board || "Not set"],
+    ["Ball Speed", payload.ball_speed || "Not set"],
+    ["Pin Fall Result", payload.result || "Not set"],
+  ];
+  const latestItems = [
+    ["Last Board", latest?.feet_board || "No shot"],
+    ["Last Arrow", latest?.arrows_board || "No shot"],
+    ["Last Speed", latest?.ball_speed || latest?.speed_mph || "No shot"],
+    ["Last Result", latest?.result || latest?.pin_result || "No shot"],
+  ];
+  container.innerHTML = `
+    <div class="lane-free-snapshot-heading">
+      <div>
+        <p class="eyebrow">Basic Tracker</p>
+        <h3>Free Shot Data</h3>
+        <p>These are the four values saved for a free lane tracking entry.</p>
+      </div>
+      <span>Free</span>
+    </div>
+    <div class="lane-free-snapshot-grid">
+      <article>
+        <strong>Current Shot</strong>
+        <div>
+          ${currentItems.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join("")}
+        </div>
+      </article>
+      <article>
+        <strong>Last Saved</strong>
+        <div>
+          ${latestItems.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join("")}
+        </div>
+      </article>
+    </div>
+  `;
+}
+
 function formPayload(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
@@ -1761,6 +1806,7 @@ function hydrateLaneTrackerForm() {
     ballSelect.value = options.includes(currentValue) ? currentValue : arsenalItems[0] || "";
   }
   renderLaneTrackerContext();
+  renderLaneFreeSnapshot();
   hydrateLaneSettingsControls();
   updateLaneVideoMode(state.laneVideoMode);
   updateLaneCalibrationSummary();
@@ -3155,6 +3201,7 @@ async function loadShots() {
       ${hasProAccess() && shot.notes ? `<small>${escapeHtml(shot.notes)}</small>` : ""}
     </article>
   `);
+  renderLaneFreeSnapshot();
 }
 
 function renderChat() {
@@ -5301,6 +5348,7 @@ function bindEvents() {
       queueAppSettingsSave();
     }
     if (event.target.closest("#shot-form")) {
+      renderLaneFreeSnapshot();
       renderLaneBreakdownVisual();
     }
   });
