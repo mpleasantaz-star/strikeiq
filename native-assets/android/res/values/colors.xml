@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="strikeiq_electric_blue">#0A84FF</color>
+    <color name="strikeiq_neon_blue">#4CC9F0</color>
+    <color name="strikeiq_deep_navy">#0B0F1A</color>
+    <color name="strikeiq_true_black">#05070A</color>
+    <color name="strikeiq_dark_slate">#1A2233</color>
+    <color name="strikeiq_success">#22C55E</color>
+    <color name="strikeiq_warning">#F59E0B</color>
+    <color name="strikeiq_error">#EF4444</color>
+</resources>
