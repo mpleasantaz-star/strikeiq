@@ -2109,6 +2109,14 @@ h1 {
   gap: 8px;
 }
 
+.lane-live-actions button:disabled,
+.lane-live-actions button.is-unavailable {
+  border-color: rgba(255, 183, 77, 0.28);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .lane-live-help {
   display: grid;
   gap: 6px;

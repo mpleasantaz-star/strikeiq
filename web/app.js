@@ -1997,6 +1997,7 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
   const trackingMode = document.querySelector("#lane-tracking-mode");
   const modeLabel = document.querySelector("#lane-video-mode-label");
   const status = document.querySelector("#lane-video-status");
+  const supportBlock = state.laneVideoMode === "live_video" ? cameraSupportBlock() : null;
   if (trackingMode) trackingMode.value = state.laneVideoMode;
   document.querySelectorAll("input[name='tracking_mode_choice']").forEach((input) => {
     input.checked = input.value === state.laneVideoMode;
@@ -2006,9 +2007,17 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
     panel.classList.toggle("is-active", panel.dataset.laneVideoPanel === state.laneVideoMode);
   });
   if (status) {
-    status.textContent = state.laneVideoMode === "live_video"
+    status.textContent = supportBlock?.status || (state.laneVideoMode === "live_video"
       ? "Live camera mode selected. Tap Start Camera to preview the lane, or Upload And Analyze Video to create a development analysis."
-      : "Recorded video mode selected. Choose a clip, then run backend analysis.";
+      : "Recorded video mode selected. Choose a clip, then run backend analysis.");
+  }
+  syncLaneLiveAvailability(supportBlock);
+  if (supportBlock) {
+    setLaneLiveStatus(supportBlock.status, true, supportBlock.help);
+  } else if (state.laneVideoMode === "live_video") {
+    setLaneLiveStatus("Camera is off.", false);
+  } else {
+    hideLaneLiveHelp();
   }
   if (state.laneVideoMode !== "live_video") {
     stopLaneLiveCamera(true);
@@ -2105,8 +2114,8 @@ function cameraSupportBlock() {
   if (!window.isSecureContext && !isLocalBrowserHost()) {
     const deviceName = isIosBrowser() ? "iPhone/iPad" : "this device";
     return {
-      status: "Live camera is blocked because StrikeIQ is not running over HTTPS.",
-      help: `${deviceName} blocks browser camera access from regular HTTP addresses. Use Recorded Video for now, or run StrikeIQ through HTTPS / an Expo native camera build before testing live capture.`,
+      status: "Live camera requires HTTPS or Expo Camera on this device.",
+      help: `${deviceName} blocks browser camera access from regular HTTP addresses. Use Recorded Video for now. Live capture can be tested after StrikeIQ runs through HTTPS or an Expo native camera build.`,
     };
   }
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -2154,6 +2163,28 @@ function setLaneLiveStatus(message, showHelp = false, helpMessage = "") {
   if (mainStatus) mainStatus.textContent = message;
   if (helpCopy && helpMessage) helpCopy.textContent = helpMessage;
   if (help) help.hidden = !showHelp;
+}
+
+function hideLaneLiveHelp() {
+  const help = document.querySelector("#lane-live-help");
+  if (help) help.hidden = true;
+}
+
+function syncLaneLiveAvailability(supportBlock = null) {
+  const startButton = document.querySelector("[data-lane-live-preview]");
+  const stopButton = document.querySelector("[data-lane-live-stop]");
+  const unavailable = Boolean(supportBlock);
+  if (startButton) {
+    startButton.disabled = unavailable;
+    startButton.classList.toggle("is-unavailable", unavailable);
+    startButton.setAttribute("aria-disabled", unavailable ? "true" : "false");
+    startButton.textContent = unavailable ? "Camera Unavailable" : "Start Camera";
+  }
+  if (stopButton) {
+    stopButton.disabled = unavailable;
+    stopButton.classList.toggle("is-unavailable", unavailable);
+    stopButton.setAttribute("aria-disabled", unavailable ? "true" : "false");
+  }
 }
 
 function handleLaneVideoFile(fileInput) {
