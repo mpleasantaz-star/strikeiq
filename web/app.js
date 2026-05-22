@@ -2190,6 +2190,9 @@ function renderLaneBreakdownVisual(fields = null) {
             <div class="lane-3d-surface">
               <div class="lane-3d-backstop"></div>
               <div class="lane-3d-pin-deck"></div>
+              <div class="lane-3d-zone lane-3d-zone-backend"><span>Backend 40-60 ft</span></div>
+              <div class="lane-3d-zone lane-3d-zone-midlane"><span>Midlane 20-40 ft</span></div>
+              <div class="lane-3d-zone lane-3d-zone-heads"><span>Heads 0-20 ft</span></div>
               <div class="lane-3d-oil"></div>
               <div class="lane-3d-approach"></div>
               <div class="lane-3d-foul"></div>
@@ -2199,6 +2202,8 @@ function renderLaneBreakdownVisual(fields = null) {
               <span class="lane-3d-distance lane-3d-distance-foul">Foul line</span>
               <span class="lane-3d-distance lane-3d-distance-arrows">15 ft arrows</span>
               <span class="lane-3d-distance lane-3d-distance-pins">60 ft head pin</span>
+              <span class="lane-3d-distance lane-3d-distance-deck">62 ft 10 in deck</span>
+              <span class="lane-3d-width-label">41.5 in lane | 39 boards</span>
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
                 <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
                 <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
@@ -2263,6 +2268,9 @@ function renderLaneBreakdownVisual(fields = null) {
         <rect x="136" y="0.5" width="20" height="299" rx="6" class="lane-breakdown-gutter"></rect>
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-surface"></rect>
         <rect x="24" y="0.5" width="112" height="72" class="lane-breakdown-pin-deck"></rect>
+        <rect x="24" y="58" width="112" height="70" class="lane-breakdown-zone-fill lane-breakdown-zone-backend"></rect>
+        <rect x="24" y="128" width="112" height="70" class="lane-breakdown-zone-fill lane-breakdown-zone-midlane"></rect>
+        <rect x="24" y="198" width="112" height="70" class="lane-breakdown-zone-fill lane-breakdown-zone-heads"></rect>
         <rect x="24" y="72" width="112" height="148" class="lane-breakdown-oil"></rect>
         <rect x="24" y="${laneScale.foulY}" width="112" height="${300 - laneScale.foulY}" class="lane-breakdown-approach"></rect>
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-lane-shine"></rect>
@@ -2271,11 +2279,22 @@ function renderLaneBreakdownVisual(fields = null) {
         <line x1="24" y1="${laneScale.arrowsY}" x2="136" y2="${laneScale.arrowsY}" class="lane-breakdown-reference"></line>
         <line x1="24" y1="${laneScale.headPinY}" x2="136" y2="${laneScale.headPinY}" class="lane-breakdown-reference"></line>
         <line x1="24" y1="${laneScale.pinDeckY}" x2="136" y2="${laneScale.pinDeckY}" class="lane-breakdown-reference lane-breakdown-pin-deck-line"></line>
+        <line x1="144" y1="${laneScale.foulY}" x2="144" y2="${laneScale.headPinY}" class="lane-breakdown-measure"></line>
+        <line x1="141" y1="${laneScale.foulY}" x2="147" y2="${laneScale.foulY}" class="lane-breakdown-measure"></line>
+        <line x1="141" y1="${laneScale.headPinY}" x2="147" y2="${laneScale.headPinY}" class="lane-breakdown-measure"></line>
+        <line x1="24" y1="290" x2="136" y2="290" class="lane-breakdown-width-measure"></line>
+        <line x1="24" y1="287" x2="24" y2="293" class="lane-breakdown-width-measure"></line>
+        <line x1="136" y1="287" x2="136" y2="293" class="lane-breakdown-width-measure"></line>
         <text x="9" y="${laneScale.foulY - 3}" class="lane-breakdown-zone">Foul</text>
         <text x="7" y="${laneScale.foulY + 17}" class="lane-breakdown-zone">Approach</text>
+        <text x="8" y="232" class="lane-breakdown-zone">Heads</text>
+        <text x="7" y="162" class="lane-breakdown-zone">Midlane</text>
+        <text x="7" y="100" class="lane-breakdown-zone">Backend</text>
         <text x="7" y="${laneScale.arrowsY - 3}" class="lane-breakdown-zone">15 ft</text>
         <text x="7" y="${laneScale.headPinY - 3}" class="lane-breakdown-zone">60 ft</text>
         <text x="8" y="${laneScale.pinDeckY - 3}" class="lane-breakdown-zone">Deck</text>
+        <text x="148" y="166" class="lane-breakdown-measure-label" transform="rotate(90 148 166)">60 ft foul to head pin</text>
+        <text x="80" y="286" class="lane-breakdown-measure-label" text-anchor="middle">41.5 in | 39 boards</text>
         <g class="lane-breakdown-dots" aria-hidden="true">
           <circle cx="42" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="55" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="68" cy="${laneScale.dotsY}" r="1.6"></circle>
           <circle cx="80" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="92" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="105" cy="${laneScale.dotsY}" r="1.6"></circle><circle cx="118" cy="${laneScale.dotsY}" r="1.6"></circle>
