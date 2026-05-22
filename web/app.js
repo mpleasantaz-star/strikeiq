@@ -2334,7 +2334,6 @@ function renderLaneBreakdownVisual(fields = null) {
         </circle>
         ${markers.map((marker) => `
           <g class="lane-breakdown-marker ${marker.className}">
-            <circle cx="${marker.x}" cy="${marker.y}" r="3.8"></circle>
             <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
             <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y + 7}" text-anchor="${labelSide === "left" ? "end" : "start"}">B${Math.round(marker.board * 10) / 10}</text>
           </g>

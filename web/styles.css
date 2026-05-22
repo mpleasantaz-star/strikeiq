@@ -2822,29 +2822,6 @@ h1 {
   }
 }
 
-.lane-breakdown-marker circle {
-  fill: rgba(5, 7, 10, 0.76);
-  stroke: #ffffff;
-  stroke-width: 1.1;
-}
-
-.lane-breakdown-marker.release circle {
-  stroke: #4cc9f0;
-}
-
-.lane-breakdown-marker.arrows circle {
-  stroke: #0a84ff;
-}
-
-.lane-breakdown-marker.breakpoint circle {
-  stroke: #ffffff;
-}
-
-.lane-breakdown-marker.entry circle {
-  fill: #4cc9f0;
-  stroke: #ffffff;
-}
-
 .lane-breakdown-metrics {
   align-content: start;
   display: grid;
