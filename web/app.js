@@ -2200,6 +2200,25 @@ function lanePinSvg(pinNumber) {
   `;
 }
 
+function laneStandingPinsFromResult(value) {
+  const text = String(value || "").trim().toLowerCase();
+  if (!text) return null;
+  if (/\b(strike|flush|all\s*down|cleared|spare)\b/.test(text)) return new Set();
+  if (/\b(gutter|foul|missed\s+lane)\b/.test(text)) return null;
+
+  const describesLeave = /\b(leave|leaves|pin|pins|split|washout|bucket)\b/.test(text);
+  if (!describesLeave) return null;
+
+  const pins = [...text.matchAll(/\b10\b|\b[1-9]\b/g)]
+    .map((match) => Number(match[0]))
+    .filter((pin) => pin >= 1 && pin <= 10);
+  return pins.length ? new Set(pins) : null;
+}
+
+function lanePinIsStanding(standingPins, pinNumber) {
+  return standingPins === null || standingPins.has(pinNumber);
+}
+
 function renderLaneBreakdownVisual(fields = null) {
   const visual = document.querySelector("#lane-breakdown-visual");
   const metricsContainer = document.querySelector("#lane-breakdown-metrics");
@@ -2214,6 +2233,8 @@ function renderLaneBreakdownVisual(fields = null) {
   const arrowsBoard = laneBoardValue(laneVisualValue(sourceFields, "arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
   const breakpointBoard = laneBoardValue(laneVisualValue(sourceFields, "breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
   const entryBoard = laneBoardValue(laneVisualValue(sourceFields, "entry_board"), 17.5);
+  const pinResultValue = laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result");
+  const standingPins = laneStandingPinsFromResult(pinResultValue);
   const hasAnalysis = Boolean(
     laneVisualValue(sourceFields, "analysis_run_id") ||
     laneVisualValue(sourceFields, "speed_mph") ||
@@ -2281,7 +2302,10 @@ function renderLaneBreakdownVisual(fields = null) {
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => `<span class="lane-3d-pin" data-pin="${index + 1}">${lanePinSvg(index + 1)}</span>`).join("")}</div>
+              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => {
+                const pinNumber = index + 1;
+                return lanePinIsStanding(standingPins, pinNumber) ? `<span class="lane-3d-pin" data-pin="${pinNumber}">${lanePinSvg(pinNumber)}</span>` : "";
+              }).join("")}</div>
               <span class="lane-3d-distance lane-3d-distance-foul">Foul line</span>
               <span class="lane-3d-distance lane-3d-distance-arrows">15 ft arrows</span>
               <span class="lane-3d-distance lane-3d-distance-pins">60 ft head pin</span>
@@ -2395,14 +2419,14 @@ function renderLaneBreakdownVisual(fields = null) {
           <polygon points="92,205 88.8,217 95.2,217"></polygon><polygon points="105,205 101.8,217 108.2,217"></polygon><polygon points="118,205 114.8,217 121.2,217"></polygon>
         </g>
         <g class="lane-breakdown-pins" aria-hidden="true">
-          ${pinRack.map((pin) => `
+          ${pinRack.map((pin) => lanePinIsStanding(standingPins, pin.pin) ? `
             <g class="lane-breakdown-pin" transform="translate(${pin.x} ${pin.y}) scale(${pin.scale})">
               <ellipse class="pin-shadow" cx="0" cy="6.8" rx="6.1" ry="2.1"></ellipse>
               <path class="pin-body" d="M-2.0,-7.0 C-4.7,-5.4 -5.8,-1.7 -4.3,1.8 C-3.3,4.2 -5.8,7.1 -3.2,9.0 C-1.3,10.3 1.3,10.3 3.2,9.0 C5.8,7.1 3.3,4.2 4.3,1.8 C5.8,-1.7 4.7,-5.4 2.0,-7.0 C1.1,-7.7 -1.1,-7.7 -2.0,-7.0 Z"></path>
               <path class="pin-band" d="M-3.7,-1.9 C-1.2,-0.9 1.2,-0.9 3.7,-1.9 L4.3,0.7 C1.4,1.7 -1.4,1.7 -4.3,0.7 Z"></path>
               <ellipse class="pin-neck" cx="0" cy="-6.5" rx="2.0" ry="1.4"></ellipse>
             </g>
-          `).join("")}
+          ` : "").join("")}
         </g>
         <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
         <path d="${motionPath}" class="lane-breakdown-path"></path>
@@ -2429,7 +2453,7 @@ function renderLaneBreakdownVisual(fields = null) {
   const hook = laneVisualValue(sourceFields, "hook_inches");
   const boards = laneVisualValue(sourceFields, "boards_crossed");
   const pocket = laneVisualValue(sourceFields, "pocket_quality") || "Pending";
-  const pins = laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result") || "Pending";
+  const pins = pinResultValue || "Pending";
   const confidence = laneVisualValue(sourceFields, "confidence");
   const metrics = [
     ["Speed", laneMetricText(speed, " mph") || escapeHtml(speed) || "Pending"],
@@ -2450,7 +2474,7 @@ function renderLaneBreakdownVisual(fields = null) {
       breakpointBoard,
       entryBoard,
       speed,
-      pinResult: laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result"),
+      pinResult: pinResultValue,
     });
     idealContainer.innerHTML = `
       <div class="lane-ideal-heading">
