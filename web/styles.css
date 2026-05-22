@@ -2007,6 +2007,102 @@ h1 {
   flex: 1 1 220px;
 }
 
+.lane-output-contract {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.36);
+  padding: 14px;
+}
+
+.lane-output-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lane-output-heading h3,
+.lane-output-heading p {
+  margin: 0;
+}
+
+.lane-output-heading h3 {
+  color: #ffffff;
+  font-size: 1.08rem;
+}
+
+.lane-output-heading p:not(.eyebrow) {
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.lane-output-heading > span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(76, 201, 240, 0.24);
+  border-radius: 999px;
+  background: rgba(10, 132, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 8px 10px;
+  text-transform: capitalize;
+}
+
+.lane-output-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lane-output-columns article {
+  min-width: 0;
+  border: 1px solid rgba(76, 201, 240, 0.12);
+  border-radius: 8px;
+  background: rgba(11, 15, 26, 0.68);
+  padding: 12px;
+}
+
+.lane-output-columns strong {
+  display: block;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.lane-output-columns p {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.lane-output-columns ul,
+.lane-output-columns ol {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+}
+
+.lane-output-columns li {
+  display: grid;
+  gap: 2px;
+  border-top: 1px solid rgba(76, 201, 240, 0.08);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  list-style: none;
+  padding-top: 7px;
+}
+
+.lane-output-columns b {
+  color: #ffffff;
+  font-size: 0.84rem;
+}
+
 .lane-breakdown-panel {
   display: grid;
   grid-template-columns: minmax(260px, 1.18fr) minmax(230px, 0.82fr);
@@ -4178,6 +4274,7 @@ button:hover {
 
   .home-metrics,
   .lane-breakdown-metrics,
+  .lane-output-columns,
   .lane-ideal-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -4215,6 +4312,7 @@ button:hover {
   .home-priority-strip,
   .home-metrics,
   .lane-breakdown-metrics,
+  .lane-output-columns,
   .lane-ideal-grid,
   .quick-read {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4327,6 +4425,7 @@ button:hover {
   .lane-video-header,
   .lane-video-actions,
   .lane-breakdown-heading,
+  .lane-output-heading,
   .lane-ideal-heading,
   .lane-analysis-heading,
   .lane-analysis-record,
@@ -4358,6 +4457,7 @@ button:hover {
   .home-priority-strip,
   .home-metrics,
   .lane-breakdown-metrics,
+  .lane-output-columns,
   .lane-ideal-grid {
     grid-template-columns: 1fr;
   }

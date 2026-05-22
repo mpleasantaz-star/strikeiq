@@ -25,6 +25,7 @@ const state = {
     markers: { foul_line: true, arrows: true, lane_edges: true, pin_deck: true },
     readiness: 100,
   },
+  laneVideoCapabilities: null,
   laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1, tilt: 58 },
   laneBreakdownDrag: null,
   handedness: "right",
@@ -408,6 +409,7 @@ const projectDetails = {
             <label><input type="checkbox" name="detect_release" checked> Release point</label>
             <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
           </div>
+          <section id="lane-output-contract" class="lane-output-contract" aria-label="Lane tracker output contract"></section>
           <section class="lane-breakdown-panel" aria-label="Lane video visual breakdown">
             <div class="lane-breakdown-heading">
               <div>
@@ -1627,6 +1629,7 @@ async function hydrateToolProject(project) {
     await loadSpares();
   } else if (project === "shots") {
     await loadBalls();
+    await loadLaneVideoCapabilities();
     hydrateLaneTrackerForm();
     await loadShots();
   } else if (project === "chat") {
@@ -1635,6 +1638,89 @@ async function hydrateToolProject(project) {
     const status = document.querySelector("#custom-pattern-status");
     if (status) status.textContent = "Saved patterns are stored for Lane Tracker context.";
   }
+}
+
+function defaultLaneVideoCapabilities() {
+  return {
+    binary_upload: true,
+    max_upload_mb: 500,
+    analysis_engine: "development_estimator",
+    model_status: "development_estimator",
+    free_output: [
+      { key: "feet_board", label: "Board start", source: "Manual" },
+      { key: "arrows_board", label: "Arrow start", source: "Manual" },
+      { key: "ball_speed", label: "Ball speed", source: "Manual or analyzer" },
+      { key: "result", label: "Pin fall result", source: "Manual" },
+    ],
+    paid_output: [
+      { key: "release_board", label: "Release board", source: "Lane calibration" },
+      { key: "arrows_board", label: "Arrow board", source: "Lane detection" },
+      { key: "breakpoint", label: "Breakpoint", source: "Ball path" },
+      { key: "entry_board", label: "Entry board", source: "Impact path" },
+      { key: "speed_mph", label: "Speed MPH", source: "Ball tracking" },
+      { key: "hook_inches", label: "Hook inches", source: "Ball path" },
+      { key: "boards_crossed", label: "Boards crossed", source: "Ball path" },
+      { key: "pocket_quality", label: "Pocket quality", source: "Impact read" },
+      { key: "pin_result", label: "Pin result", source: "Pin deck read" },
+      { key: "confidence", label: "Confidence", source: "Analyzer" },
+    ],
+    production_model_path: [
+      "Detect lane geometry from calibration markers",
+      "Track ball center frame-by-frame",
+      "Map pixel path to lane boards and feet",
+      "Estimate speed, hook, breakpoint, and entry board",
+      "Read pin deck result and confidence",
+    ],
+  };
+}
+
+async function loadLaneVideoCapabilities() {
+  try {
+    state.laneVideoCapabilities = await api("/api/lane-video/capabilities");
+  } catch {
+    state.laneVideoCapabilities = defaultLaneVideoCapabilities();
+  }
+}
+
+function renderLaneOutputContract() {
+  const container = document.querySelector("#lane-output-contract");
+  if (!container) return;
+  const capabilities = state.laneVideoCapabilities || defaultLaneVideoCapabilities();
+  const freeOutput = Array.isArray(capabilities.free_output) ? capabilities.free_output : defaultLaneVideoCapabilities().free_output;
+  const paidOutput = Array.isArray(capabilities.paid_output) ? capabilities.paid_output : defaultLaneVideoCapabilities().paid_output;
+  const modelPath = Array.isArray(capabilities.production_model_path) ? capabilities.production_model_path : [];
+  const engineLabel = String(capabilities.analysis_engine || "development_estimator").replace(/_/g, " ");
+  const rawModelStatus = capabilities.model_status || "development_estimator";
+  const modelStatus = rawModelStatus === "development_estimator"
+    ? "Local estimator active"
+    : "External model configured";
+  container.innerHTML = `
+    <div class="lane-output-heading">
+      <div>
+        <p class="eyebrow">Tracker Output</p>
+        <h3>Free vs Paid Data</h3>
+        <p>Free keeps the shot log simple. Paid stores the full backend analysis contract used by the video tracker.</p>
+      </div>
+      <span>${escapeHtml(modelStatus)} | ${escapeHtml(engineLabel)}</span>
+    </div>
+    <div class="lane-output-columns">
+      <article>
+        <strong>Free</strong>
+        <p>Manual shot history with the four essentials.</p>
+        <ul>${freeOutput.map((field) => `<li><b>${escapeHtml(field.label || field.key)}</b><span>${escapeHtml(field.source || field.key)}</span></li>`).join("")}</ul>
+      </article>
+      <article>
+        <strong>Paid</strong>
+        <p>Video-backed lane, ball, and pin breakdown.</p>
+        <ul>${paidOutput.map((field) => `<li><b>${escapeHtml(field.label || field.key)}</b><span>${escapeHtml(field.source || field.key)}</span></li>`).join("")}</ul>
+      </article>
+      <article>
+        <strong>Backend Path</strong>
+        <p>${escapeHtml(capabilities.binary_upload ? `Video uploads up to ${capabilities.max_upload_mb || 500} MB are enabled.` : "Video uploads are not enabled.")}</p>
+        <ol>${modelPath.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+      </article>
+    </div>
+  `;
 }
 
 function formPayload(form) {
@@ -1678,6 +1764,7 @@ function hydrateLaneTrackerForm() {
   hydrateLaneSettingsControls();
   updateLaneVideoMode(state.laneVideoMode);
   updateLaneCalibrationSummary();
+  renderLaneOutputContract();
   renderLaneBreakdownVisual();
   renderLaneTierState();
 }

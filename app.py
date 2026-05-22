@@ -23,6 +23,29 @@ DB_PATH = Path(os.environ.get("DB_PATH", ROOT / "data" / "bowling_oil_patterns.s
 STATIC_DIR = ROOT / "web"
 LANE_VIDEO_DIR = Path(os.environ.get("LANE_VIDEO_DIR", ROOT / "data" / "lane_videos"))
 MAX_LANE_VIDEO_UPLOAD_BYTES = int(os.environ.get("MAX_LANE_VIDEO_UPLOAD_MB", "500")) * 1024 * 1024
+LANE_ANALYSIS_ENGINE = os.environ.get("LANE_ANALYSIS_ENGINE", "development_estimator")
+
+
+FREE_LANE_OUTPUT_FIELDS = [
+    {"key": "feet_board", "label": "Board start", "source": "Manual"},
+    {"key": "arrows_board", "label": "Arrow start", "source": "Manual"},
+    {"key": "ball_speed", "label": "Ball speed", "source": "Manual or analyzer"},
+    {"key": "result", "label": "Pin fall result", "source": "Manual"},
+]
+
+
+PAID_LANE_OUTPUT_FIELDS = [
+    {"key": "release_board", "label": "Release board", "source": "Lane calibration"},
+    {"key": "arrows_board", "label": "Arrow board", "source": "Lane detection"},
+    {"key": "breakpoint", "label": "Breakpoint", "source": "Ball path"},
+    {"key": "entry_board", "label": "Entry board", "source": "Impact path"},
+    {"key": "speed_mph", "label": "Speed MPH", "source": "Ball tracking"},
+    {"key": "hook_inches", "label": "Hook inches", "source": "Ball path"},
+    {"key": "boards_crossed", "label": "Boards crossed", "source": "Ball path"},
+    {"key": "pocket_quality", "label": "Pocket quality", "source": "Impact read"},
+    {"key": "pin_result", "label": "Pin result", "source": "Pin deck read"},
+    {"key": "confidence", "label": "Confidence", "source": "Analyzer"},
+]
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 BALL_IMPORT_PATH = ROOT / "data" / "imports" / "balls.csv"
 LANE_TRACKER_IMPORT_PATH = ROOT / "data" / "imports" / "lane_tracker_sessions.csv"
@@ -1021,6 +1044,9 @@ def get_lane_video_analyses() -> list[dict]:
         calibration = json.loads(row["calibration_json"] or "{}")
         detection_options = json.loads(row["detection_options_json"] or "{}")
         fields = result_payload.get("fields") if isinstance(result_payload, dict) else {}
+        free_output = result_payload.get("free_output") if isinstance(result_payload, dict) else {}
+        paid_output = result_payload.get("paid_output") if isinstance(result_payload, dict) else {}
+        movement_phases = result_payload.get("movement_phases") if isinstance(result_payload, dict) else []
         analyses.append(
             {
                 "analysis_run_id": row["analysis_run_id"],
@@ -1034,6 +1060,9 @@ def get_lane_video_analyses() -> list[dict]:
                 "calibration": calibration,
                 "detection": detection_options,
                 "fields": fields if isinstance(fields, dict) else {},
+                "free_output": free_output if isinstance(free_output, dict) else {},
+                "paid_output": paid_output if isinstance(paid_output, dict) else {},
+                "movement_phases": movement_phases if isinstance(movement_phases, list) else [],
                 "status": row["status"],
                 "created_at": row["created_at"],
                 "relative_path": row["relative_path"],
@@ -1041,6 +1070,35 @@ def get_lane_video_analyses() -> list[dict]:
             }
         )
     return analyses
+
+
+def lane_video_capabilities() -> dict:
+    return {
+        "binary_upload": True,
+        "max_upload_mb": MAX_LANE_VIDEO_UPLOAD_BYTES // (1024 * 1024),
+        "analysis_engine": LANE_ANALYSIS_ENGINE,
+        "model_status": "development_estimator" if LANE_ANALYSIS_ENGINE == "development_estimator" else "external_engine_configured",
+        "free_output": FREE_LANE_OUTPUT_FIELDS,
+        "paid_output": PAID_LANE_OUTPUT_FIELDS,
+        "vision_inputs": [
+            "recorded_video",
+            "live_camera",
+            "camera_angle",
+            "foul_line",
+            "arrows",
+            "lane_edges",
+            "pin_deck",
+            "profile_handedness",
+            "ball_arsenal",
+        ],
+        "production_model_path": [
+            "Detect lane geometry from calibration markers",
+            "Track ball center frame-by-frame",
+            "Map pixel path to lane boards and feet",
+            "Estimate speed, hook, breakpoint, and entry board",
+            "Read pin deck result and confidence",
+        ],
+    }
 
 
 def create_custom_pattern(payload: dict) -> dict:
@@ -1462,6 +1520,9 @@ def create_lane_video_analysis(payload: dict) -> dict:
     analysis_run_id = f"lane-video-{uuid.uuid4().hex[:12]}"
     fields = {
         "analysis_run_id": analysis_run_id,
+        "analysis_engine": LANE_ANALYSIS_ENGINE,
+        "analysis_tier": "paid",
+        "backend_status": "development_estimator" if LANE_ANALYSIS_ENGINE == "development_estimator" else "external_engine_configured",
         "tracking_mode": tracking_mode,
         "shot_source": "video_capture",
         "video_name": video_name,
@@ -1471,6 +1532,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "ball_speed": f"{speed_mph:.2f} mph",
         "hook_inches": f"{hook_inches:.2f}",
         "boards_crossed": f"{boards_crossed:.2f}",
+        "feet_board": release_board,
         "release_board": release_board,
         "arrows_board": arrows_board,
         "breakpoint": breakpoint,
@@ -1484,12 +1546,33 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "result": result,
         "output_preview": output_preview,
     }
+    movement_phases = [
+        {
+            "phase": "skid",
+            "read": f"Release board {release_board} to arrows board {arrows_board}",
+            "field_keys": ["release_board", "arrows_board", "speed_mph"],
+        },
+        {
+            "phase": "hook",
+            "read": f"Breakpoint {breakpoint} with {hook_inches:.1f} in hook",
+            "field_keys": ["breakpoint", "hook_inches", "boards_crossed"],
+        },
+        {
+            "phase": "roll",
+            "read": f"Entry board {entry_board}, pocket read {pocket_quality}",
+            "field_keys": ["entry_board", "pocket_quality", "pin_result"],
+        },
+    ]
     result_payload = {
         "analysis_run_id": analysis_run_id,
         "status": "ready",
         "message": "Development video analysis complete from stored upload. Replace this estimator with the production vision model later.",
         "upload_id": upload_id,
         "fields": fields,
+        "free_output": {field["key"]: fields.get(field["key"], "") for field in FREE_LANE_OUTPUT_FIELDS},
+        "paid_output": {field["key"]: fields.get(field["key"], "") for field in PAID_LANE_OUTPUT_FIELDS},
+        "movement_phases": movement_phases,
+        "capabilities": lane_video_capabilities(),
     }
     with get_connection() as connection:
         ensure_tracker_tables(connection)
@@ -2493,10 +2576,7 @@ class AppHandler(SimpleHTTPRequestHandler):
             elif parsed.path == "/api/shots":
                 self.send_json(get_shots())
             elif parsed.path == "/api/lane-video/capabilities":
-                self.send_json({
-                    "binary_upload": True,
-                    "max_upload_mb": MAX_LANE_VIDEO_UPLOAD_BYTES // (1024 * 1024),
-                })
+                self.send_json(lane_video_capabilities())
             elif parsed.path == "/api/lane-video/analyses":
                 self.send_json(get_lane_video_analyses())
             elif parsed.path == "/api/chat/posts":
