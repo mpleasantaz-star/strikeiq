@@ -76,6 +76,8 @@ const elements = {
   tierLabel: document.querySelector("#tier-label"),
   tierDetail: document.querySelector("#tier-detail"),
   upgradeButton: document.querySelector("#upgrade-button"),
+  projectTabs: document.querySelector(".project-tabs"),
+  mobileWorkspaceTitle: document.querySelector("#mobile-workspace-title"),
   projectHub: document.querySelector("#project-hub"),
   patternWorkspace: document.querySelector("#pattern-workspace"),
   toolWorkspace: document.querySelector("#tool-workspace"),
@@ -1365,6 +1367,7 @@ function setProject(project, persist = true) {
   document.querySelectorAll("[data-project-nav]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.projectNav === project);
   });
+  updateMobileWorkspaceNav(project);
 
   if (project === "patterns") {
     if (persist) queueAppSettingsSave();
@@ -1375,6 +1378,23 @@ function setProject(project, persist = true) {
     renderToolProject(project);
   }
   if (persist) queueAppSettingsSave();
+}
+
+function updateMobileWorkspaceNav(project) {
+  const labels = {
+    hub: "Home",
+    patterns: "Oil Patterns",
+    shots: "Lane Tracker",
+    balls: "Ball Database",
+    chat: "Friends",
+    spares: "Scoring",
+    upgrade: "Upgrade",
+  };
+  const label = labels[project] || projectDetails[project]?.title || titleFromSlug(project);
+  elements.projectTabs?.classList.toggle("is-workspace-open", project !== "hub");
+  if (elements.mobileWorkspaceTitle) {
+    elements.mobileWorkspaceTitle.textContent = label;
+  }
 }
 
 function selectedPatternSummary() {
