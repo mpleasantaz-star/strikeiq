@@ -2295,6 +2295,69 @@ h1 {
   width: fit-content;
 }
 
+.lane-video-workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.30);
+  padding: 10px;
+}
+
+.lane-video-workflow article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  border: 1px solid rgba(76, 201, 240, 0.12);
+  border-radius: 8px;
+  background: rgba(16, 24, 39, 0.42);
+  padding: 10px;
+}
+
+.lane-video-workflow article span {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 1px solid rgba(76, 201, 240, 0.22);
+  border-radius: 50%;
+  color: var(--accent-2);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.lane-video-workflow article strong {
+  color: #ffffff;
+  font-size: 0.9rem;
+}
+
+.lane-video-workflow article small,
+#lane-video-workflow-status {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.lane-video-workflow article.is-active {
+  border-color: rgba(76, 201, 240, 0.44);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.24), rgba(76, 201, 240, 0.08));
+}
+
+.lane-video-workflow article.is-complete {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.lane-video-workflow article.is-complete span {
+  border-color: rgba(34, 197, 94, 0.34);
+  color: #86efac;
+}
+
+#lane-video-workflow-status {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 @media (max-width: 520px) {
   .lane-video-panel.is-camera-unavailable {
     gap: 8px;
@@ -2350,6 +2413,10 @@ h1 {
 
   .lane-live-help button {
     width: 100%;
+  }
+
+  .lane-video-workflow {
+    grid-template-columns: 1fr;
   }
 }
 

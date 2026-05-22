@@ -356,6 +356,24 @@ const projectDetails = {
               </div>
             </div>
           </div>
+          <section class="lane-video-workflow" aria-label="Recorded video workflow">
+            <article data-lane-workflow-step="select" class="is-active">
+              <span>1</span>
+              <strong>Select Clip</strong>
+              <small>Choose one recorded shot from your phone, tablet, or computer.</small>
+            </article>
+            <article data-lane-workflow-step="analyze">
+              <span>2</span>
+              <strong>Analyze</strong>
+              <small>Upload the clip and map the ball path to the lane markers.</small>
+            </article>
+            <article data-lane-workflow-step="review">
+              <span>3</span>
+              <strong>Review + Log</strong>
+              <small>Check the visual, confirm the pin result, then save the shot.</small>
+            </article>
+            <p id="lane-video-workflow-status">Select a recorded shot to start the analysis workflow.</p>
+          </section>
           <section class="lane-calibration-panel" aria-label="Lane calibration setup">
             <div class="lane-calibration-heading">
               <div>
@@ -460,7 +478,8 @@ const projectDetails = {
             </details>
           </section>
           <div class="lane-video-actions">
-            <button type="button" class="secondary-button" data-lane-video-analyze>Upload And Analyze Video</button>
+            <button type="button" class="secondary-button" data-lane-video-analyze disabled>Upload And Analyze Video</button>
+            <button type="button" class="secondary-button" data-lane-review-shot disabled>Review And Log Shot</button>
             <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
           </div>
           <section class="lane-analysis-history" aria-label="Recent lane video analyses">
@@ -1193,6 +1212,8 @@ function renderLaneTierState() {
     const shotSource = document.querySelector("#lane-shot-source");
     if (trackingMode) trackingMode.value = state.laneVideoMode || "recorded_video";
     if (shotSource) shotSource.value = "video_capture";
+    syncLaneLiveAvailability(cameraSupportBlock());
+    syncLaneVideoAnalyzeAvailability({ keepReview: state.laneVideoWorkflowStage === "review" });
   }
 }
 
@@ -2030,6 +2051,7 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
   if (state.laneVideoMode !== "live_video") {
     stopLaneLiveCamera(true);
   }
+  syncLaneVideoAnalyzeAvailability();
   if (persist) queueAppSettingsSave();
 }
 
@@ -2201,6 +2223,53 @@ function syncLaneLiveAvailability(supportBlock = null) {
   }
 }
 
+function setLaneVideoWorkflow(stage = "select", message = "") {
+  const stages = ["select", "analyze", "review"];
+  const activeIndex = Math.max(0, stages.indexOf(stage));
+  state.laneVideoWorkflowStage = stages[activeIndex];
+  document.querySelectorAll("[data-lane-workflow-step]").forEach((step) => {
+    const index = stages.indexOf(step.dataset.laneWorkflowStep);
+    step.classList.toggle("is-active", index === activeIndex);
+    step.classList.toggle("is-complete", index >= 0 && index < activeIndex);
+  });
+  const status = document.querySelector("#lane-video-workflow-status");
+  if (status) {
+    const fallbackMessages = {
+      select: "Select a recorded shot to start the analysis workflow.",
+      analyze: "Clip selected. Run analysis to create the lane and ball breakdown.",
+      review: "Analysis ready. Review the visual and log the shot when the result looks right.",
+    };
+    status.textContent = message || fallbackMessages[state.laneVideoWorkflowStage];
+  }
+}
+
+function syncLaneVideoAnalyzeAvailability({ keepReview = false } = {}) {
+  const file = document.querySelector("#lane-video-file")?.files?.[0];
+  const analyzeButton = document.querySelector("[data-lane-video-analyze]");
+  const reviewButton = document.querySelector("[data-lane-review-shot]");
+  const isRecorded = state.laneVideoMode !== "live_video";
+  const fileTooLarge = Boolean(file && file.size > maxLaneVideoUploadBytes);
+  const readyToAnalyze = !isRecorded || Boolean(file && !fileTooLarge);
+  if (analyzeButton) {
+    analyzeButton.disabled = !readyToAnalyze;
+    analyzeButton.textContent = isRecorded ? "Analyze Recorded Video" : "Analyze Live Preview";
+  }
+  if (reviewButton) {
+    reviewButton.disabled = state.laneVideoWorkflowStage !== "review";
+  }
+  if (keepReview && state.laneVideoWorkflowStage === "review") return;
+  if (isRecorded && !file) {
+    setLaneVideoWorkflow("select", "Select a recorded shot to start the analysis workflow.");
+  } else if (fileTooLarge) {
+    setLaneVideoWorkflow("select", `Choose a smaller clip. Local uploads are limited to ${formatBytes(maxLaneVideoUploadBytes)}.`);
+  } else {
+    setLaneVideoWorkflow("analyze", isRecorded ? `${file.name} is ready to analyze.` : "Live preview can create a development analysis.");
+  }
+  if (reviewButton) {
+    reviewButton.disabled = state.laneVideoWorkflowStage !== "review";
+  }
+}
+
 function handleLaneVideoFile(fileInput) {
   const status = document.querySelector("#lane-video-file-status");
   const videoName = document.querySelector("input[name='video_name']");
@@ -2210,6 +2279,7 @@ function handleLaneVideoFile(fileInput) {
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
     clearLaneSourceReview();
+    syncLaneVideoAnalyzeAvailability();
     return;
   }
   if (status) {
@@ -2221,6 +2291,7 @@ function handleLaneVideoFile(fileInput) {
     videoName.value = file.name.replace(/\.[^.]+$/, "");
   }
   setLaneSourceReviewFile(file);
+  syncLaneVideoAnalyzeAvailability();
 }
 
 function setLaneSourceReviewFile(file) {
@@ -2290,6 +2361,10 @@ function applyLaneAnalysisFields(fields = {}) {
     field.value = value;
   });
   renderLaneBreakdownVisual(fields);
+  renderLaneFreeSnapshot();
+  renderLaneShotSavePreview();
+  setLaneVideoWorkflow("review");
+  syncLaneVideoAnalyzeAvailability({ keepReview: true });
 }
 
 function laneMetricNumber(value) {
@@ -2968,6 +3043,20 @@ async function analyzeLaneVideo() {
   const status = document.querySelector("#lane-video-status");
   const file = document.querySelector("#lane-video-file")?.files?.[0];
   const payload = formPayload(form);
+  const isRecorded = (payload.tracking_mode || state.laneVideoMode || "recorded_video") !== "live_video";
+  if (isRecorded && !file) {
+    if (status) status.textContent = "Select a recorded shot before running analysis.";
+    setLaneVideoWorkflow("select", "Select a recorded shot before running analysis.");
+    syncLaneVideoAnalyzeAvailability();
+    return;
+  }
+  if (isRecorded && file.size > maxLaneVideoUploadBytes) {
+    const message = `Choose a smaller clip. Local uploads are limited to ${formatBytes(maxLaneVideoUploadBytes)}.`;
+    if (status) status.textContent = message;
+    setLaneVideoWorkflow("select", message);
+    syncLaneVideoAnalyzeAvailability();
+    return;
+  }
   let upload = null;
   const request = {
     tracking_mode: payload.tracking_mode || "recorded_video",
@@ -2985,6 +3074,7 @@ async function analyzeLaneVideo() {
     },
   };
   if (status) status.textContent = file ? "Uploading selected video..." : "Creating live-mode development analysis...";
+  setLaneVideoWorkflow("analyze", file ? "Uploading selected video..." : "Creating live-mode development analysis...");
   if (button) button.disabled = true;
   try {
     upload = await uploadLaneVideoFile(file);
@@ -2997,14 +3087,17 @@ async function analyzeLaneVideo() {
       };
     }
     if (status) status.textContent = "Analyzing stored lane video through the local backend...";
+    setLaneVideoWorkflow("analyze", "Analyzing stored lane video through the local backend...");
     const analysis = await api("/api/lane-video/analyze", { method: "POST", body: JSON.stringify(request) });
     applyLaneAnalysisFields(analysis.fields || {});
     if (status) status.textContent = analysis.message || "Analysis complete.";
+    setLaneVideoWorkflow("review", "Analysis complete. Review the visual and log the shot.");
     await loadLaneVideoAnalyses();
   } catch (error) {
     if (status) status.textContent = `Analysis unavailable: ${error.message}`;
+    setLaneVideoWorkflow(file ? "analyze" : "select", `Analysis unavailable: ${error.message}`);
   } finally {
-    if (button) button.disabled = false;
+    syncLaneVideoAnalyzeAvailability({ keepReview: state.laneVideoWorkflowStage === "review" });
   }
 }
 
@@ -5776,6 +5869,12 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-video-analyze]")) {
       analyzeLaneVideo();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-review-shot]")) {
+      document.querySelector("#lane-shot-save-preview")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.querySelector("input[name='result']")?.focus({ preventScroll: true });
       return;
     }
 
