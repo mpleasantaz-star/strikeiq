@@ -2422,6 +2422,99 @@ h1 {
   color: #ffffff;
 }
 
+.lane-review-stage {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(260px, 0.92fr) minmax(300px, 1.08fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.lane-source-review {
+  display: grid;
+  grid-template-rows: auto minmax(260px, 1fr);
+  min-width: 0;
+  gap: 8px;
+}
+
+.lane-source-review-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lane-source-review-heading span,
+.lane-source-review-heading small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lane-source-review-heading small {
+  max-width: 62%;
+  overflow: hidden;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lane-source-review-frame {
+  position: relative;
+  display: grid;
+  min-height: 260px;
+  overflow: hidden;
+  border: 1px solid rgba(76, 201, 240, 0.18);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(76, 201, 240, 0.16), transparent 36%),
+    linear-gradient(180deg, rgba(5, 7, 10, 0.72), rgba(5, 7, 10, 0.96));
+}
+
+#lane-source-review-video,
+#lane-source-review-placeholder {
+  grid-area: 1 / 1;
+}
+
+#lane-source-review-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  object-fit: contain;
+  opacity: 0;
+  background: #020409;
+}
+
+#lane-source-review-video.is-active {
+  opacity: 1;
+}
+
+#lane-source-review-placeholder {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  padding: 18px;
+  text-align: center;
+}
+
+#lane-source-review-placeholder.is-hidden {
+  display: none;
+}
+
+#lane-source-review-placeholder span {
+  color: #ffffff;
+  font-size: 0.96rem;
+  font-weight: 900;
+}
+
+#lane-source-review-placeholder small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .lane-breakdown-visual {
   min-width: 0;
 }
@@ -4942,6 +5035,7 @@ button:hover {
   .lane-shot-save-grid,
   .lane-free-snapshot-grid,
   .lane-free-snapshot-grid article > div,
+  .lane-review-stage,
   .lane-breakdown-metrics,
   .lane-output-columns,
   .lane-ideal-grid {

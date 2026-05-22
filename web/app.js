@@ -15,6 +15,7 @@ const state = {
   selectedSlug: null,
   laneVisual: null,
   laneLiveStream: null,
+  laneReviewVideoUrl: null,
   laneVideoMode: "recorded_video",
   laneDetection: { lane_boards: true, ball_path: true, release_point: true, pin_result: true },
   laneCalibration: {
@@ -432,7 +433,22 @@ const projectDetails = {
               <button type="button" data-lane-breakdown-zoom="-1" aria-label="Zoom out">Zoom -</button>
               <button type="button" data-lane-breakdown-reset>Reset</button>
             </div>
-            <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
+            <div class="lane-review-stage">
+              <section class="lane-source-review" aria-label="Source video review">
+                <div class="lane-source-review-heading">
+                  <span>Source Video</span>
+                  <small id="lane-source-review-state">No clip selected</small>
+                </div>
+                <div class="lane-source-review-frame">
+                  <video id="lane-source-review-video" muted playsinline controls preload="metadata"></video>
+                  <div id="lane-source-review-placeholder">
+                    <span>Real shot video</span>
+                    <small>Select a recording or start live camera to compare it with the visual breakdown.</small>
+                  </div>
+                </div>
+              </section>
+              <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
+            </div>
             <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
             <div id="lane-ideal-movement" class="lane-ideal-movement"></div>
             <details class="lane-analysis-notes">
@@ -2040,6 +2056,7 @@ async function startLaneLiveCamera() {
     video.srcObject = stream;
     video.classList.add("is-active");
     if (placeholder) placeholder.classList.add("is-hidden");
+    setLaneSourceReviewLive(stream);
     setLaneLiveStatus("Live preview active. Keep the lane markers visible before analysis.");
   } catch (error) {
     const guidance = cameraErrorGuidance(error);
@@ -2061,6 +2078,7 @@ function stopLaneLiveCamera(silent = false) {
     video.srcObject = null;
     video.classList.remove("is-active");
   }
+  clearLaneSourceReview({ keepRecorded: state.laneVideoMode === "recorded_video" });
   if (placeholder) placeholder.classList.remove("is-hidden");
   if (!silent && status) setLaneLiveStatus("Camera stopped.");
 }
@@ -2146,6 +2164,7 @@ function handleLaneVideoFile(fileInput) {
   if (uploadId) uploadId.value = "";
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
+    clearLaneSourceReview();
     return;
   }
   if (status) {
@@ -2156,6 +2175,65 @@ function handleLaneVideoFile(fileInput) {
   if (videoName && !videoName.value) {
     videoName.value = file.name.replace(/\.[^.]+$/, "");
   }
+  setLaneSourceReviewFile(file);
+}
+
+function setLaneSourceReviewFile(file) {
+  const video = document.querySelector("#lane-source-review-video");
+  const placeholder = document.querySelector("#lane-source-review-placeholder");
+  const label = document.querySelector("#lane-source-review-state");
+  if (!video || !file) return;
+  if (state.laneReviewVideoUrl) {
+    URL.revokeObjectURL(state.laneReviewVideoUrl);
+  }
+  state.laneReviewVideoUrl = URL.createObjectURL(file);
+  video.pause();
+  video.srcObject = null;
+  video.src = state.laneReviewVideoUrl;
+  video.classList.add("is-active");
+  if (placeholder) placeholder.classList.add("is-hidden");
+  if (label) label.textContent = file.name;
+}
+
+function setLaneSourceReviewLive(stream) {
+  const video = document.querySelector("#lane-source-review-video");
+  const placeholder = document.querySelector("#lane-source-review-placeholder");
+  const label = document.querySelector("#lane-source-review-state");
+  if (!video || !stream) return;
+  if (state.laneReviewVideoUrl) {
+    URL.revokeObjectURL(state.laneReviewVideoUrl);
+    state.laneReviewVideoUrl = null;
+  }
+  video.pause();
+  video.removeAttribute("src");
+  video.srcObject = stream;
+  video.classList.add("is-active");
+  if (placeholder) placeholder.classList.add("is-hidden");
+  if (label) label.textContent = "Live camera";
+}
+
+function clearLaneSourceReview({ keepRecorded = false } = {}) {
+  const file = document.querySelector("#lane-video-file")?.files?.[0];
+  if (keepRecorded && file) {
+    setLaneSourceReviewFile(file);
+    return;
+  }
+  const video = document.querySelector("#lane-source-review-video");
+  const placeholder = document.querySelector("#lane-source-review-placeholder");
+  const label = document.querySelector("#lane-source-review-state");
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.removeAttribute("src");
+    video.load();
+    video.classList.remove("is-active");
+  }
+  if (state.laneReviewVideoUrl) {
+    URL.revokeObjectURL(state.laneReviewVideoUrl);
+    state.laneReviewVideoUrl = null;
+  }
+  if (placeholder) placeholder.classList.remove("is-hidden");
+  if (label) label.textContent = "No clip selected";
 }
 
 function applyLaneAnalysisFields(fields = {}) {
