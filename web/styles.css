@@ -183,19 +183,13 @@ h1 {
 }
 
 .login-panel img {
-  animation: loginLogoAdvance 2200ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
+  animation: loginLogoAdvance 4200ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
   transform-origin: center center;
   will-change: transform, opacity, filter;
 }
 
 .login-panel .eyebrow {
-  animation: loginTextAdvance 2100ms 160ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
-  transform-origin: center center;
-  will-change: transform, opacity;
-}
-
-.login-panel .hero-subtitle {
-  animation: loginTextAdvance 2100ms 300ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
+  animation: loginTextAdvance 3900ms 260ms cubic-bezier(0.18, 0.82, 0.22, 1) both;
   transform-origin: center center;
   will-change: transform, opacity;
 }
@@ -207,16 +201,16 @@ h1 {
     transform: translateZ(-150px) translateY(16px) scale(0.82);
   }
 
-  68% {
+  72% {
     opacity: 1;
     filter: drop-shadow(0 0 34px rgba(10, 132, 255, 0.46));
-    transform: translateZ(42px) translateY(-2px) scale(1.045);
+    transform: translateZ(36px) translateY(-1px) scale(1.04);
   }
 
   100% {
     opacity: 1;
-    filter: drop-shadow(0 0 22px rgba(10, 132, 255, 0.34));
-    transform: translateZ(0) translateY(0) scale(1);
+    filter: drop-shadow(0 0 34px rgba(10, 132, 255, 0.46));
+    transform: translateZ(36px) translateY(-1px) scale(1.04);
   }
 }
 
@@ -226,21 +220,20 @@ h1 {
     transform: translateZ(-80px) translateY(12px) scale(0.92);
   }
 
-  70% {
+  72% {
     opacity: 1;
-    transform: translateZ(26px) translateY(-1px) scale(1.025);
+    transform: translateZ(22px) translateY(-1px) scale(1.025);
   }
 
   100% {
     opacity: 1;
-    transform: translateZ(0) translateY(0) scale(1);
+    transform: translateZ(22px) translateY(-1px) scale(1.025);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .login-panel img,
-  .login-panel .eyebrow,
-  .login-panel .hero-subtitle {
+  .login-panel .eyebrow {
     animation: none;
   }
 }
