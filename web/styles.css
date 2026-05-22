@@ -183,13 +183,13 @@ h1 {
 }
 
 .login-panel img {
-  animation: loginLogoAdvance 6800ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: loginLogoAdvance 9800ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
   transform-origin: center center;
   will-change: transform, opacity, filter;
 }
 
 .login-panel .eyebrow {
-  animation: loginTextAdvance 6200ms 420ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+  animation: loginTextAdvance 9000ms 650ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
   transform-origin: center center;
   will-change: transform, opacity;
 }
