@@ -2550,6 +2550,21 @@ h1 {
   transform-style: preserve-3d;
 }
 
+.lane-3d-fallen-pin {
+  position: absolute;
+  z-index: 0;
+  width: clamp(18px, 14.5%, 29px);
+  height: clamp(48px, 64%, 66px);
+  opacity: 0.98;
+  transform:
+    translate(-50%, -50%)
+    translateZ(8px)
+    rotateZ(var(--fallen-angle))
+    scale(var(--fallen-scale));
+  transform-origin: 50% 86%;
+  filter: drop-shadow(5px 10px 9px rgba(0, 0, 0, 0.48));
+}
+
 .lane-3d-pin[data-pin="1"] { left: 50%; top: 72%; width: clamp(20px, 15.5%, 30px); height: clamp(51px, 66%, 69px); }
 .lane-3d-pin[data-pin="2"] { left: 38%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
 .lane-3d-pin[data-pin="3"] { left: 62%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
@@ -2835,25 +2850,37 @@ h1 {
   stroke-width: 0.25;
 }
 
-.lane-breakdown-pin .pin-shadow {
+.lane-breakdown-pin .pin-shadow,
+.lane-breakdown-fallen-pin .pin-shadow {
   fill: rgba(0, 0, 0, 0.24);
 }
 
-.lane-breakdown-pin .pin-body {
+.lane-breakdown-pin .pin-body,
+.lane-breakdown-fallen-pin .pin-body {
   fill: #fff8ec;
   stroke: rgba(96, 49, 18, 0.34);
   stroke-width: 0.42;
   filter: url("#laneBallShadow");
 }
 
-.lane-breakdown-pin .pin-band {
+.lane-breakdown-pin .pin-band,
+.lane-breakdown-fallen-pin .pin-band {
   fill: #c91f2b;
   opacity: 0.90;
 }
 
-.lane-breakdown-pin .pin-neck {
+.lane-breakdown-pin .pin-neck,
+.lane-breakdown-fallen-pin .pin-neck {
   fill: #ffffff;
   opacity: 0.96;
+}
+
+.lane-breakdown-fallen-pin {
+  opacity: 0.86;
+}
+
+.lane-breakdown-fallen-pin .pin-shadow {
+  fill: rgba(0, 0, 0, 0.30);
 }
 
 .lane-breakdown-path-glow {

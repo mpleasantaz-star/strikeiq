@@ -2219,6 +2219,10 @@ function lanePinIsStanding(standingPins, pinNumber) {
   return standingPins === null || standingPins.has(pinNumber);
 }
 
+function lanePinWasHit(standingPins, pinNumber) {
+  return standingPins !== null && !standingPins.has(pinNumber);
+}
+
 function renderLaneBreakdownVisual(fields = null) {
   const visual = document.querySelector("#lane-breakdown-visual");
   const metricsContainer = document.querySelector("#lane-breakdown-metrics");
@@ -2269,6 +2273,55 @@ function renderLaneBreakdownVisual(fields = null) {
     { pin: 3, x: 94, y: 44, scale: 1.04 },
     { pin: 1, x: 80, y: 60, scale: 1.12 },
   ];
+  const fallenPin3d = [
+    { pin: 1, left: 52, top: 70, angle: 86, scale: 1.08 },
+    { pin: 2, left: 38, top: 60, angle: -72, scale: 0.98 },
+    { pin: 3, left: 62, top: 58, angle: 74, scale: 0.98 },
+    { pin: 4, left: 22, top: 43, angle: -84, scale: 0.94 },
+    { pin: 5, left: 50, top: 42, angle: 92, scale: 0.94 },
+    { pin: 6, left: 78, top: 43, angle: 84, scale: 0.94 },
+    { pin: 7, left: 12, top: 25, angle: -76, scale: 0.88 },
+    { pin: 8, left: 38, top: 24, angle: 78, scale: 0.88 },
+    { pin: 9, left: 62, top: 24, angle: -80, scale: 0.88 },
+    { pin: 10, left: 88, top: 25, angle: 76, scale: 0.88 },
+  ];
+  const fallenPin2d = [
+    { pin: 1, x: 80, y: 56, angle: 88, scale: 1.02 },
+    { pin: 2, x: 62, y: 42, angle: -72, scale: 0.94 },
+    { pin: 3, x: 98, y: 42, angle: 72, scale: 0.94 },
+    { pin: 4, x: 48, y: 27, angle: -88, scale: 0.88 },
+    { pin: 5, x: 80, y: 28, angle: 86, scale: 0.88 },
+    { pin: 6, x: 112, y: 27, angle: 88, scale: 0.88 },
+    { pin: 7, x: 38, y: 13, angle: -78, scale: 0.82 },
+    { pin: 8, x: 66, y: 13, angle: 82, scale: 0.82 },
+    { pin: 9, x: 94, y: 13, angle: -82, scale: 0.82 },
+    { pin: 10, x: 122, y: 13, angle: 78, scale: 0.82 },
+  ];
+  const standingPin3dHtml = Array.from({ length: 10 }, (_, index) => {
+    const pinNumber = index + 1;
+    return lanePinIsStanding(standingPins, pinNumber) ? `<span class="lane-3d-pin" data-pin="${pinNumber}">${lanePinSvg(pinNumber)}</span>` : "";
+  }).join("");
+  const fallenPin3dHtml = fallenPin3d.map((pin) => lanePinWasHit(standingPins, pin.pin) ? `
+    <span class="lane-3d-fallen-pin" data-pin="${pin.pin}" style="left: ${pin.left}%; top: ${pin.top}%; --fallen-angle: ${pin.angle}deg; --fallen-scale: ${pin.scale};">
+      ${lanePinSvg(pin.pin)}
+    </span>
+  ` : "").join("");
+  const standingPin2dHtml = pinRack.map((pin) => lanePinIsStanding(standingPins, pin.pin) ? `
+    <g class="lane-breakdown-pin" transform="translate(${pin.x} ${pin.y}) scale(${pin.scale})">
+      <ellipse class="pin-shadow" cx="0" cy="6.8" rx="6.1" ry="2.1"></ellipse>
+      <path class="pin-body" d="M-2.0,-7.0 C-4.7,-5.4 -5.8,-1.7 -4.3,1.8 C-3.3,4.2 -5.8,7.1 -3.2,9.0 C-1.3,10.3 1.3,10.3 3.2,9.0 C5.8,7.1 3.3,4.2 4.3,1.8 C5.8,-1.7 4.7,-5.4 2.0,-7.0 C1.1,-7.7 -1.1,-7.7 -2.0,-7.0 Z"></path>
+      <path class="pin-band" d="M-3.7,-1.9 C-1.2,-0.9 1.2,-0.9 3.7,-1.9 L4.3,0.7 C1.4,1.7 -1.4,1.7 -4.3,0.7 Z"></path>
+      <ellipse class="pin-neck" cx="0" cy="-6.5" rx="2.0" ry="1.4"></ellipse>
+    </g>
+  ` : "").join("");
+  const fallenPin2dHtml = fallenPin2d.map((pin) => lanePinWasHit(standingPins, pin.pin) ? `
+    <g class="lane-breakdown-fallen-pin" transform="translate(${pin.x} ${pin.y}) rotate(${pin.angle}) scale(${pin.scale})">
+      <ellipse class="pin-shadow" cx="0" cy="6.7" rx="6.8" ry="2.0"></ellipse>
+      <path class="pin-body" d="M-2.0,-7.0 C-4.7,-5.4 -5.8,-1.7 -4.3,1.8 C-3.3,4.2 -5.8,7.1 -3.2,9.0 C-1.3,10.3 1.3,10.3 3.2,9.0 C5.8,7.1 3.3,4.2 4.3,1.8 C5.8,-1.7 4.7,-5.4 2.0,-7.0 C1.1,-7.7 -1.1,-7.7 -2.0,-7.0 Z"></path>
+      <path class="pin-band" d="M-3.7,-1.9 C-1.2,-0.9 1.2,-0.9 3.7,-1.9 L4.3,0.7 C1.4,1.7 -1.4,1.7 -4.3,0.7 Z"></path>
+      <ellipse class="pin-neck" cx="0" cy="-6.5" rx="2.0" ry="1.4"></ellipse>
+    </g>
+  ` : "").join("");
   const labelSide = entryBoard > 20 ? "left" : "right";
   const mode = state.laneBreakdownView?.mode === "2d" ? "2d" : "3d";
   const rotation = Number(state.laneBreakdownView?.rotation) || 0;
@@ -2302,10 +2355,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-              <div class="lane-3d-pins">${Array.from({ length: 10 }, (_, index) => {
-                const pinNumber = index + 1;
-                return lanePinIsStanding(standingPins, pinNumber) ? `<span class="lane-3d-pin" data-pin="${pinNumber}">${lanePinSvg(pinNumber)}</span>` : "";
-              }).join("")}</div>
+              <div class="lane-3d-pins">${fallenPin3dHtml}${standingPin3dHtml}</div>
               <span class="lane-3d-distance lane-3d-distance-foul">Foul line</span>
               <span class="lane-3d-distance lane-3d-distance-arrows">15 ft arrows</span>
               <span class="lane-3d-distance lane-3d-distance-pins">60 ft head pin</span>
@@ -2419,14 +2469,7 @@ function renderLaneBreakdownVisual(fields = null) {
           <polygon points="92,205 88.8,217 95.2,217"></polygon><polygon points="105,205 101.8,217 108.2,217"></polygon><polygon points="118,205 114.8,217 121.2,217"></polygon>
         </g>
         <g class="lane-breakdown-pins" aria-hidden="true">
-          ${pinRack.map((pin) => lanePinIsStanding(standingPins, pin.pin) ? `
-            <g class="lane-breakdown-pin" transform="translate(${pin.x} ${pin.y}) scale(${pin.scale})">
-              <ellipse class="pin-shadow" cx="0" cy="6.8" rx="6.1" ry="2.1"></ellipse>
-              <path class="pin-body" d="M-2.0,-7.0 C-4.7,-5.4 -5.8,-1.7 -4.3,1.8 C-3.3,4.2 -5.8,7.1 -3.2,9.0 C-1.3,10.3 1.3,10.3 3.2,9.0 C5.8,7.1 3.3,4.2 4.3,1.8 C5.8,-1.7 4.7,-5.4 2.0,-7.0 C1.1,-7.7 -1.1,-7.7 -2.0,-7.0 Z"></path>
-              <path class="pin-band" d="M-3.7,-1.9 C-1.2,-0.9 1.2,-0.9 3.7,-1.9 L4.3,0.7 C1.4,1.7 -1.4,1.7 -4.3,0.7 Z"></path>
-              <ellipse class="pin-neck" cx="0" cy="-6.5" rx="2.0" ry="1.4"></ellipse>
-            </g>
-          ` : "").join("")}
+          ${fallenPin2dHtml}${standingPin2dHtml}
         </g>
         <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
         <path d="${motionPath}" class="lane-breakdown-path"></path>
