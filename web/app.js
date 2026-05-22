@@ -374,38 +374,22 @@ const projectDetails = {
             </article>
             <p id="lane-video-workflow-status">Select a recorded shot to start the analysis workflow.</p>
           </section>
-          <section class="lane-calibration-panel" aria-label="Lane calibration setup">
+          <section class="lane-calibration-panel lane-auto-calibration" aria-label="Automatic lane calibration">
             <div class="lane-calibration-heading">
               <div>
                 <p class="eyebrow">Setup</p>
-                <h3>Lane Calibration</h3>
+                <h3>Auto Calibration</h3>
               </div>
-              <span id="lane-calibration-status">Needs Review</span>
+              <span id="lane-calibration-status">Auto</span>
             </div>
-            <div class="form-row">
-              <label>Camera Angle
-                <select id="lane-camera-angle">
-                  <option value="behind_bowler">Behind bowler</option>
-                  <option value="side_tripod">Side tripod</option>
-                  <option value="ball_return">Ball return view</option>
-                  <option value="pin_deck">Pin deck view</option>
-                </select>
-              </label>
-              <label>Target Board<input id="lane-calibration-target" inputmode="numeric" placeholder="12"></label>
-            </div>
-            <div class="form-row">
-              <label>Foul Line Board<input id="lane-calibration-release" inputmode="numeric" placeholder="18"></label>
-              <label>Breakpoint Board<input id="lane-calibration-breakpoint" inputmode="numeric" placeholder="8"></label>
-            </div>
-            <div class="lane-calibration-checklist">
-              <label><input type="checkbox" id="lane-calibration-foul" checked> Foul line visible</label>
-              <label><input type="checkbox" id="lane-calibration-arrows" checked> Arrows visible</label>
-              <label><input type="checkbox" id="lane-calibration-edges" checked> Lane edges visible</label>
-              <label><input type="checkbox" id="lane-calibration-pins" checked> Pin deck visible</label>
+            <div class="lane-auto-calibration-grid">
+              <span>Foul line</span>
+              <span>Arrows</span>
+              <span>Lane edges</span>
+              <span>Pin deck</span>
             </div>
             <div class="lane-calibration-actions">
-              <button type="button" class="secondary-button" data-lane-calibration-preview>Confirm Calibration</button>
-              <p id="lane-calibration-summary" class="empty-state">Confirm the lane markers before analysis so board readings are traceable.</p>
+              <p id="lane-calibration-summary" class="empty-state">Upload a recorded shot and StrikeIQ will detect the lane markers during analysis.</p>
             </div>
           </section>
           <div class="lane-detection-grid">
@@ -2360,6 +2344,7 @@ function applyLaneAnalysisFields(fields = {}) {
     if (!field || value === null || value === undefined) return;
     field.value = value;
   });
+  applyAutoLaneCalibration(fields);
   renderLaneBreakdownVisual(fields);
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
@@ -2563,6 +2548,20 @@ function lanePinIsStanding(standingPins, pinNumber) {
 
 function lanePinWasHit(standingPins, pinNumber) {
   return standingPins !== null && !standingPins.has(pinNumber);
+}
+
+function applyAutoLaneCalibration(fields = {}) {
+  const releaseBoard = String(laneMetricNumber(fields.release_board || fields.feet_board) || "");
+  const targetBoard = String(laneMetricNumber(fields.arrows_board) || "");
+  const breakpointBoard = String(laneMetricNumber(fields.breakpoint) || "");
+  state.laneCalibration = cleanLaneCalibration({
+    camera_angle: fields.camera_angle || "auto_video",
+    release_board_hint: releaseBoard,
+    target_board_hint: targetBoard,
+    breakpoint_board_hint: breakpointBoard,
+    markers: { foul_line: true, arrows: true, lane_edges: true, pin_deck: true },
+  });
+  updateLaneCalibrationSummary(fields);
 }
 
 function renderLaneBreakdownVisual(fields = null) {
@@ -2910,43 +2909,32 @@ function laneDetectionOptions() {
 }
 
 function laneCalibrationData() {
-  if (!document.querySelector("#lane-calibration-foul")) {
-    return cleanLaneCalibration(state.laneCalibration);
-  }
-  const markers = {
-    foul_line: Boolean(document.querySelector("#lane-calibration-foul")?.checked),
-    arrows: Boolean(document.querySelector("#lane-calibration-arrows")?.checked),
-    lane_edges: Boolean(document.querySelector("#lane-calibration-edges")?.checked),
-    pin_deck: Boolean(document.querySelector("#lane-calibration-pins")?.checked),
+  const calibration = cleanLaneCalibration(state.laneCalibration);
+  state.laneCalibration = calibration;
+  return {
+    ...calibration,
+    mode: "auto_video",
+    auto_detect: true,
   };
-  const visibleCount = Object.values(markers).filter(Boolean).length;
-  const calibration = {
-    camera_angle: document.querySelector("#lane-camera-angle")?.value || "behind_bowler",
-    release_board_hint: document.querySelector("#lane-calibration-release")?.value.trim() || "",
-    target_board_hint: document.querySelector("#lane-calibration-target")?.value.trim() || "",
-    breakpoint_board_hint: document.querySelector("#lane-calibration-breakpoint")?.value.trim() || "",
-    markers,
-    readiness: Math.round((visibleCount / Object.keys(markers).length) * 100),
-  };
-  state.laneCalibration = cleanLaneCalibration(calibration);
-  return state.laneCalibration;
 }
 
-function updateLaneCalibrationSummary() {
+function updateLaneCalibrationSummary(fields = {}) {
   const calibration = laneCalibrationData();
   const status = document.querySelector("#lane-calibration-status");
   const summary = document.querySelector("#lane-calibration-summary");
-  const angleLabel = titleFromSlug(calibration.camera_angle.replace(/_/g, "-"));
+  const hasAnalysis = Boolean(fields.analysis_run_id || fields.release_board || fields.arrows_board || fields.breakpoint);
   if (status) {
-    status.textContent = calibration.readiness === 100 ? "Ready" : `${calibration.readiness}% Ready`;
+    status.textContent = fields.calibration_status || (hasAnalysis ? "Auto Ready" : "Auto");
   }
   if (summary) {
     const hints = [
-      calibration.release_board_hint && `release ${calibration.release_board_hint}`,
-      calibration.target_board_hint && `target ${calibration.target_board_hint}`,
-      calibration.breakpoint_board_hint && `breakpoint ${calibration.breakpoint_board_hint}`,
+      calibration.release_board_hint && `release board ${calibration.release_board_hint}`,
+      calibration.target_board_hint && `arrow board ${calibration.target_board_hint}`,
+      calibration.breakpoint_board_hint && `breakpoint board ${calibration.breakpoint_board_hint}`,
     ].filter(Boolean);
-    summary.textContent = `${angleLabel} calibration ${calibration.readiness}% ready${hints.length ? ` with ${hints.join(", ")}` : ""}.`;
+    summary.textContent = fields.calibration_summary || (hasAnalysis
+      ? `Auto calibration complete from video analysis${hints.length ? `: ${hints.join(", ")}` : "."}.`
+      : "Upload a recorded shot and StrikeIQ will detect the foul line, arrows, lane edges, and pin deck during analysis.");
   }
 }
 

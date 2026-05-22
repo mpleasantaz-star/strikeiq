@@ -2479,6 +2479,36 @@ h1 {
   width: auto;
 }
 
+.lane-auto-calibration-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lane-auto-calibration-grid span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 999px;
+  background: rgba(16, 24, 39, 0.54);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.lane-auto-calibration-grid span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  box-shadow: 0 0 10px rgba(76, 201, 240, 0.42);
+}
+
 .lane-calibration-actions p {
   flex: 1 1 220px;
 }
@@ -5184,7 +5214,8 @@ button:hover {
   .spare-game-header,
   .spare-frame-grid,
   .lane-detection-grid,
-  .lane-calibration-checklist {
+  .lane-calibration-checklist,
+  .lane-auto-calibration-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -5276,7 +5307,8 @@ button:hover {
   .spare-frame-grid,
   .spare-frame,
   .lane-detection-grid,
-  .lane-calibration-checklist {
+  .lane-calibration-checklist,
+  .lane-auto-calibration-grid {
     grid-template-columns: 1fr;
   }
 

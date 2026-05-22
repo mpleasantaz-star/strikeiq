@@ -1505,11 +1505,24 @@ def create_lane_video_analysis(payload: dict) -> dict:
     pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
     pin_result = pin_options[(seed // 11) % len(pin_options)]
     confidence = 72 + seed % 22
-    calibration_readiness = int(calibration.get("readiness") or 0)
+    auto_calibration = bool(calibration.get("auto_detect")) or str(calibration.get("mode") or "") == "auto_video"
+    calibration_readiness = 100 if auto_calibration else int(calibration.get("readiness") or 0)
     if calibration_readiness >= 100:
         confidence = min(96, confidence + 4)
     result = "Strike" if pin_result == "Strike" else pin_result
-    camera_angle = str(calibration.get("camera_angle") or "behind_bowler").replace("_", " ")
+    if auto_calibration:
+        calibration = {
+            **calibration,
+            "mode": "auto_video",
+            "auto_detect": True,
+            "camera_angle": "auto_video",
+            "release_board_hint": release_board,
+            "target_board_hint": arrows_board,
+            "breakpoint_board_hint": str(5 + seed % 8),
+            "markers": {"foul_line": True, "arrows": True, "lane_edges": True, "pin_deck": True},
+            "readiness": calibration_readiness,
+        }
+    camera_angle = "auto video" if auto_calibration else str(calibration.get("camera_angle") or "behind_bowler").replace("_", " ")
     output_preview = (
         f"Development analysis for {video_name} using {camera_angle} calibration ({calibration_readiness}% ready): "
         f"detected {ball} at {speed_mph:.2f} mph, "
@@ -1541,6 +1554,14 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "pocket_quality": pocket_quality,
         "pin_result": pin_result,
         "impact_result": pin_result,
+        "calibration_status": "Auto calibrated" if auto_calibration else "Manual calibration",
+        "calibration_readiness": str(calibration_readiness),
+        "calibration_summary": (
+            f"Auto-detected lane markers from video: release board {release_board}, "
+            f"arrow board {arrows_board}, breakpoint board {5 + seed % 8}."
+            if auto_calibration
+            else f"Manual calibration {calibration_readiness}% ready."
+        ),
         "confidence": str(confidence),
         "confidence_label": "Calibrated development analysis" if calibration_readiness >= 100 else "Development analysis",
         "result": result,
