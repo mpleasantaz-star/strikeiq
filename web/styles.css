@@ -2532,32 +2532,34 @@ h1 {
 .lane-3d-pins {
   position: absolute;
   z-index: 3;
-  top: 1.8%;
+  top: 1.4%;
   left: 50%;
-  width: min(80%, 142px);
-  height: 72px;
+  width: min(86%, 158px);
+  height: 84px;
   transform: translateX(-50%) rotateX(calc(-1 * var(--lane-3d-tilt)));
   transform-style: preserve-3d;
 }
 
 .lane-3d-pin {
   position: absolute;
-  width: clamp(15px, 13%, 23px);
-  height: clamp(39px, 55%, 51px);
-  transform: translate(-50%, -50%);
-  filter: drop-shadow(0 10px 8px rgba(0, 0, 0, 0.30));
+  width: clamp(17px, 13.5%, 27px);
+  height: clamp(45px, 58%, 63px);
+  transform: translate(-50%, -50%) translateZ(12px) rotateX(2deg);
+  transform-origin: 50% 90%;
+  filter: drop-shadow(4px 12px 9px rgba(0, 0, 0, 0.38));
+  transform-style: preserve-3d;
 }
 
-.lane-3d-pin[data-pin="1"] { left: 50%; top: 70%; width: clamp(17px, 14.5%, 25px); height: clamp(43px, 60%, 56px); }
-.lane-3d-pin[data-pin="2"] { left: 38%; top: 51%; width: clamp(16px, 13.5%, 24px); height: clamp(41px, 58%, 53px); }
-.lane-3d-pin[data-pin="3"] { left: 62%; top: 51%; width: clamp(16px, 13.5%, 24px); height: clamp(41px, 58%, 53px); }
-.lane-3d-pin[data-pin="4"] { left: 26%; top: 32%; }
-.lane-3d-pin[data-pin="5"] { left: 50%; top: 32%; }
-.lane-3d-pin[data-pin="6"] { left: 74%; top: 32%; }
-.lane-3d-pin[data-pin="7"] { left: 14%; top: 13%; }
-.lane-3d-pin[data-pin="8"] { left: 38%; top: 13%; }
-.lane-3d-pin[data-pin="9"] { left: 62%; top: 13%; }
-.lane-3d-pin[data-pin="10"] { left: 86%; top: 13%; }
+.lane-3d-pin[data-pin="1"] { left: 50%; top: 72%; width: clamp(20px, 15.5%, 30px); height: clamp(51px, 66%, 69px); }
+.lane-3d-pin[data-pin="2"] { left: 38%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
+.lane-3d-pin[data-pin="3"] { left: 62%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
+.lane-3d-pin[data-pin="4"] { left: 26%; top: 34%; }
+.lane-3d-pin[data-pin="5"] { left: 50%; top: 34%; }
+.lane-3d-pin[data-pin="6"] { left: 74%; top: 34%; }
+.lane-3d-pin[data-pin="7"] { left: 14%; top: 15%; }
+.lane-3d-pin[data-pin="8"] { left: 38%; top: 15%; }
+.lane-3d-pin[data-pin="9"] { left: 62%; top: 15%; }
+.lane-3d-pin[data-pin="10"] { left: 86%; top: 15%; }
 .lane-3d-pin[data-pin="1"] { z-index: 4; }
 .lane-3d-pin[data-pin="2"],
 .lane-3d-pin[data-pin="3"] { z-index: 3; }
@@ -2577,26 +2579,46 @@ h1 {
 }
 
 .pin-floor-shadow {
-  fill: rgba(0, 0, 0, 0.24);
+  fill: rgba(0, 0, 0, 0.34);
 }
 
 .pin-main-body {
-  stroke: rgba(97, 48, 17, 0.34);
-  stroke-width: 1.2;
+  stroke: rgba(78, 36, 13, 0.42);
+  stroke-width: 1.05;
 }
 
 .pin-side-shade {
-  fill: rgba(183, 126, 61, 0.18);
+  mix-blend-mode: multiply;
 }
 
-.pin-neck-highlight,
-.pin-front-highlight {
-  fill: rgba(255, 255, 255, 0.52);
+.pin-body-highlight {
+  opacity: 0.92;
 }
 
 .pin-base,
 .pin-top-glow {
   fill: #ffffff;
+}
+
+.pin-top-glow {
+  opacity: 0.84;
+}
+
+.pin-base {
+  opacity: 0.92;
+}
+
+.pin-base-shadow {
+  fill: rgba(76, 35, 12, 0.16);
+}
+
+.pin-red-band {
+  stroke: rgba(255, 255, 255, 0.28);
+  stroke-width: 0.25;
+}
+
+.pin-band-highlight {
+  opacity: 0.72;
 }
 
 .lane-3d-distance {

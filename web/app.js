@@ -2151,31 +2151,51 @@ function lanePinSvg(pinNumber) {
   return `
     <svg class="lane-pin-svg" viewBox="0 0 64 156" aria-hidden="true" focusable="false">
       <defs>
-        <linearGradient id="${pinId}-body" x1="12%" y1="16%" x2="90%" y2="78%">
-          <stop offset="0%" stop-color="#fffdf6"></stop>
-          <stop offset="34%" stop-color="#fff6df"></stop>
-          <stop offset="58%" stop-color="#f4ddb8"></stop>
-          <stop offset="100%" stop-color="#b27638"></stop>
+        <linearGradient id="${pinId}-body" x1="8%" y1="18%" x2="92%" y2="82%">
+          <stop offset="0%" stop-color="#ffffff"></stop>
+          <stop offset="24%" stop-color="#fffaf0"></stop>
+          <stop offset="52%" stop-color="#f7e7ca"></stop>
+          <stop offset="74%" stop-color="#d4a66d"></stop>
+          <stop offset="100%" stop-color="#7b421c"></stop>
         </linearGradient>
-        <radialGradient id="${pinId}-highlight" cx="33%" cy="35%" r="62%">
-          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9"></stop>
-          <stop offset="54%" stop-color="#ffffff" stop-opacity="0.24"></stop>
+        <radialGradient id="${pinId}-ceramic" cx="34%" cy="32%" r="70%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"></stop>
+          <stop offset="42%" stop-color="#ffffff" stop-opacity="0.42"></stop>
           <stop offset="100%" stop-color="#ffffff" stop-opacity="0"></stop>
         </radialGradient>
-        <linearGradient id="${pinId}-red" x1="18%" y1="0%" x2="82%" y2="100%">
-          <stop offset="0%" stop-color="#f35549"></stop>
-          <stop offset="48%" stop-color="#c51e2a"></stop>
-          <stop offset="100%" stop-color="#7e0e18"></stop>
+        <linearGradient id="${pinId}-side" x1="30%" y1="18%" x2="96%" y2="88%">
+          <stop offset="0%" stop-color="#5a260e" stop-opacity="0"></stop>
+          <stop offset="52%" stop-color="#6d2f12" stop-opacity="0.22"></stop>
+          <stop offset="100%" stop-color="#2b1208" stop-opacity="0.42"></stop>
         </linearGradient>
+        <linearGradient id="${pinId}-red" x1="10%" y1="0%" x2="92%" y2="100%">
+          <stop offset="0%" stop-color="#ff776d"></stop>
+          <stop offset="42%" stop-color="#d92632"></stop>
+          <stop offset="78%" stop-color="#8d111d"></stop>
+          <stop offset="100%" stop-color="#430710"></stop>
+        </linearGradient>
+        <linearGradient id="${pinId}-bandshine" x1="10%" y1="0%" x2="90%" y2="0%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity="0.34"></stop>
+          <stop offset="42%" stop-color="#ffffff" stop-opacity="0.06"></stop>
+          <stop offset="100%" stop-color="#000000" stop-opacity="0.20"></stop>
+        </linearGradient>
+        <filter id="${pinId}-pinShadow" x="-35%" y="-20%" width="170%" height="145%">
+          <feDropShadow dx="2.2" dy="5.2" stdDeviation="2.6" flood-color="#000000" flood-opacity="0.36"></feDropShadow>
+        </filter>
       </defs>
-      <ellipse class="pin-floor-shadow" cx="32" cy="145" rx="23" ry="7"></ellipse>
-      <path class="pin-main-body" fill="url(#${pinId}-body)" d="M26.4 7.6C20.8 11.2 20.8 18.9 23.1 27.3C25.2 35.3 25.1 44.6 21.5 55.2C18.3 64.7 10.3 74.8 7.5 89.3C4.8 103.5 9.5 120.6 16.4 132.2C13.4 136.4 11.6 140.2 11.8 144.4C16.5 150.2 23.1 153.1 32 153.1C40.9 153.1 47.5 150.2 52.2 144.4C52.4 140.2 50.6 136.4 47.6 132.2C54.5 120.6 59.2 103.5 56.5 89.3C53.7 74.8 45.7 64.7 42.5 55.2C38.9 44.6 38.8 35.3 40.9 27.3C43.2 18.9 43.2 11.2 37.6 7.6C34.1 5.3 29.9 5.3 26.4 7.6Z"></path>
-      <path class="pin-body-highlight" fill="url(#${pinId}-highlight)" d="M25.1 10.7C21.4 17.4 25 31.1 24.1 42.1C23.1 54.1 15.8 67.3 13.4 84.2C10.8 102.3 17.7 118.6 22.6 130.4C24.8 135.8 22.7 142 18.5 146.5C24.3 150.1 31.4 150.1 36.7 147.2C30.2 144.6 27.3 137.2 28.2 127.6C29.1 117.9 23.7 109.2 22.6 97.6C20.7 77.9 25.8 63.7 30.2 51.2C34.9 37.8 31.2 20.7 28.2 10.4C27.2 10.2 26.1 10.3 25.1 10.7Z"></path>
-      <path class="pin-side-shade" d="M40.2 27.8C38.8 36.6 39.2 46.7 43 57.9C46.1 67.2 53.7 77.4 56.3 90.6C58.7 103.3 54.5 120.2 47.6 132.2C50.6 136.4 52.4 140.2 52.2 144.4C47.5 150.2 40.9 153.1 32 153.1C36.8 149.2 39.9 141 38.7 130.2C37.4 118 43.3 109.1 44 96.5C44.8 81.1 37 69.8 33.5 56.7C30.5 45.6 32.8 34.7 35.8 27.2C37.1 27.8 38.7 28 40.2 27.8Z"></path>
-      <path class="pin-red-band upper" fill="url(#${pinId}-red)" d="M22.4 35.8C28.5 38.6 35.5 38.6 41.6 35.8C42.1 39.1 42.2 42.2 41.8 45.2C35.4 48.2 28.6 48.2 22.2 45.2C21.8 42.2 21.9 39.1 22.4 35.8Z"></path>
-      <path class="pin-red-band lower" fill="url(#${pinId}-red)" d="M20.6 49.8C27.9 53.4 36.1 53.4 43.4 49.8C44.3 53.2 45.7 56.6 47.5 60.2C37.2 64.6 26.8 64.6 16.5 60.2C18.3 56.6 19.7 53.2 20.6 49.8Z"></path>
-      <ellipse class="pin-top-glow" cx="32" cy="13.8" rx="7.8" ry="5.4"></ellipse>
-      <ellipse class="pin-base" cx="32" cy="144" rx="16.5" ry="5.1"></ellipse>
+      <ellipse class="pin-floor-shadow" cx="34" cy="146" rx="25" ry="7.8"></ellipse>
+      <g filter="url(#${pinId}-pinShadow)">
+        <path class="pin-main-body" fill="url(#${pinId}-body)" d="M26.1 7.3C20.9 10.6 20.6 18.5 23.0 27.0C25.4 35.6 24.7 45.2 21.2 55.6C17.8 65.9 9.8 75.5 7.2 90.2C4.7 104.7 9.4 121.4 16.0 132.4C12.8 136.7 11.4 140.9 12.2 145.2C17.3 150.4 23.9 153.0 32.0 153.0C40.1 153.0 46.7 150.4 51.8 145.2C52.6 140.9 51.2 136.7 48.0 132.4C54.6 121.4 59.3 104.7 56.8 90.2C54.2 75.5 46.2 65.9 42.8 55.6C39.3 45.2 38.6 35.6 41.0 27.0C43.4 18.5 43.1 10.6 37.9 7.3C34.5 5.2 29.5 5.2 26.1 7.3Z"></path>
+        <path class="pin-side-shade" fill="url(#${pinId}-side)" d="M38.7 26.9C37.0 36.2 37.9 46.0 42.0 58.0C45.1 67.2 52.7 77.4 55.4 90.7C58.1 104.3 53.8 120.7 47.5 132.1C50.3 136.2 52.1 141.0 51.2 145.0C46.5 150.0 39.8 153.0 32.0 153.0C36.0 148.9 38.8 140.9 37.9 130.7C36.8 118.5 43.2 109.6 43.7 96.3C44.2 82.0 36.8 69.2 33.8 57.0C31.1 46.2 32.6 35.1 35.7 27.5C36.6 27.8 37.7 27.6 38.7 26.9Z"></path>
+        <path class="pin-body-highlight" fill="url(#${pinId}-ceramic)" d="M24.9 10.1C21.4 17.8 25.2 31.0 24.1 42.6C22.9 55.1 15.7 68.7 13.5 85.1C11.2 102.0 17.2 119.2 22.5 130.0C24.9 134.8 23.5 141.8 18.7 146.3C23.2 149.8 30.8 150.0 36.7 147.2C30.4 144.9 27.1 137.2 27.9 128.1C28.8 118.2 23.6 109.5 22.5 97.8C20.7 78.9 25.7 64.4 30.1 51.2C34.5 38.2 31.5 20.6 28.1 10.1C27.1 9.8 26.0 9.8 24.9 10.1Z"></path>
+        <path class="pin-red-band upper" fill="url(#${pinId}-red)" d="M22.6 35.3C28.6 38.0 35.4 38.0 41.4 35.3C42.1 38.8 42.1 42.3 41.6 45.8C35.4 48.5 28.6 48.5 22.4 45.8C21.9 42.3 21.9 38.8 22.6 35.3Z"></path>
+        <path class="pin-red-band lower" fill="url(#${pinId}-red)" d="M20.6 49.4C28.0 53.1 36.0 53.1 43.4 49.4C44.2 53.0 45.6 56.7 47.4 60.4C37.2 64.8 26.8 64.8 16.6 60.4C18.4 56.7 19.8 53.0 20.6 49.4Z"></path>
+        <path class="pin-band-highlight" fill="url(#${pinId}-bandshine)" d="M22.6 35.3C28.6 38.0 35.4 38.0 41.4 35.3C41.7 36.7 41.9 38.1 42.0 39.5C35.6 41.7 28.4 41.7 22.0 39.5C22.1 38.1 22.3 36.7 22.6 35.3Z"></path>
+        <path class="pin-band-highlight" fill="url(#${pinId}-bandshine)" d="M20.6 49.4C28.0 53.1 36.0 53.1 43.4 49.4C43.8 51.0 44.3 52.5 44.9 54.1C36.5 57.2 27.5 57.2 19.1 54.1C19.7 52.5 20.2 51.0 20.6 49.4Z"></path>
+        <ellipse class="pin-top-glow" cx="32" cy="13.5" rx="7.6" ry="5.0"></ellipse>
+        <ellipse class="pin-base" cx="32" cy="144.2" rx="17.2" ry="5.6"></ellipse>
+        <path class="pin-base-shadow" d="M15.3 142.1C25.0 146.2 39.0 146.2 48.7 142.1C47.5 148.1 40.3 151.5 32.0 151.5C23.7 151.5 16.5 148.1 15.3 142.1Z"></path>
+      </g>
     </svg>
   `;
 }
