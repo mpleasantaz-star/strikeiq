@@ -629,8 +629,8 @@ h1 {
     width: auto;
     min-width: 112px;
     border-color: rgba(255, 183, 77, 0.72);
-    background: linear-gradient(135deg, rgba(255, 183, 77, 0.92), rgba(255, 149, 0, 0.72));
-    color: #1b1306;
+    background: rgba(16, 24, 39, 0.78);
+    color: #fff4dd;
     box-shadow: 0 0 18px rgba(255, 183, 77, 0.18);
     white-space: nowrap;
   }
