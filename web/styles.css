@@ -2285,6 +2285,21 @@ h1 {
 }
 
 @media (max-width: 520px) {
+  .lane-video-panel.is-camera-unavailable {
+    gap: 8px;
+  }
+
+  .lane-video-panel.is-camera-unavailable .lane-live-camera-shell,
+  .lane-video-panel.is-camera-unavailable .lane-live-actions,
+  .lane-video-panel.is-camera-unavailable #lane-live-status {
+    display: none;
+  }
+
+  .lane-video-panel.is-camera-unavailable > p {
+    font-size: 0.94rem;
+    line-height: 1.32;
+  }
+
   .lane-live-camera-shell {
     min-height: 150px;
   }
@@ -2309,7 +2324,7 @@ h1 {
   }
 
   .lane-live-help {
-    gap: 8px;
+    gap: 7px;
     padding: 10px;
   }
 

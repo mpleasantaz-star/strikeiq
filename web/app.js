@@ -2171,11 +2171,16 @@ function hideLaneLiveHelp() {
 }
 
 function syncLaneLiveAvailability(supportBlock = null) {
+  const livePanel = document.querySelector("[data-lane-video-panel='live_video']");
   const startButton = document.querySelector("[data-lane-live-preview]");
   const stopButton = document.querySelector("[data-lane-live-stop]");
   const unavailable = Boolean(supportBlock);
+  if (livePanel) {
+    livePanel.classList.toggle("is-camera-unavailable", unavailable);
+  }
   if (startButton) {
     startButton.disabled = unavailable;
+    startButton.hidden = unavailable;
     startButton.classList.toggle("is-unavailable", unavailable);
     startButton.setAttribute("aria-disabled", unavailable ? "true" : "false");
     startButton.textContent = unavailable ? "Camera Unavailable" : "Start Camera";
