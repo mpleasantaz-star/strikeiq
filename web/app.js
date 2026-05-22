@@ -2152,7 +2152,7 @@ function renderLaneBreakdownVisual(fields = null) {
     { label: "Entry", board: entryBoard, y: laneScale.headPinY, className: "entry" },
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
-  const motionPath = markers.map((marker, index) => `${index ? "L" : "M"} ${marker.x} ${marker.y}`).join(" ");
+  const motionPath = `M ${markers[0].x} ${markers[0].y} C ${markers[0].x} ${markers[0].y - 22}, ${markers[1].x} ${markers[1].y + 18}, ${markers[1].x} ${markers[1].y} S ${markers[2].x} ${markers[2].y + 24}, ${markers[2].x} ${markers[2].y} S ${markers[3].x} ${markers[3].y + 24}, ${markers[3].x} ${markers[3].y}`;
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
   const pinRack = [
     { pin: 7, x: 38, y: 12, scale: 0.92 },
@@ -2212,7 +2212,7 @@ function renderLaneBreakdownVisual(fields = null) {
                 <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
                   <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
                 </circle>
-                <circle r="6.4" class="lane-breakdown-tracker-ring">
+                <circle r="5.4" class="lane-breakdown-tracker-ring">
                   <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
                 </circle>
               </svg>
@@ -2255,12 +2255,12 @@ function renderLaneBreakdownVisual(fields = null) {
             <stop offset="100%" stop-color="#073b78"></stop>
           </radialGradient>
           <linearGradient id="laneTrackGradient" x1="0" x2="1" y1="1" y2="0">
-            <stop offset="0%" stop-color="#4cc9f0"></stop>
-            <stop offset="55%" stop-color="#0a84ff"></stop>
-            <stop offset="100%" stop-color="#ffffff"></stop>
+            <stop offset="0%" stop-color="#9bdff2"></stop>
+            <stop offset="55%" stop-color="#4cc9f0"></stop>
+            <stop offset="100%" stop-color="#d8f7ff"></stop>
           </linearGradient>
           <filter id="laneTrackGlow">
-            <feGaussianBlur stdDeviation="2.2" result="blur"></feGaussianBlur>
+            <feGaussianBlur stdDeviation="1.15" result="blur"></feGaussianBlur>
             <feMerge>
               <feMergeNode in="blur"></feMergeNode>
               <feMergeNode in="SourceGraphic"></feMergeNode>
@@ -2329,7 +2329,7 @@ function renderLaneBreakdownVisual(fields = null) {
         <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
           <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
         </circle>
-        <circle r="6.4" class="lane-breakdown-tracker-ring">
+        <circle r="5.4" class="lane-breakdown-tracker-ring">
           <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
         </circle>
         ${markers.map((marker) => `
