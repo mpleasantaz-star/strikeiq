@@ -502,6 +502,24 @@ const projectDetails = {
           <label>Ball Speed<input name="ball_speed" placeholder="16.5 mph"></label>
           <label>Pin Fall Result<input name="result" placeholder="Strike, 10 pin, split" required></label>
         </div>
+        <section class="lane-result-workflow" aria-label="Shot result workflow">
+          <div class="lane-result-heading">
+            <div>
+              <p class="eyebrow">Result</p>
+              <h3>Quick Pin Fall</h3>
+              <p>Select a common result or type your own. The lane visual updates standing and fallen pins.</p>
+            </div>
+          </div>
+          <div class="lane-result-buttons" aria-label="Quick pin fall results">
+            <button type="button" data-lane-result="Strike">Strike</button>
+            <button type="button" data-lane-result="10 pin">10 Pin</button>
+            <button type="button" data-lane-result="7 pin">7 Pin</button>
+            <button type="button" data-lane-result="2-8 leave">2-8</button>
+            <button type="button" data-lane-result="7-10 split">Split</button>
+            <button type="button" data-lane-result-custom>Custom</button>
+          </div>
+          <div id="lane-shot-save-preview" class="lane-shot-save-preview"></div>
+        </section>
         <div class="form-row" data-lane-tier="pro">
           <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
         </div>
@@ -1768,6 +1786,66 @@ function renderLaneFreeSnapshot() {
   `;
 }
 
+function lanePinResultState(value) {
+  const standingPins = laneStandingPinsFromResult(value);
+  if (standingPins === null) {
+    return {
+      standingLabel: "Awaiting result",
+      fallenLabel: "Awaiting result",
+      nextMove: "Select a result to preview standing pins and next move.",
+    };
+  }
+  const standing = Array.from(standingPins).sort((a, b) => a - b);
+  const fallen = Array.from({ length: 10 }, (_, index) => index + 1).filter((pin) => !standingPins.has(pin));
+  return {
+    standingLabel: standing.length ? standing.join(", ") : "None",
+    fallenLabel: fallen.length ? fallen.join(", ") : "None",
+    nextMove: standing.length
+      ? `Review leave ${standing.join("-")} and log the adjustment after the shot.`
+      : "Strike result: save the shot and compare ball motion to the target line.",
+  };
+}
+
+function renderLaneShotSavePreview() {
+  const preview = document.querySelector("#lane-shot-save-preview");
+  const form = document.querySelector("#shot-form");
+  if (!preview || !form) return;
+  const payload = formPayload(form);
+  const resultState = lanePinResultState(payload.pin_result || payload.result);
+  const previewItems = [
+    ["Board Start", payload.feet_board || "Not set"],
+    ["Arrow Start", payload.arrows_board || "Not set"],
+    ["Ball Speed", payload.ball_speed || payload.speed_mph || "Not set"],
+    ["Result", payload.result || payload.pin_result || "Not set"],
+    ["Standing Pins", resultState.standingLabel],
+    ["Fallen Pins", resultState.fallenLabel],
+  ];
+  preview.innerHTML = `
+    <div class="lane-shot-save-heading">
+      <strong>Save Preview</strong>
+      <span>${escapeHtml(payload.result || payload.pin_result ? "Ready" : "Needs result")}</span>
+    </div>
+    <div class="lane-shot-save-grid">
+      ${previewItems.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join("")}
+    </div>
+    <p>${escapeHtml(payload.next_move || resultState.nextMove)}</p>
+  `;
+}
+
+function applyLaneQuickResult(value) {
+  const resultInput = document.querySelector("input[name='result']");
+  const pinResultInput = document.querySelector("input[name='pin_result']");
+  const leaveInput = document.querySelector("input[name='leave_pin']");
+  if (resultInput) resultInput.value = value;
+  if (pinResultInput) pinResultInput.value = value;
+  if (leaveInput) {
+    leaveInput.value = value && !/\bstrike\b/i.test(value) ? value : "";
+  }
+  renderLaneFreeSnapshot();
+  renderLaneShotSavePreview();
+  renderLaneBreakdownVisual();
+}
+
 function formPayload(form) {
   return Object.fromEntries(new FormData(form).entries());
 }
@@ -1807,6 +1885,7 @@ function hydrateLaneTrackerForm() {
   }
   renderLaneTrackerContext();
   renderLaneFreeSnapshot();
+  renderLaneShotSavePreview();
   hydrateLaneSettingsControls();
   updateLaneVideoMode(state.laneVideoMode);
   updateLaneCalibrationSummary();
@@ -3289,6 +3368,7 @@ async function loadShots() {
     </article>
   `);
   renderLaneFreeSnapshot();
+  renderLaneShotSavePreview();
 }
 
 function renderChat() {
@@ -5436,6 +5516,7 @@ function bindEvents() {
     }
     if (event.target.closest("#shot-form")) {
       renderLaneFreeSnapshot();
+      renderLaneShotSavePreview();
       renderLaneBreakdownVisual();
     }
   });
@@ -5469,6 +5550,16 @@ function bindEvents() {
     if (state.laneBreakdownDrag?.pointerId !== event.pointerId) return;
     document.querySelector("[data-lane-breakdown-drag]")?.classList.remove("is-dragging");
     state.laneBreakdownDrag = null;
+  });
+  document.addEventListener("click", (event) => {
+    const quickResult = event.target.closest("[data-lane-result]");
+    if (quickResult) {
+      applyLaneQuickResult(quickResult.dataset.laneResult || "");
+      return;
+    }
+    if (event.target.closest("[data-lane-result-custom]")) {
+      document.querySelector("input[name='result']")?.focus();
+    }
   });
   document.addEventListener("wheel", (event) => {
     if (!event.target.closest("[data-lane-breakdown-drag]")) return;
