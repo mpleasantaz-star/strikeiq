@@ -417,6 +417,7 @@ const projectDetails = {
             </div>
             <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
             <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
+            <div id="lane-ideal-movement" class="lane-ideal-movement"></div>
             <details class="lane-analysis-notes">
               <summary>Analysis notes</summary>
               <label>
@@ -1614,6 +1615,74 @@ function laneVisualValue(fields, primaryName, fallbackName = "") {
   return fallbackField?.value || "";
 }
 
+function movementStatusClass(status) {
+  if (status === "match") return "is-match";
+  if (status === "review") return "is-review";
+  return "is-pending";
+}
+
+function movementStatusLabel(status) {
+  if (status === "match") return "Matches";
+  if (status === "review") return "Review";
+  return "Pending";
+}
+
+function movementBoardText(value) {
+  return Number.isFinite(value) ? `B${Math.round(value * 10) / 10}` : "Pending";
+}
+
+function laneIdealMovementModel(values) {
+  const handedness = state.profile?.handedness || state.handedness || "right";
+  const isLeft = handedness === "left";
+  const releaseBoard = Number(values.releaseBoard);
+  const arrowsBoard = Number(values.arrowsBoard);
+  const breakpointBoard = Number(values.breakpointBoard);
+  const entryBoard = Number(values.entryBoard);
+  const pocketBoard = isLeft ? 22.5 : 17.5;
+  const speed = laneMetricNumber(values.speed);
+  const startToArrow = isLeft ? arrowsBoard - releaseBoard : releaseBoard - arrowsBoard;
+  const arrowToBreak = isLeft ? breakpointBoard - arrowsBoard : arrowsBoard - breakpointBoard;
+  const returnToPocket = isLeft ? breakpointBoard - entryBoard : entryBoard - breakpointBoard;
+  const entryDelta = Math.abs(entryBoard - pocketBoard);
+  const phaseItems = [
+    {
+      label: "Skid to target",
+      ideal: "Front-lane motion should stay controlled and mostly straight through the target zone.",
+      actual: `${movementBoardText(releaseBoard)} start to ${movementBoardText(arrowsBoard)} arrows`,
+      status: startToArrow >= 2 && startToArrow <= 12 ? "match" : "review",
+    },
+    {
+      label: "Hook phase",
+      ideal: "After the arrows, the path should change direction toward a clear breakpoint.",
+      actual: `${movementBoardText(arrowsBoard)} arrows to ${movementBoardText(breakpointBoard)} breakpoint`,
+      status: arrowToBreak >= 2 ? "match" : "review",
+    },
+    {
+      label: "Roll to pocket",
+      ideal: `Final motion should roll back toward the ${isLeft ? "1-2" : "1-3"} pocket near ${movementBoardText(pocketBoard)}.`,
+      actual: `${movementBoardText(breakpointBoard)} breakpoint to ${movementBoardText(entryBoard)} entry`,
+      status: returnToPocket >= 5 && entryDelta <= 3 ? "match" : "review",
+    },
+    {
+      label: "Ball speed",
+      ideal: "Speed should let the ball transition from skid to hook to roll before impact.",
+      actual: speed ? formatShotMetric(speed, " mph") : "Add measured speed",
+      status: speed ? "match" : "pending",
+    },
+    {
+      label: "Pin result",
+      ideal: `Best strike result is pocket contact with clean carry through the ${isLeft ? "1-2" : "1-3"} pocket.`,
+      actual: values.pinResult ? String(values.pinResult) : "Log pin fall result",
+      status: values.pinResult ? "match" : "pending",
+    },
+  ];
+  const matches = phaseItems.filter((item) => item.status === "match").length;
+  return {
+    handedness: isLeft ? "Left handed" : "Right handed",
+    matchLabel: `${matches}/${phaseItems.length} checkpoints`,
+    phaseItems,
+  };
+}
 function lanePinSvg(pinNumber) {
   const pinId = `lane-pin-${pinNumber}`;
   return `
@@ -1651,6 +1720,7 @@ function lanePinSvg(pinNumber) {
 function renderLaneBreakdownVisual(fields = null) {
   const visual = document.querySelector("#lane-breakdown-visual");
   const metricsContainer = document.querySelector("#lane-breakdown-metrics");
+  const idealContainer = document.querySelector("#lane-ideal-movement");
   const stateLabel = document.querySelector("#lane-breakdown-state");
   if (!visual || !metricsContainer) return;
 
@@ -1855,6 +1925,37 @@ function renderLaneBreakdownVisual(fields = null) {
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
     <p>${hasAnalysis ? "Analysis mapped to visual path and shot metrics. Open notes for the full breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."}</p>
   `;
+  if (idealContainer) {
+    const movement = laneIdealMovementModel({
+      releaseBoard,
+      arrowsBoard,
+      breakpointBoard,
+      entryBoard,
+      speed,
+      pinResult: laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result"),
+    });
+    idealContainer.innerHTML = `
+      <div class="lane-ideal-heading">
+        <div>
+          <p class="eyebrow">Documented Movement Model</p>
+          <h3>Ideal vs Your Shot</h3>
+          <p>Uses regulation lane landmarks and the documented skid, hook, roll ball-motion sequence.</p>
+        </div>
+        <span>${escapeHtml(movement.handedness)} | ${escapeHtml(movement.matchLabel)}</span>
+      </div>
+      <div class="lane-ideal-grid">
+        ${movement.phaseItems.map((item) => `
+          <article class="${movementStatusClass(item.status)}">
+            <span>${escapeHtml(item.label)}</span>
+            <strong>${escapeHtml(movementStatusLabel(item.status))}</strong>
+            <p><b>Ideal:</b> ${escapeHtml(item.ideal)}</p>
+            <p><b>Your shot:</b> ${escapeHtml(item.actual)}</p>
+          </article>
+        `).join("")}
+      </div>
+      <p class="lane-ideal-sources">Reference model: USBC lane landmarks plus USBC/BOWL.com skid-hook-roll movement guidance. Exact board targets still depend on pattern, ball, release, and lane transition.</p>
+    `;
+  }
 }
 
 function updateLaneBreakdownView(updates = {}) {
