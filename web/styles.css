@@ -2138,6 +2138,10 @@ h1 {
   cursor: pointer;
 }
 
+.lane-mode-toggle label.is-disabled {
+  cursor: not-allowed;
+}
+
 .lane-mode-toggle input {
   position: absolute;
   width: 1px;
@@ -2162,6 +2166,13 @@ h1 {
   border-color: rgba(76, 201, 240, 0.52);
   background: linear-gradient(135deg, rgba(10, 132, 255, 0.34), rgba(76, 201, 240, 0.22));
   color: #ffffff;
+}
+
+.lane-mode-toggle label.is-disabled span {
+  border-color: rgba(255, 183, 77, 0.26);
+  background: rgba(5, 7, 10, 0.38);
+  color: var(--muted-2);
+  opacity: 0.76;
 }
 
 .lane-video-panels {

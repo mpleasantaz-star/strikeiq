@@ -1993,28 +1993,36 @@ function renderLaneTrackerContext() {
 }
 
 function updateLaneVideoMode(mode = document.querySelector("input[name='tracking_mode_choice']:checked")?.value || state.laneVideoMode || "recorded_video", persist = false) {
-  state.laneVideoMode = mode === "live_video" ? "live_video" : "recorded_video";
+  const requestedMode = mode === "live_video" ? "live_video" : "recorded_video";
+  const liveSupportBlock = cameraSupportBlock();
+  const shouldUseRecordedFallback = requestedMode === "live_video" && liveSupportBlock;
+  state.laneVideoMode = shouldUseRecordedFallback ? "recorded_video" : requestedMode;
   const trackingMode = document.querySelector("#lane-tracking-mode");
   const modeLabel = document.querySelector("#lane-video-mode-label");
   const status = document.querySelector("#lane-video-status");
-  const supportBlock = state.laneVideoMode === "live_video" ? cameraSupportBlock() : null;
   if (trackingMode) trackingMode.value = state.laneVideoMode;
   document.querySelectorAll("input[name='tracking_mode_choice']").forEach((input) => {
+    const isUnavailableLiveMode = input.value === "live_video" && Boolean(liveSupportBlock);
+    input.disabled = isUnavailableLiveMode;
     input.checked = input.value === state.laneVideoMode;
+    input.closest("label")?.classList.toggle("is-disabled", isUnavailableLiveMode);
+    if (input.value === "live_video" && input.nextElementSibling) {
+      input.nextElementSibling.textContent = isUnavailableLiveMode ? "Live Camera (Expo Later)" : "Live Camera";
+    }
   });
   if (modeLabel) modeLabel.textContent = state.laneVideoMode === "live_video" ? "Live Camera" : "Recorded Video";
   document.querySelectorAll("[data-lane-video-panel]").forEach((panel) => {
     panel.classList.toggle("is-active", panel.dataset.laneVideoPanel === state.laneVideoMode);
   });
   if (status) {
-    status.textContent = supportBlock?.status || (state.laneVideoMode === "live_video"
+    status.textContent = shouldUseRecordedFallback
+      ? `${liveSupportBlock.status} Recorded Video is selected for this device.`
+      : (state.laneVideoMode === "live_video"
       ? "Live camera mode selected. Tap Start Camera to preview the lane, or Upload And Analyze Video to create a development analysis."
       : "Recorded video mode selected. Choose a clip, then run backend analysis.");
   }
-  syncLaneLiveAvailability(supportBlock);
-  if (supportBlock) {
-    setLaneLiveStatus(supportBlock.status, true, supportBlock.help);
-  } else if (state.laneVideoMode === "live_video") {
+  syncLaneLiveAvailability(liveSupportBlock);
+  if (state.laneVideoMode === "live_video") {
     setLaneLiveStatus("Camera is off.", false);
   } else {
     hideLaneLiveHelp();
@@ -2026,15 +2034,15 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
 }
 
 async function startLaneLiveCamera() {
+  const supportBlock = cameraSupportBlock();
+  if (supportBlock) {
+    updateLaneVideoMode("recorded_video", true);
+    return;
+  }
   updateLaneVideoMode("live_video", true);
   const video = document.querySelector("#lane-live-video");
   const placeholder = document.querySelector("#lane-live-placeholder");
   if (!video) return;
-  const supportBlock = cameraSupportBlock();
-  if (supportBlock) {
-    setLaneLiveStatus(supportBlock.status, true, supportBlock.help);
-    return;
-  }
   const permission = await cameraPermissionState();
   if (permission === "denied") {
     setLaneLiveStatus(
