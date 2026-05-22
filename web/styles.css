@@ -167,8 +167,42 @@ h1 {
 }
 
 .login-panel {
+  position: relative;
+  overflow: hidden;
   perspective: 900px;
   transform-style: preserve-3d;
+}
+
+.login-panel::before,
+.login-panel::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  z-index: 0;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.login-panel::before {
+  top: 18px;
+  width: min(86%, 370px);
+  height: 150px;
+  background: radial-gradient(circle, rgba(76, 201, 240, 0.44), rgba(10, 132, 255, 0.17) 42%, transparent 72%);
+  animation: loginLogoGlowAdvance 9800ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.login-panel::after {
+  top: 162px;
+  width: min(76%, 330px);
+  height: 74px;
+  background: radial-gradient(circle, rgba(76, 201, 240, 0.34), rgba(10, 132, 255, 0.12) 48%, transparent 74%);
+  animation: loginTextGlowAdvance 6200ms 4900ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
+}
+
+.login-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 .profile-panel {
@@ -233,10 +267,58 @@ h1 {
   }
 }
 
+@keyframes loginLogoGlowAdvance {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateZ(-260px) translateY(28px) scale(0.56);
+  }
+
+  78% {
+    opacity: 0.86;
+    transform: translateX(-50%) translateZ(72px) translateY(-5px) scale(1.22);
+  }
+
+  100% {
+    opacity: 0.86;
+    transform: translateX(-50%) translateZ(72px) translateY(-5px) scale(1.22);
+  }
+}
+
+@keyframes loginTextGlowAdvance {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateZ(-150px) translateY(16px) scale(0.66);
+  }
+
+  78% {
+    opacity: 0.56;
+    transform: translateX(-50%) translateZ(48px) translateY(-4px) scale(1.12);
+  }
+
+  100% {
+    opacity: 0.56;
+    transform: translateX(-50%) translateZ(48px) translateY(-4px) scale(1.12);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .login-panel::before {
+    animation: none;
+    opacity: 0.44;
+    transform: translateX(-50%) scale(1);
+  }
+
+  .login-panel::after {
+    animation: none;
+    opacity: 0.28;
+    transform: translateX(-50%) scale(1);
+  }
+
   .login-panel img,
   .login-panel .eyebrow {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
 
