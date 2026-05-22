@@ -2152,6 +2152,7 @@ function renderLaneBreakdownVisual(fields = null) {
     { label: "Entry", board: entryBoard, y: laneScale.headPinY, className: "entry" },
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
   const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
+  const motionPath = markers.map((marker, index) => `${index ? "L" : "M"} ${marker.x} ${marker.y}`).join(" ");
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
   const pinRack = [
     { pin: 7, x: 38, y: 12, scale: 0.92 },
@@ -2205,8 +2206,15 @@ function renderLaneBreakdownVisual(fields = null) {
               <span class="lane-3d-distance lane-3d-distance-deck">62 ft 10 in deck</span>
               <span class="lane-3d-width-label">41.5 in lane | 39 boards</span>
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
-                <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
-                <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
+                <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
+                <path d="${motionPath}" class="lane-breakdown-path"></path>
+                <path d="${motionPath}" class="lane-motion-tracker"></path>
+                <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
+                  <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
+                </circle>
+                <circle r="6.4" class="lane-breakdown-tracker-ring">
+                  <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
+                </circle>
               </svg>
               ${markers.map((marker) => `
                 <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
@@ -2314,9 +2322,16 @@ function renderLaneBreakdownVisual(fields = null) {
             </g>
           `).join("")}
         </g>
-        <polyline points="${pointList}" class="lane-breakdown-path-glow"></polyline>
-        <polyline points="${pointList}" class="lane-breakdown-path"></polyline>
-        <circle cx="${markers[0].x}" cy="${markers[0].y}" r="4.8" class="lane-breakdown-ball"></circle>
+        <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
+        <path d="${motionPath}" class="lane-breakdown-path"></path>
+        <path d="${motionPath}" class="lane-motion-tracker"></path>
+        <circle cx="${markers[0].x}" cy="${markers[0].y}" r="3.2" class="lane-breakdown-ball-start"></circle>
+        <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
+          <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
+        </circle>
+        <circle r="6.4" class="lane-breakdown-tracker-ring">
+          <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
+        </circle>
         ${markers.map((marker) => `
           <g class="lane-breakdown-marker ${marker.className}">
             <circle cx="${marker.x}" cy="${marker.y}" r="3.8"></circle>

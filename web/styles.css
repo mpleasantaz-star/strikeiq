@@ -2759,11 +2759,53 @@ h1 {
   stroke-width: 2.6;
 }
 
+.lane-motion-tracker {
+  fill: none;
+  filter: url("#laneTrackGlow");
+  opacity: 0.86;
+  stroke: rgba(255, 255, 255, 0.78);
+  stroke-dasharray: 24 440;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.8;
+  animation: laneTrackerChase 4.4s linear infinite;
+}
+
 .lane-breakdown-ball {
   fill: url("#laneBallGradient");
   filter: url("#laneBallShadow");
   stroke: rgba(255, 255, 255, 0.88);
   stroke-width: 0.8;
+}
+
+.lane-breakdown-ball-moving {
+  filter: url("#laneBallShadow") drop-shadow(0 0 7px rgba(76, 201, 240, 0.76));
+}
+
+.lane-breakdown-ball-start {
+  fill: rgba(255, 255, 255, 0.78);
+  opacity: 0.72;
+  stroke: rgba(76, 201, 240, 0.76);
+  stroke-width: 0.9;
+}
+
+.lane-breakdown-tracker-ring {
+  fill: rgba(5, 7, 10, 0.12);
+  filter: url("#laneTrackGlow");
+  opacity: 0.86;
+  stroke: rgba(76, 201, 240, 0.92);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.5;
+}
+
+@keyframes laneTrackerChase {
+  from {
+    stroke-dashoffset: 464;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .lane-breakdown-marker circle {
