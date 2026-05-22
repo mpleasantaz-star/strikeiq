@@ -179,16 +179,18 @@ h1 {
   position: absolute;
   left: 50%;
   z-index: 0;
+  filter: blur(18px);
+  opacity: 0.48;
   pointer-events: none;
   transform-origin: center center;
-  will-change: transform, opacity;
+  will-change: transform;
 }
 
 .login-panel::before {
   top: 18px;
   width: min(86%, 370px);
   height: 150px;
-  background: radial-gradient(circle, rgba(76, 201, 240, 0.44), rgba(10, 132, 255, 0.17) 42%, transparent 72%);
+  background: radial-gradient(circle, rgba(76, 201, 240, 0.34), rgba(10, 132, 255, 0.18) 44%, transparent 76%);
   animation: loginLogoGlowAdvance 9800ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
@@ -196,7 +198,7 @@ h1 {
   top: 162px;
   width: min(76%, 330px);
   height: 74px;
-  background: radial-gradient(circle, rgba(76, 201, 240, 0.34), rgba(10, 132, 255, 0.12) 48%, transparent 74%);
+  background: radial-gradient(circle, rgba(76, 201, 240, 0.24), rgba(10, 132, 255, 0.13) 48%, transparent 78%);
   animation: loginTextGlowAdvance 6200ms 2400ms cubic-bezier(0.16, 0.82, 0.18, 1) both;
 }
 
@@ -269,34 +271,28 @@ h1 {
 
 @keyframes loginLogoGlowAdvance {
   0% {
-    opacity: 0;
     transform: translateX(-50%) translateZ(-260px) translateY(28px) scale(0.56);
   }
 
   78% {
-    opacity: 0.86;
     transform: translateX(-50%) translateZ(72px) translateY(-5px) scale(1.22);
   }
 
   100% {
-    opacity: 0.86;
     transform: translateX(-50%) translateZ(72px) translateY(-5px) scale(1.22);
   }
 }
 
 @keyframes loginTextGlowAdvance {
   0% {
-    opacity: 0;
     transform: translateX(-50%) translateZ(-150px) translateY(16px) scale(0.66);
   }
 
   78% {
-    opacity: 0.56;
     transform: translateX(-50%) translateZ(48px) translateY(-4px) scale(1.12);
   }
 
   100% {
-    opacity: 0.56;
     transform: translateX(-50%) translateZ(48px) translateY(-4px) scale(1.12);
   }
 }
@@ -304,13 +300,11 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .login-panel::before {
     animation: none;
-    opacity: 0.44;
     transform: translateX(-50%) scale(1);
   }
 
   .login-panel::after {
     animation: none;
-    opacity: 0.28;
     transform: translateX(-50%) scale(1);
   }
 
