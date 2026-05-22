@@ -143,6 +143,7 @@ h1 {
 .login-screen,
 .profile-screen {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 20px;
@@ -5185,10 +5186,31 @@ button:hover {
 }
 
 @media (max-width: 520px) {
-  .login-screen,
+  html:has(#login-screen:not(.is-hidden)),
+  body:has(#login-screen:not(.is-hidden)) {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+  }
+
   .profile-screen {
     align-items: start;
     padding: 12px;
+  }
+
+  .login-screen {
+    align-items: stretch;
+    height: 100dvh;
+    min-height: 100svh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: 12px;
+  }
+
+  .login-panel {
+    align-content: center;
+    gap: clamp(8px, 1.4dvh, 14px);
+    min-height: calc(100dvh - 24px);
   }
 
   .login-panel,
@@ -5202,6 +5224,29 @@ button:hover {
   .pattern-list,
   .detail-shell {
     padding: 12px;
+  }
+
+  .login-panel img {
+    width: min(82%, 230px);
+  }
+
+  .login-panel .eyebrow {
+    font-size: 0.67rem;
+  }
+
+  .login-panel .hero-subtitle {
+    font-size: 0.93rem;
+    line-height: 1.32;
+  }
+
+  .login-form {
+    gap: clamp(8px, 1.2dvh, 12px);
+  }
+
+  .auth-publish-links {
+    gap: 6px 12px;
+    justify-content: center;
+    padding-top: 10px;
   }
 
   .app-header {
