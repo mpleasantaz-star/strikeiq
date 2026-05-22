@@ -1505,6 +1505,31 @@ def create_lane_video_analysis(payload: dict) -> dict:
     pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
     pin_result = pin_options[(seed // 11) % len(pin_options)]
     confidence = 72 + seed % 22
+    handedness = str(context.get("handedness") or "").strip().lower()
+    is_left = handedness == "left"
+    move_to_hold = "right" if is_left else "left"
+    move_to_recover = "left" if is_left else "right"
+    pin_result_lower = pin_result.lower()
+    if "strike" in pin_result_lower:
+        adjustment = "Stay with the same board start, arrow start, and speed."
+        next_move = "Repeat this shot once. If carry stays strong, keep the line; if corners appear, adjust from the next result."
+        adjustment_priority = "Hold"
+    elif "4 pin" in pin_result_lower:
+        adjustment = f"Move feet 1-2 boards {move_to_hold} and keep the same arrow, or add 0.3-0.5 mph."
+        next_move = "Create a little more hold through the heads so the ball does not enter high."
+        adjustment_priority = "Move off the hook"
+    elif "10 pin" in pin_result_lower:
+        adjustment = f"Move feet 1 board {move_to_recover} or slow speed 0.3 mph to improve entry angle."
+        next_move = "Help the ball finish slightly stronger through the pocket."
+        adjustment_priority = "Corner carry"
+    elif "2-8" in pin_result_lower or "light" in pocket_quality.lower():
+        adjustment = f"Move feet 1-2 boards {move_to_recover} or slow speed 0.3-0.5 mph."
+        next_move = "Give the ball more time to read and recover to the pocket."
+        adjustment_priority = "Get back to pocket"
+    else:
+        adjustment = "Make a 1-board move toward the pocket and keep speed as close as possible."
+        next_move = "Use the next shot to confirm whether the leave was angle, speed, or carry related."
+        adjustment_priority = "Small move"
     auto_calibration = bool(calibration.get("auto_detect")) or str(calibration.get("mode") or "") == "auto_video"
     calibration_readiness = 100 if auto_calibration else int(calibration.get("readiness") or 0)
     if calibration_readiness >= 100:
@@ -1528,7 +1553,8 @@ def create_lane_video_analysis(payload: dict) -> dict:
         f"detected {ball} at {speed_mph:.2f} mph, "
         f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
         f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
-        f"pocket read {pocket_quality}, pin result {pin_result}."
+        f"pocket read {pocket_quality}, pin result {pin_result}. "
+        f"Recommended adjustment: {adjustment}"
     )
     analysis_run_id = f"lane-video-{uuid.uuid4().hex[:12]}"
     fields = {
@@ -1554,6 +1580,13 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "pocket_quality": pocket_quality,
         "pin_result": pin_result,
         "impact_result": pin_result,
+        "adjustment": adjustment,
+        "next_move": next_move,
+        "adjustment_priority": adjustment_priority,
+        "adjustment_reason": (
+            f"Based on board start {release_board}, arrow start {arrows_board}, "
+            f"speed {speed_mph:.2f} mph, and pin fall {pin_result}."
+        ),
         "calibration_status": "Auto calibrated" if auto_calibration else "Manual calibration",
         "calibration_readiness": str(calibration_readiness),
         "calibration_summary": (

@@ -1834,12 +1834,99 @@ function lanePinResultState(value) {
   };
 }
 
+function laneAdjustmentRecommendation(payload = {}) {
+  const boardStart = laneMetricNumber(payload.release_board || payload.feet_board);
+  const arrowStart = laneMetricNumber(payload.arrows_board);
+  const speed = laneMetricNumber(payload.speed_mph || payload.ball_speed);
+  const result = String(payload.pin_result || payload.result || "").trim();
+  const resultText = result.toLowerCase();
+  const handedness = state.profile?.handedness || state.handedness || "right";
+  const isLeft = handedness === "left";
+  const direction = (rightText, leftText) => (isLeft ? leftText : rightText);
+  const lineShape = Number.isFinite(boardStart) && Number.isFinite(arrowStart)
+    ? Math.abs(boardStart - arrowStart)
+    : null;
+  const speedCue = Number.isFinite(speed)
+    ? (speed >= 18 ? "Speed is on the quick side, so a slower roll may help the ball finish."
+      : speed <= 15 ? "Speed is on the slower side, so more speed can hold the line."
+      : "Speed is in a playable range; start with a small feet or target move.")
+    : "Add measured speed to tighten this recommendation.";
+  const lineCue = lineShape !== null
+    ? `Shot shape used board ${Math.round(boardStart * 10) / 10} to arrow ${Math.round(arrowStart * 10) / 10}.`
+    : "Board start and arrow start are needed for a tighter board move.";
+
+  let title = "Add Result";
+  let adjustment = "Log the pin fall result, then StrikeIQ will suggest a first move.";
+  let nextMove = "Record board start, arrow start, speed, and pin fall after the shot.";
+  let priority = "Pending";
+
+  if (/\b(strike|flush|all\s*down)\b/.test(resultText)) {
+    title = "Repeat The Look";
+    adjustment = "Stay with the same board start, arrow start, and speed.";
+    nextMove = "Repeat this shot once. If carry stays strong, keep the line; if corners appear, adjust from the next result.";
+    priority = "Hold";
+  } else if (/\b4\b/.test(resultText) || /\bhigh\b/.test(resultText)) {
+    title = "High Pocket Read";
+    adjustment = `Move feet 1-2 boards ${direction("left", "right")} and keep the same arrow, or add 0.3-0.5 mph.`;
+    nextMove = "Create a little more hold through the heads so the ball does not enter high.";
+    priority = "Move off the hook";
+  } else if (/\b10\b/.test(resultText) || /\b7\b/.test(resultText)) {
+    const isWeakCorner = (isLeft && /\b7\b/.test(resultText)) || (!isLeft && /\b10\b/.test(resultText));
+    title = isWeakCorner ? "Weak Corner Leave" : "Fast Corner Leave";
+    adjustment = isWeakCorner
+      ? `Move feet 1 board ${direction("right", "left")} or slow speed 0.3 mph to improve entry angle.`
+      : `Move feet 1 board ${direction("left", "right")} or add 0.3 mph to control the face.`;
+    nextMove = isWeakCorner
+      ? "Help the ball finish slightly stronger through the pocket."
+      : "Hold pocket shape without letting the ball jump high.";
+    priority = "Corner carry";
+  } else if (/\b2[-\s]?8\b|\b2\b|\b8\b|\blight\b/.test(resultText)) {
+    title = "Light Pocket Read";
+    adjustment = `Move feet 1-2 boards ${direction("right", "left")} or slow speed 0.3-0.5 mph.`;
+    nextMove = "Give the ball more time to read and recover to the pocket.";
+    priority = "Get back to pocket";
+  } else if (/\bsplit|washout|bucket\b/.test(resultText)) {
+    title = "Major Leave";
+    adjustment = "Make a 2-board move toward the miss and reduce the launch angle before changing balls.";
+    nextMove = "Stabilize pocket contact first, then compare ball reaction on the next shot.";
+    priority = "Control pocket";
+  } else if (result) {
+    title = "Review The Leave";
+    adjustment = "Make a 1-board move toward the pocket and keep speed as close as possible.";
+    nextMove = "Use the next shot to confirm whether the leave was angle, speed, or carry related.";
+    priority = "Small move";
+  }
+
+  return {
+    title,
+    priority,
+    adjustment,
+    nextMove,
+    cues: [lineCue, speedCue, result ? `Pin fall: ${result}.` : "Pin fall result is not set."],
+  };
+}
+
+function syncLaneRecommendationFields(payload = {}, { overwrite = false } = {}) {
+  const form = document.querySelector("#shot-form");
+  if (!form) return;
+  const recommendation = laneAdjustmentRecommendation(payload);
+  const adjustmentField = form.elements.adjustment;
+  const nextMoveField = form.elements.next_move;
+  if (adjustmentField && (overwrite || !adjustmentField.value.trim())) {
+    adjustmentField.value = recommendation.adjustment;
+  }
+  if (nextMoveField && (overwrite || !nextMoveField.value.trim())) {
+    nextMoveField.value = recommendation.nextMove;
+  }
+}
+
 function renderLaneShotSavePreview() {
   const preview = document.querySelector("#lane-shot-save-preview");
   const form = document.querySelector("#shot-form");
   if (!preview || !form) return;
   const payload = formPayload(form);
   const resultState = lanePinResultState(payload.pin_result || payload.result);
+  const recommendation = laneAdjustmentRecommendation(payload);
   const previewItems = [
     ["Board Start", payload.feet_board || "Not set"],
     ["Arrow Start", payload.arrows_board || "Not set"],
@@ -1856,6 +1943,15 @@ function renderLaneShotSavePreview() {
     <div class="lane-shot-save-grid">
       ${previewItems.map(([label, value]) => `<span><b>${escapeHtml(label)}</b>${escapeHtml(value)}</span>`).join("")}
     </div>
+    <article class="lane-adjustment-recommendation">
+      <div>
+        <span>${escapeHtml(recommendation.priority)}</span>
+        <strong>${escapeHtml(recommendation.title)}</strong>
+      </div>
+      <p><b>Adjustment:</b> ${escapeHtml(recommendation.adjustment)}</p>
+      <p><b>Next move:</b> ${escapeHtml(payload.next_move || recommendation.nextMove)}</p>
+      <small>${recommendation.cues.map(escapeHtml).join(" | ")}</small>
+    </article>
     <p>${escapeHtml(payload.next_move || resultState.nextMove)}</p>
   `;
 }
@@ -1869,6 +1965,8 @@ function applyLaneQuickResult(value) {
   if (leaveInput) {
     leaveInput.value = value && !/\bstrike\b/i.test(value) ? value : "";
   }
+  const form = document.querySelector("#shot-form");
+  if (form) syncLaneRecommendationFields(formPayload(form), { overwrite: true });
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
   renderLaneBreakdownVisual();
@@ -2345,6 +2443,7 @@ function applyLaneAnalysisFields(fields = {}) {
     field.value = value;
   });
   applyAutoLaneCalibration(fields);
+  syncLaneRecommendationFields(formPayload(form));
   renderLaneBreakdownVisual(fields);
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
@@ -2852,6 +2951,13 @@ function renderLaneBreakdownVisual(fields = null) {
     <p>${hasAnalysis ? "Analysis mapped to visual path and shot metrics. Open notes for the full breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."}</p>
   `;
   if (idealContainer) {
+    const recommendation = laneAdjustmentRecommendation({
+      ...sourceFields,
+      release_board: releaseBoard,
+      arrows_board: arrowsBoard,
+      speed_mph: speed,
+      pin_result: pinResultValue,
+    });
     const movement = laneIdealMovementModel({
       releaseBoard,
       arrowsBoard,
@@ -2869,6 +2975,15 @@ function renderLaneBreakdownVisual(fields = null) {
         </div>
         <span>${escapeHtml(movement.handedness)} | ${escapeHtml(movement.matchLabel)}</span>
       </div>
+      <article class="lane-review-recommendation">
+        <div>
+          <span>${escapeHtml(recommendation.priority)}</span>
+          <strong>${escapeHtml(recommendation.title)}</strong>
+        </div>
+        <p><b>Adjustment:</b> ${escapeHtml(recommendation.adjustment)}</p>
+        <p><b>Next move:</b> ${escapeHtml(recommendation.nextMove)}</p>
+        <small>${recommendation.cues.map(escapeHtml).join(" | ")}</small>
+      </article>
       <div class="lane-ideal-grid">
         ${movement.phaseItems.map((item) => `
           <article class="${movementStatusClass(item.status)}">
