@@ -2255,12 +2255,12 @@ function renderLaneBreakdownVisual(fields = null) {
             <stop offset="100%" stop-color="#073b78"></stop>
           </radialGradient>
           <linearGradient id="laneTrackGradient" x1="0" x2="1" y1="1" y2="0">
-            <stop offset="0%" stop-color="#9bdff2"></stop>
-            <stop offset="55%" stop-color="#4cc9f0"></stop>
-            <stop offset="100%" stop-color="#d8f7ff"></stop>
+            <stop offset="0%" stop-color="#ff2d55"></stop>
+            <stop offset="55%" stop-color="#ff1744"></stop>
+            <stop offset="100%" stop-color="#ffb3c1"></stop>
           </linearGradient>
           <filter id="laneTrackGlow">
-            <feGaussianBlur stdDeviation="1.15" result="blur"></feGaussianBlur>
+            <feGaussianBlur stdDeviation="1.9" result="blur"></feGaussianBlur>
             <feMerge>
               <feMergeNode in="blur"></feMergeNode>
               <feMergeNode in="SourceGraphic"></feMergeNode>

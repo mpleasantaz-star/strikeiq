@@ -2744,11 +2744,11 @@ h1 {
 .lane-breakdown-path-glow {
   fill: none;
   filter: url("#laneTrackGlow");
-  opacity: 0.34;
-  stroke: rgba(67, 158, 192, 0.34);
+  opacity: 0.54;
+  stroke: rgba(255, 45, 85, 0.50);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 4.2;
+  stroke-width: 5.2;
 }
 
 .lane-breakdown-path {
@@ -2762,13 +2762,13 @@ h1 {
 .lane-motion-tracker {
   fill: none;
   filter: url("#laneTrackGlow");
-  opacity: 0.52;
-  stroke: rgba(222, 247, 255, 0.62);
-  stroke-dasharray: 18 460;
+  opacity: 0.88;
+  stroke: rgba(255, 23, 68, 0.96);
+  stroke-dasharray: 28 450;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 2.2;
-  animation: laneTrackerChase 4.8s linear infinite;
+  stroke-width: 3.1;
+  animation: laneTrackerChase 3.4s linear infinite;
 }
 
 .lane-breakdown-ball {
@@ -2779,7 +2779,7 @@ h1 {
 }
 
 .lane-breakdown-ball-moving {
-  filter: url("#laneBallShadow") drop-shadow(0 0 3px rgba(76, 201, 240, 0.44));
+  filter: url("#laneBallShadow") drop-shadow(0 0 7px rgba(255, 45, 85, 0.78));
 }
 
 .lane-breakdown-ball-start {
@@ -2790,12 +2790,13 @@ h1 {
 }
 
 .lane-breakdown-tracker-ring {
-  fill: rgba(5, 7, 10, 0.12);
+  fill: rgba(255, 23, 68, 0.10);
   filter: url("#laneTrackGlow");
-  opacity: 0.58;
-  stroke: rgba(166, 229, 247, 0.72);
-  stroke-dasharray: 2.5 3;
-  stroke-width: 1.1;
+  opacity: 0.92;
+  stroke: rgba(255, 45, 85, 0.98);
+  stroke-dasharray: 3 2;
+  stroke-width: 1.6;
+  animation: laneTrackerPulse 1.2s ease-in-out infinite;
 }
 
 @keyframes laneTrackerChase {
@@ -2805,6 +2806,19 @@ h1 {
 
   to {
     stroke-dashoffset: 0;
+  }
+}
+
+@keyframes laneTrackerPulse {
+  0%,
+  100% {
+    opacity: 0.70;
+    stroke-width: 1.15;
+  }
+
+  50% {
+    opacity: 1;
+    stroke-width: 1.9;
   }
 }
 
