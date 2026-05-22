@@ -2412,6 +2412,38 @@ h1 {
   margin: 0;
 }
 
+.lane-results-placeholder {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed rgba(76, 201, 240, 0.22);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.26);
+  padding: 12px;
+}
+
+.lane-results-placeholder[hidden] {
+  display: none;
+}
+
+.lane-results-placeholder span {
+  color: var(--accent-2);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.lane-results-placeholder strong {
+  color: #ffffff;
+}
+
+.lane-results-placeholder p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
 @media (max-width: 520px) {
   .lane-video-panel.is-camera-unavailable {
     gap: 8px;

@@ -374,7 +374,12 @@ const projectDetails = {
             </article>
             <p id="lane-video-workflow-status">Select a recorded shot to start the analysis workflow.</p>
           </section>
-          <section class="lane-calibration-panel lane-auto-calibration" aria-label="Automatic lane calibration">
+          <section class="lane-results-placeholder" data-lane-results-placeholder aria-label="Lane analysis placeholder">
+            <span>Results Hidden</span>
+            <strong>Analysis details will appear after upload.</strong>
+            <p>Calibration, detection output, visual review, and recommendations stay collapsed until StrikeIQ analyzes the selected shot.</p>
+          </section>
+          <section class="lane-calibration-panel lane-auto-calibration" data-lane-analysis-detail hidden aria-label="Automatic lane calibration">
             <div class="lane-calibration-heading">
               <div>
                 <p class="eyebrow">Setup</p>
@@ -392,7 +397,7 @@ const projectDetails = {
               <p id="lane-calibration-summary" class="empty-state">Upload a recorded shot and StrikeIQ will detect the lane markers during analysis.</p>
             </div>
           </section>
-          <div class="lane-detection-grid">
+          <div class="lane-detection-grid" data-lane-analysis-detail hidden>
             <article>
               <span>Lane Detection</span>
               <strong>Boards, arrows, breakpoint</strong>
@@ -409,14 +414,14 @@ const projectDetails = {
               <small>Reads pocket quality, pin result, miss direction, and leaves.</small>
             </article>
           </div>
-          <div class="lane-detection-options">
+          <div class="lane-detection-options" data-lane-analysis-detail hidden>
             <label><input type="checkbox" name="detect_lane" checked> Lane boards</label>
             <label><input type="checkbox" name="detect_ball" checked> Ball path</label>
             <label><input type="checkbox" name="detect_release" checked> Release point</label>
             <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
           </div>
-          <section id="lane-output-contract" class="lane-output-contract" aria-label="Lane tracker output contract"></section>
-          <section class="lane-breakdown-panel" aria-label="Lane video visual breakdown">
+          <section id="lane-output-contract" class="lane-output-contract" data-lane-analysis-detail hidden aria-label="Lane tracker output contract"></section>
+          <section class="lane-breakdown-panel" data-lane-analysis-detail hidden aria-label="Lane video visual breakdown">
             <div class="lane-breakdown-heading">
               <div>
                 <p class="eyebrow">Visual Review</p>
@@ -1770,6 +1775,30 @@ function renderLaneOutputContract() {
   `;
 }
 
+function laneAnalysisHasResult() {
+  const form = document.querySelector("#shot-form");
+  if (!form) return false;
+  const payload = formPayload(form);
+  return Boolean(
+    payload.analysis_run_id ||
+    payload.speed_mph ||
+    payload.hook_inches ||
+    payload.boards_crossed ||
+    payload.pocket_quality
+  );
+}
+
+function setLaneAnalysisDetailsVisible(visible = laneAnalysisHasResult()) {
+  const shouldShow = Boolean(visible);
+  document.querySelectorAll("[data-lane-analysis-detail]").forEach((section) => {
+    section.hidden = !shouldShow;
+  });
+  const placeholder = document.querySelector("[data-lane-results-placeholder]");
+  if (placeholder) {
+    placeholder.hidden = shouldShow;
+  }
+}
+
 function renderLaneFreeSnapshot() {
   const container = document.querySelector("#lane-free-snapshot");
   if (!container) return;
@@ -2017,6 +2046,7 @@ function hydrateLaneTrackerForm() {
   updateLaneCalibrationSummary();
   renderLaneOutputContract();
   renderLaneBreakdownVisual();
+  setLaneAnalysisDetailsVisible(laneAnalysisHasResult());
   renderLaneTierState();
 }
 
@@ -2132,6 +2162,9 @@ function updateLaneVideoMode(mode = document.querySelector("input[name='tracking
   }
   if (state.laneVideoMode !== "live_video") {
     stopLaneLiveCamera(true);
+  }
+  if (persist) {
+    setLaneAnalysisDetailsVisible(false);
   }
   syncLaneVideoAnalyzeAvailability();
   if (persist) queueAppSettingsSave();
@@ -2358,6 +2391,7 @@ function handleLaneVideoFile(fileInput) {
   const uploadId = document.querySelector("#lane-video-upload-id");
   const file = fileInput.files?.[0];
   if (uploadId) uploadId.value = "";
+  setLaneAnalysisDetailsVisible(false);
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
     clearLaneSourceReview();
@@ -2447,6 +2481,7 @@ function applyLaneAnalysisFields(fields = {}) {
   renderLaneBreakdownVisual(fields);
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
+  setLaneAnalysisDetailsVisible(true);
   setLaneVideoWorkflow("review");
   syncLaneVideoAnalyzeAvailability({ keepReview: true });
 }
@@ -3178,6 +3213,7 @@ async function analyzeLaneVideo() {
   };
   if (status) status.textContent = file ? "Uploading selected video..." : "Creating live-mode development analysis...";
   setLaneVideoWorkflow("analyze", file ? "Uploading selected video..." : "Creating live-mode development analysis...");
+  setLaneAnalysisDetailsVisible(false);
   if (button) button.disabled = true;
   try {
     upload = await uploadLaneVideoFile(file);
