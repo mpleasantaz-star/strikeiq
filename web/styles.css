@@ -5209,7 +5209,7 @@ button:hover {
 
   .login-panel {
     align-content: center;
-    gap: clamp(8px, 1.4dvh, 14px);
+    gap: clamp(9px, 1.55dvh, 15px);
     min-height: calc(100dvh - 24px);
   }
 
@@ -5227,11 +5227,21 @@ button:hover {
   }
 
   .login-panel img {
-    width: min(82%, 230px);
+    width: min(96%, 340px);
+    margin-bottom: clamp(2px, 0.8dvh, 8px);
   }
 
   .login-panel .eyebrow {
-    font-size: 0.67rem;
+    justify-self: center;
+    width: min(100%, 340px);
+    border: 1px solid rgba(76, 201, 240, 0.18);
+    border-radius: 8px;
+    background: rgba(10, 132, 255, 0.08);
+    color: #9fe7ff;
+    font-size: clamp(0.72rem, 2.6vw, 0.92rem);
+    line-height: 1.25;
+    padding: clamp(7px, 1.1dvh, 10px) 10px;
+    text-align: center;
   }
 
   .login-panel .hero-subtitle {
