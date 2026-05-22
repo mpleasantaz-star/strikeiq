@@ -2137,8 +2137,13 @@ h1 {
 }
 
 .lane-live-help p {
+  margin: 0;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.lane-live-help button {
+  width: fit-content;
 }
 
 .lane-calibration-panel {

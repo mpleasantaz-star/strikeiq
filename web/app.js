@@ -351,7 +351,8 @@ const projectDetails = {
               <p id="lane-live-status" class="empty-state">Camera is off.</p>
               <div id="lane-live-help" class="lane-live-help" hidden>
                 <strong>Camera access is blocked for this browser.</strong>
-                <p>Open site settings for this page, set Camera to Allow, then reload StrikeIQ and press Start Camera again.</p>
+                <p id="lane-live-help-copy">Open site settings for this page, set Camera to Allow, then reload StrikeIQ and press Start Camera again.</p>
+                <button type="button" class="secondary-button" data-lane-recorded-fallback>Use Recorded Video</button>
               </div>
             </div>
           </div>
@@ -2018,13 +2019,18 @@ async function startLaneLiveCamera() {
   const video = document.querySelector("#lane-live-video");
   const placeholder = document.querySelector("#lane-live-placeholder");
   if (!video) return;
-  const permission = await cameraPermissionState();
-  if (permission === "denied") {
-    setLaneLiveStatus("Camera is blocked for this site. Allow Camera in browser site settings, reload StrikeIQ, then try again.", true);
+  const supportBlock = cameraSupportBlock();
+  if (supportBlock) {
+    setLaneLiveStatus(supportBlock.status, true, supportBlock.help);
     return;
   }
-  if (!navigator.mediaDevices?.getUserMedia) {
-    setLaneLiveStatus("Camera preview is not available in this browser. Use recorded upload for now.", true);
+  const permission = await cameraPermissionState();
+  if (permission === "denied") {
+    setLaneLiveStatus(
+      "Camera is blocked for this site.",
+      true,
+      "Allow Camera in Safari or browser site settings, reload StrikeIQ, then try again. On iPhone, live camera also requires HTTPS or a native Expo camera build."
+    );
     return;
   }
   stopLaneLiveCamera(true);
@@ -2050,11 +2056,9 @@ async function startLaneLiveCamera() {
     if (placeholder) placeholder.classList.add("is-hidden");
     setLaneLiveStatus("Live preview active. Keep the lane markers visible before analysis.");
   } catch (error) {
-    const message = error?.name === "NotAllowedError"
-      ? "Camera permission was blocked. Allow Camera in browser site settings, reload StrikeIQ, then try again."
-      : "Camera could not start. Use recorded video upload if this device blocks live preview.";
+    const guidance = cameraErrorGuidance(error);
     window.clearTimeout(permissionTimer);
-    setLaneLiveStatus(message, true);
+    setLaneLiveStatus(guidance.status, true, guidance.help);
   }
 }
 
@@ -2084,12 +2088,67 @@ async function cameraPermissionState() {
   }
 }
 
-function setLaneLiveStatus(message, showHelp = false) {
+function isLocalBrowserHost() {
+  return ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+}
+
+function isIosBrowser() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function cameraSupportBlock() {
+  if (!window.isSecureContext && !isLocalBrowserHost()) {
+    const deviceName = isIosBrowser() ? "iPhone/iPad" : "this device";
+    return {
+      status: "Live camera is blocked because StrikeIQ is not running over HTTPS.",
+      help: `${deviceName} blocks browser camera access from regular HTTP addresses. Use Recorded Video for now, or run StrikeIQ through HTTPS / an Expo native camera build before testing live capture.`,
+    };
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return {
+      status: "Camera preview is not available in this browser.",
+      help: "Use Recorded Video for now. Live camera on iPhone should be implemented through Expo Camera or tested from a secure HTTPS page.",
+    };
+  }
+  return null;
+}
+
+function cameraErrorGuidance(error) {
+  const supportBlock = cameraSupportBlock();
+  if (supportBlock) return supportBlock;
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+    return {
+      status: "Camera permission was blocked.",
+      help: "Allow Camera in Safari or browser site settings, reload StrikeIQ, then try again. If this is iPhone over a local HTTP address, use Recorded Video until the app is running through HTTPS or Expo Camera.",
+    };
+  }
+  if (error?.name === "NotFoundError" || error?.name === "OverconstrainedError") {
+    return {
+      status: "No compatible camera was found.",
+      help: "Check that the device has an available camera and that another app is not using it. You can still use Recorded Video upload.",
+    };
+  }
+  if (error?.name === "NotReadableError") {
+    return {
+      status: "The camera is already in use or unavailable.",
+      help: "Close other camera apps, reload StrikeIQ, and try again. Recorded Video remains available.",
+    };
+  }
+  return {
+    status: "Camera could not start on this device.",
+    help: "Use Recorded Video upload for now. Live camera should move to Expo Camera or a secure HTTPS browser session for iPhone testing.",
+  };
+}
+
+function setLaneLiveStatus(message, showHelp = false, helpMessage = "") {
   const status = document.querySelector("#lane-live-status");
   const mainStatus = document.querySelector("#lane-video-status");
   const help = document.querySelector("#lane-live-help");
+  const helpCopy = document.querySelector("#lane-live-help-copy");
   if (status) status.textContent = message;
   if (mainStatus) mainStatus.textContent = message;
+  if (helpCopy && helpMessage) helpCopy.textContent = helpMessage;
   if (help) help.hidden = !showHelp;
 }
 
@@ -5678,6 +5737,11 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-live-stop]")) {
       stopLaneLiveCamera();
+      return;
+    }
+
+    if (event.target.closest("[data-lane-recorded-fallback]")) {
+      updateLaneVideoMode("recorded_video", true);
       return;
     }
 
