@@ -2191,6 +2191,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <div class="lane-3d-backstop"></div>
               <div class="lane-3d-pin-deck"></div>
               <div class="lane-3d-oil"></div>
+              <div class="lane-3d-approach"></div>
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -2263,6 +2264,7 @@ function renderLaneBreakdownVisual(fields = null) {
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-surface"></rect>
         <rect x="24" y="0.5" width="112" height="72" class="lane-breakdown-pin-deck"></rect>
         <rect x="24" y="72" width="112" height="148" class="lane-breakdown-oil"></rect>
+        <rect x="24" y="${laneScale.foulY}" width="112" height="${300 - laneScale.foulY}" class="lane-breakdown-approach"></rect>
         <rect x="24" y="0.5" width="112" height="299" class="lane-breakdown-lane-shine"></rect>
         ${laneBoards.map((x) => `<line x1="${x}" y1="0" x2="${x}" y2="300" class="lane-breakdown-board"></line>`).join("")}
         <line x1="24" y1="${laneScale.foulY}" x2="136" y2="${laneScale.foulY}" class="lane-breakdown-reference lane-breakdown-foul"></line>
@@ -2270,6 +2272,7 @@ function renderLaneBreakdownVisual(fields = null) {
         <line x1="24" y1="${laneScale.headPinY}" x2="136" y2="${laneScale.headPinY}" class="lane-breakdown-reference"></line>
         <line x1="24" y1="${laneScale.pinDeckY}" x2="136" y2="${laneScale.pinDeckY}" class="lane-breakdown-reference lane-breakdown-pin-deck-line"></line>
         <text x="9" y="${laneScale.foulY - 3}" class="lane-breakdown-zone">Foul</text>
+        <text x="7" y="${laneScale.foulY + 17}" class="lane-breakdown-zone">Approach</text>
         <text x="7" y="${laneScale.arrowsY - 3}" class="lane-breakdown-zone">15 ft</text>
         <text x="7" y="${laneScale.headPinY - 3}" class="lane-breakdown-zone">60 ft</text>
         <text x="8" y="${laneScale.pinDeckY - 3}" class="lane-breakdown-zone">Deck</text>
