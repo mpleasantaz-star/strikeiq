@@ -2145,6 +2145,49 @@ h1 {
   width: fit-content;
 }
 
+@media (max-width: 520px) {
+  .lane-live-camera-shell {
+    min-height: 150px;
+  }
+
+  #lane-live-video {
+    min-height: 150px;
+  }
+
+  #lane-live-placeholder {
+    gap: 5px;
+    padding: 14px;
+  }
+
+  #lane-live-placeholder small {
+    max-width: 220px;
+    line-height: 1.3;
+  }
+
+  .lane-live-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .lane-live-help {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .lane-live-help strong {
+    font-size: 0.94rem;
+  }
+
+  .lane-live-help p {
+    font-size: 0.9rem;
+    line-height: 1.32;
+  }
+
+  .lane-live-help button {
+    width: 100%;
+  }
+}
+
 .lane-calibration-panel {
   display: grid;
   gap: 10px;

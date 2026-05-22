@@ -2112,16 +2112,16 @@ function isIosBrowser() {
 
 function cameraSupportBlock() {
   if (!window.isSecureContext && !isLocalBrowserHost()) {
-    const deviceName = isIosBrowser() ? "iPhone/iPad" : "this device";
+    const deviceName = isIosBrowser() ? "iPhone/iPad" : "This device";
     return {
-      status: "Live camera requires HTTPS or Expo Camera on this device.",
-      help: `${deviceName} blocks browser camera access from regular HTTP addresses. Use Recorded Video for now. Live capture can be tested after StrikeIQ runs through HTTPS or an Expo native camera build.`,
+      status: "Live camera needs HTTPS or Expo Camera.",
+      help: `${deviceName} blocks camera on HTTP. Use Recorded Video for now.`,
     };
   }
   if (!navigator.mediaDevices?.getUserMedia) {
     return {
       status: "Camera preview is not available in this browser.",
-      help: "Use Recorded Video for now. Live camera on iPhone should be implemented through Expo Camera or tested from a secure HTTPS page.",
+      help: "Use Recorded Video for now. Live camera needs HTTPS or Expo Camera.",
     };
   }
   return null;
@@ -2182,6 +2182,7 @@ function syncLaneLiveAvailability(supportBlock = null) {
   }
   if (stopButton) {
     stopButton.disabled = unavailable;
+    stopButton.hidden = unavailable;
     stopButton.classList.toggle("is-unavailable", unavailable);
     stopButton.setAttribute("aria-disabled", unavailable ? "true" : "false");
   }
