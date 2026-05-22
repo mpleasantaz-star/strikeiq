@@ -2030,6 +2030,23 @@ function movementBoardText(value) {
   return Number.isFinite(value) ? `B${Math.round(value * 10) / 10}` : "Pending";
 }
 
+function laneSmoothMotionPath(markers) {
+  const [release, arrows, breakpoint, entry] = markers;
+  const curve = (from, to, firstXRatio, secondXRatio, firstYOffset, secondYOffset) => {
+    const dx = to.x - from.x;
+    const c1x = from.x + dx * firstXRatio;
+    const c2x = from.x + dx * secondXRatio;
+    return `C ${c1x} ${from.y + firstYOffset}, ${c2x} ${to.y + secondYOffset}, ${to.x} ${to.y}`;
+  };
+
+  return [
+    `M ${release.x} ${release.y}`,
+    curve(release, arrows, 0.18, 0.72, -18, 26),
+    curve(arrows, breakpoint, 0.22, 0.82, -18, 34),
+    curve(breakpoint, entry, 0.20, 0.86, -26, 24),
+  ].join(" ");
+}
+
 function laneIdealMovementModel(values) {
   const handedness = state.profile?.handedness || state.handedness || "right";
   const isLeft = handedness === "left";
@@ -2127,9 +2144,9 @@ function renderLaneBreakdownVisual(fields = null) {
   const form = document.querySelector("#shot-form");
   const calibration = laneCalibrationData();
   const sourceFields = fields || (form ? formPayload(form) : {});
-  const releaseBoard = laneBoardValue(laneVisualValue(sourceFields, "release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 18);
-  const arrowsBoard = laneBoardValue(laneVisualValue(sourceFields, "arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 12);
-  const breakpointBoard = laneBoardValue(laneVisualValue(sourceFields, "breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 8);
+  const releaseBoard = laneBoardValue(laneVisualValue(sourceFields, "release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 17);
+  const arrowsBoard = laneBoardValue(laneVisualValue(sourceFields, "arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
+  const breakpointBoard = laneBoardValue(laneVisualValue(sourceFields, "breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
   const entryBoard = laneBoardValue(laneVisualValue(sourceFields, "entry_board"), 17.5);
   const hasAnalysis = Boolean(
     laneVisualValue(sourceFields, "analysis_run_id") ||
@@ -2151,8 +2168,7 @@ function renderLaneBreakdownVisual(fields = null) {
     { label: "Breakpoint", board: breakpointBoard, y: 112, className: "breakpoint" },
     { label: "Entry", board: entryBoard, y: laneScale.headPinY, className: "entry" },
   ].map((marker) => ({ ...marker, x: laneBoardPercent(marker.board) }));
-  const pointList = markers.map((marker) => `${marker.x},${marker.y}`).join(" ");
-  const motionPath = `M ${markers[0].x} ${markers[0].y} C ${markers[0].x} ${markers[0].y - 22}, ${markers[1].x} ${markers[1].y + 18}, ${markers[1].x} ${markers[1].y} S ${markers[2].x} ${markers[2].y + 24}, ${markers[2].x} ${markers[2].y} S ${markers[3].x} ${markers[3].y + 24}, ${markers[3].x} ${markers[3].y}`;
+  const motionPath = laneSmoothMotionPath(markers);
   const laneBoards = Array.from({ length: 11 }, (_, index) => 24 + index * 11.2);
   const pinRack = [
     { pin: 7, x: 38, y: 12, scale: 0.92 },
