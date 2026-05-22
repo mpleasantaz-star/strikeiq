@@ -15,6 +15,16 @@ const state = {
   selectedSlug: null,
   laneVisual: null,
   laneLiveStream: null,
+  laneVideoMode: "recorded_video",
+  laneDetection: { lane_boards: true, ball_path: true, release_point: true, pin_result: true },
+  laneCalibration: {
+    camera_angle: "behind_bowler",
+    release_board_hint: "",
+    target_board_hint: "",
+    breakpoint_board_hint: "",
+    markers: { foul_line: true, arrows: true, lane_edges: true, pin_deck: true },
+    readiness: 100,
+  },
   laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1, tilt: 58 },
   laneBreakdownDrag: null,
   handedness: "right",
@@ -111,17 +121,19 @@ const storageKeys = {
   accountEmail: "strikeiq.accountEmail",
   profile: "strikeiq.profile",
   subscriptionTier: "strikeiq.subscriptionTier",
+  appSettings: "strikeiq.appSettings",
 };
 
 const proProjects = new Set(["sync"]);
 const homeWorkspaceCount = 5;
 const maxLaneVideoUploadBytes = 500 * 1024 * 1024;
 const chatChannels = [
-  ["# general", "Main discussion for the community"],
+  ["# general", "Community updates, sessions, and quick check-ins"],
   ["# lane-talk", "Moves, transition, and shape changes"],
+  ["# scores", "Scores, milestones, and league recaps"],
   ["# arsenal-help", "What ball to throw and when"],
   ["# video-feedback", "Post clips and request feedback"],
-  ["# my-sessions", "Your saved shot history"],
+  ["# match-room", "Find practice partners and local brackets"],
 ];
 const spareFrameLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "10a", "10b"];
 const spareBoards = Array.from({ length: 41 }, (_, index) => String(index));
@@ -540,34 +552,50 @@ const projectDetails = {
     `,
   },
   chat: {
-    eyebrow: "Friends",
+    eyebrow: "StrikeIQ Social",
     title: "Friends",
-    description: "Chat with friends, post video feedback, and keep AI coaching nearby.",
+    description: "A bowling-first social feed for posts, score drops, video feedback, comments, and AI coaching.",
     content: `
       <div class="chat-workspace">
         <aside class="chat-sidebar">
-          <strong>Friends</strong>
-          <p>Bowling chat, video feedback, coaching, and lane talk.</p>
+          <strong>StrikeIQ Social</strong>
+          <p>Follow lane talk, score drops, arsenal advice, and video feedback in one bowling-focused network.</p>
+          <div id="social-profile-card" class="social-profile-card"></div>
+          <div id="social-stats" class="social-stats"></div>
           <div id="chat-channel-list" class="chat-channel-list"></div>
         </aside>
         <section class="chat-feed">
           <div class="chat-section-heading">
             <div>
-              <p class="eyebrow">Video Feedback</p>
+              <p class="eyebrow">Live Feed</p>
               <h3 id="active-channel-title"># video-feedback</h3>
             </div>
           </div>
           <form id="community-post-form" class="note-form project-form">
             <div class="form-row">
               <label>Channel<select name="channel" id="community-channel"></select></label>
-              <label>Video title<input name="title" placeholder="League shot 1" required></label>
+              <label>Post type
+                <select name="post_type" id="community-post-type">
+                  <option value="update">Update</option>
+                  <option value="video">Video feedback</option>
+                  <option value="score">Score drop</option>
+                  <option value="question">Question</option>
+                  <option value="gear">Gear check</option>
+                </select>
+              </label>
             </div>
+            <div class="form-row">
+              <label>Title<input name="title" placeholder="League night recap" required></label>
+              <label>Score / stat<input name="score" placeholder="236 game, 612 set, 82% spares"></label>
+            </div>
+            <label>Post<textarea name="body" placeholder="Share what happened, what you learned, or what help you want."></textarea></label>
             <div class="form-row">
               <label>Shot type<input name="shot_type" placeholder="League / Practice / Tournament / Spare"></label>
               <label>Video link<input name="video_url" placeholder="Paste YouTube, Drive, or Hudl link"></label>
             </div>
-            <label>Feedback request<textarea name="feedback_request" placeholder="What feedback do you want?"></textarea></label>
-            <button type="submit">Post Video Feedback</button>
+            <label>Feedback request<textarea name="feedback_request" placeholder="Ask for a read, release note, ball change idea, or spare plan."></textarea></label>
+            <label>Tags<input name="tags" placeholder="league, transition, 10-pin"></label>
+            <button type="submit">Publish Post</button>
             <p id="community-post-status" class="empty-state"></p>
           </form>
           <div id="community-feed" class="community-feed"></div>
@@ -581,6 +609,11 @@ const projectDetails = {
             <p id="coach-status" class="empty-state"></p>
           </form>
           <div id="chat-list" class="project-list"></div>
+          <div class="suggested-friends">
+            <p class="eyebrow">Suggested</p>
+            <strong>Practice Circle</strong>
+            <span>League teammates, local bowlers, and coaches will appear here when account discovery is connected.</span>
+          </div>
         </aside>
       </div>
     `,
@@ -639,6 +672,221 @@ function savedProfile() {
 
 function savedSubscriptionTier() {
   return window.localStorage.getItem(storageKeys.subscriptionTier) === "pro" ? "pro" : "free";
+}
+
+function defaultLaneDetection() {
+  return { lane_boards: true, ball_path: true, release_point: true, pin_result: true };
+}
+
+function defaultLaneCalibration() {
+  return {
+    camera_angle: "behind_bowler",
+    release_board_hint: "",
+    target_board_hint: "",
+    breakpoint_board_hint: "",
+    markers: { foul_line: true, arrows: true, lane_edges: true, pin_deck: true },
+    readiness: 100,
+  };
+}
+
+function defaultUiSettings() {
+  return {
+    project: "hub",
+    chatChannel: "# video-feedback",
+    handedness: "right",
+    targetPath: null,
+    ballFilters: { search: "", condition: "all", cover: "all" },
+    laneVideoMode: "recorded_video",
+    laneDetection: defaultLaneDetection(),
+    laneCalibration: defaultLaneCalibration(),
+    laneBreakdownView: { mode: "3d", rotation: 0, zoom: 1, tilt: 58 },
+    spareSession: null,
+  };
+}
+
+function cleanTargetPath(value) {
+  if (!value || typeof value !== "object") return null;
+  return {
+    releaseBoard: clamp(Number(value.releaseBoard) || 18, 1, 40),
+    arrowsBoard: clamp(Number(value.arrowsBoard) || 12, 1, 40),
+    breakpointBoard: clamp(Number(value.breakpointBoard) || 8, 1, 40),
+  };
+}
+
+function cleanLaneBreakdownView(value) {
+  const view = value && typeof value === "object" ? value : {};
+  return {
+    mode: view.mode === "2d" ? "2d" : "3d",
+    rotation: Number(view.rotation) || 0,
+    zoom: clamp(Number(view.zoom) || 1, 0.75, 1.65),
+    tilt: clamp(Number(view.tilt) || 58, 38, 70),
+  };
+}
+
+function cleanLaneCalibration(value) {
+  const defaults = defaultLaneCalibration();
+  const source = value && typeof value === "object" ? value : {};
+  const markers = source.markers && typeof source.markers === "object" ? source.markers : {};
+  const cleanMarkers = {
+    foul_line: markers.foul_line !== false,
+    arrows: markers.arrows !== false,
+    lane_edges: markers.lane_edges !== false,
+    pin_deck: markers.pin_deck !== false,
+  };
+  const visibleCount = Object.values(cleanMarkers).filter(Boolean).length;
+  return {
+    ...defaults,
+    camera_angle: String(source.camera_angle || defaults.camera_angle),
+    release_board_hint: String(source.release_board_hint || "").trim(),
+    target_board_hint: String(source.target_board_hint || "").trim(),
+    breakpoint_board_hint: String(source.breakpoint_board_hint || "").trim(),
+    markers: cleanMarkers,
+    readiness: Math.round((visibleCount / Object.keys(cleanMarkers).length) * 100),
+  };
+}
+
+function cleanUiSettings(value = {}) {
+  const defaults = defaultUiSettings();
+  const source = value && typeof value === "object" ? value : {};
+  const filters = source.ballFilters && typeof source.ballFilters === "object" ? source.ballFilters : {};
+  const detection = source.laneDetection && typeof source.laneDetection === "object" ? source.laneDetection : {};
+  return {
+    ...defaults,
+    project: projectDetails[source.project] || source.project === "patterns" ? source.project : defaults.project,
+    chatChannel: chatChannels.some(([channel]) => channel === source.chatChannel) ? source.chatChannel : defaults.chatChannel,
+    handedness: source.handedness === "left" ? "left" : "right",
+    targetPath: cleanTargetPath(source.targetPath),
+    ballFilters: {
+      search: String(filters.search || ""),
+      condition: String(filters.condition || "all"),
+      cover: String(filters.cover || "all"),
+    },
+    laneVideoMode: source.laneVideoMode === "live_video" ? "live_video" : "recorded_video",
+    laneDetection: {
+      lane_boards: detection.lane_boards !== false,
+      ball_path: detection.ball_path !== false,
+      release_point: detection.release_point !== false,
+      pin_result: detection.pin_result !== false,
+    },
+    laneCalibration: cleanLaneCalibration(source.laneCalibration),
+    laneBreakdownView: cleanLaneBreakdownView(source.laneBreakdownView),
+    spareSession: source.spareSession ? normalizeSpareSession(source.spareSession) : null,
+  };
+}
+
+function cleanAppSettings(value = {}) {
+  const source = value && typeof value === "object" ? value : {};
+  return {
+    accountEmail: String(source.accountEmail || "").trim().toLowerCase(),
+    profile: source.profile && typeof source.profile === "object" ? source.profile : null,
+    subscriptionTier: source.subscriptionTier === "pro" ? "pro" : "free",
+    ui: cleanUiSettings(source.ui),
+  };
+}
+
+function savedAppSettings() {
+  let stored = {};
+  try {
+    stored = JSON.parse(window.localStorage.getItem(storageKeys.appSettings) || "{}");
+  } catch {
+    stored = {};
+  }
+  const fallback = cleanAppSettings({
+    accountEmail: window.localStorage.getItem(storageKeys.accountEmail) || "",
+    profile: savedProfile(),
+    subscriptionTier: savedSubscriptionTier(),
+    ui: defaultUiSettings(),
+  });
+  return cleanAppSettings({
+    ...fallback,
+    ...stored,
+    accountEmail: stored.accountEmail || fallback.accountEmail,
+    profile: stored.profile || fallback.profile,
+    subscriptionTier: stored.subscriptionTier || fallback.subscriptionTier,
+    ui: { ...fallback.ui, ...(stored.ui || {}) },
+  });
+}
+
+function mirrorAppSettings(settings) {
+  window.localStorage.setItem(storageKeys.appSettings, JSON.stringify(settings));
+  if (settings.accountEmail) {
+    window.localStorage.setItem(storageKeys.accountEmail, settings.accountEmail);
+  }
+  if (settings.profile) {
+    window.localStorage.setItem(storageKeys.profile, JSON.stringify(settings.profile));
+  } else {
+    window.localStorage.removeItem(storageKeys.profile);
+  }
+  window.localStorage.setItem(storageKeys.subscriptionTier, settings.subscriptionTier);
+}
+
+function applyAppSettings(settings) {
+  const cleanSettings = cleanAppSettings(settings);
+  state.userName = cleanSettings.accountEmail;
+  state.profile = cleanSettings.profile;
+  state.subscriptionTier = cleanSettings.subscriptionTier;
+  state.project = cleanSettings.ui.project;
+  state.chatChannel = cleanSettings.ui.chatChannel;
+  state.handedness = cleanSettings.ui.handedness;
+  state.targetPath = cleanSettings.ui.targetPath;
+  state.ballFilters = cleanSettings.ui.ballFilters;
+  state.laneVideoMode = cleanSettings.ui.laneVideoMode;
+  state.laneDetection = cleanSettings.ui.laneDetection;
+  state.laneCalibration = cleanSettings.ui.laneCalibration;
+  state.laneBreakdownView = cleanSettings.ui.laneBreakdownView;
+  state.spareSession = cleanSettings.ui.spareSession;
+  mirrorAppSettings(cleanSettings);
+}
+
+function currentAppSettings() {
+  return cleanAppSettings({
+    accountEmail: state.userName || window.localStorage.getItem(storageKeys.accountEmail) || "",
+    profile: state.profile || savedProfile(),
+    subscriptionTier: state.subscriptionTier,
+    ui: {
+      project: state.project,
+      chatChannel: state.chatChannel,
+      handedness: state.handedness,
+      targetPath: state.targetPath,
+      ballFilters: state.ballFilters,
+      laneVideoMode: state.laneVideoMode,
+      laneDetection: state.laneDetection,
+      laneCalibration: state.laneCalibration,
+      laneBreakdownView: state.laneBreakdownView,
+      spareSession: state.spareSession,
+    },
+  });
+}
+
+async function loadAppSettings() {
+  const localSettings = savedAppSettings();
+  try {
+    const record = await api("/api/app-settings");
+    applyAppSettings(record.updated_at ? record.payload : localSettings);
+    if (!record.updated_at && localSettings.accountEmail) {
+      queueAppSettingsSave();
+    }
+  } catch {
+    applyAppSettings(localSettings);
+  }
+}
+
+let appSettingsSaveTimer = 0;
+
+async function persistAppSettingsNow() {
+  const settings = currentAppSettings();
+  mirrorAppSettings(settings);
+  await api("/api/app-settings", {
+    method: "POST",
+    body: JSON.stringify({ settings }),
+  });
+}
+
+function queueAppSettingsSave() {
+  window.clearTimeout(appSettingsSaveTimer);
+  appSettingsSaveTimer = window.setTimeout(() => {
+    persistAppSettingsNow().catch(() => {});
+  }, 350);
 }
 
 function milesBetween(lat1, lon1, lat2, lon2) {
@@ -845,6 +1093,7 @@ function projectRequiresPro(project) {
 function setSubscriptionTier(tier) {
   state.subscriptionTier = tier === "pro" ? "pro" : "free";
   window.localStorage.setItem(storageKeys.subscriptionTier, state.subscriptionTier);
+  queueAppSettingsSave();
   renderAccessState();
   renderHomeDashboard();
   if (!elements.profileScreen.classList.contains("is-hidden")) {
@@ -948,15 +1197,15 @@ function showAppShell() {
   elements.appShell.classList.remove("is-hidden");
   renderAccessState();
   renderHomeDashboard();
-  setProject("hub");
+  setProject(state.project || "hub", false);
 }
 
 function requireLogin() {
-  const savedEmail = window.localStorage.getItem(storageKeys.accountEmail);
+  const savedEmail = state.userName || window.localStorage.getItem(storageKeys.accountEmail);
   if (savedEmail) {
     state.userName = savedEmail;
-    state.profile = savedProfile();
-    state.subscriptionTier = savedSubscriptionTier();
+    state.profile = state.profile || savedProfile();
+    state.subscriptionTier = state.subscriptionTier || savedSubscriptionTier();
     showAppShell();
   } else {
     showLoginScreen();
@@ -1012,6 +1261,7 @@ function handleLogin(event) {
 
   if (creatingAccount && savedEmail && savedEmail !== email) {
     window.localStorage.removeItem(storageKeys.profile);
+    state.profile = null;
   }
 
   window.localStorage.setItem(storageKeys.accountEmail, email);
@@ -1021,7 +1271,8 @@ function handleLogin(event) {
     window.localStorage.setItem(storageKeys.subscriptionTier, "free");
   }
   elements.loginError.textContent = "";
-  state.profile = savedProfile();
+  state.profile = creatingAccount ? null : (state.profile || savedProfile());
+  queueAppSettingsSave();
   if (creatingAccount) {
     showProfileScreen();
   } else {
@@ -1071,6 +1322,7 @@ function handleProfileSubmit(event) {
   state.profile = profile;
   state.handedness = profile.handedness === "left" ? "left" : "right";
   window.localStorage.setItem(storageKeys.profile, JSON.stringify(profile));
+  queueAppSettingsSave();
   renderHomeDashboard();
   showAppShell();
 }
@@ -1083,7 +1335,7 @@ function handleLogout() {
   setAuthMode("login");
 }
 
-function setProject(project) {
+function setProject(project, persist = true) {
   state.project = project;
   elements.projectHub.classList.toggle("is-hidden", project !== "hub");
   elements.patternWorkspace.classList.toggle("is-hidden", project !== "patterns");
@@ -1094,12 +1346,14 @@ function setProject(project) {
   });
 
   if (project === "patterns") {
+    if (persist) queueAppSettingsSave();
     return;
   }
 
   if (project !== "hub") {
     renderToolProject(project);
   }
+  if (persist) queueAppSettingsSave();
 }
 
 function selectedPatternSummary() {
@@ -1347,17 +1601,27 @@ async function hydrateToolProject(project) {
 
   if (project === "balls") {
     await loadBalls();
-    document.querySelector("#ball-search")?.addEventListener("input", (event) => {
+    const searchInput = document.querySelector("#ball-search");
+    const conditionFilter = document.querySelector("#ball-condition-filter");
+    const coverFilter = document.querySelector("#ball-cover-filter");
+    if (searchInput) searchInput.value = state.ballFilters.search;
+    if (conditionFilter) conditionFilter.value = state.ballFilters.condition;
+    if (coverFilter) coverFilter.value = state.ballFilters.cover;
+    renderBallDatabase();
+    searchInput?.addEventListener("input", (event) => {
       state.ballFilters.search = event.target.value;
       renderBallDatabase();
+      queueAppSettingsSave();
     });
-    document.querySelector("#ball-condition-filter")?.addEventListener("change", (event) => {
+    conditionFilter?.addEventListener("change", (event) => {
       state.ballFilters.condition = event.target.value;
       renderBallDatabase();
+      queueAppSettingsSave();
     });
-    document.querySelector("#ball-cover-filter")?.addEventListener("change", (event) => {
+    coverFilter?.addEventListener("change", (event) => {
       state.ballFilters.cover = event.target.value;
       renderBallDatabase();
+      queueAppSettingsSave();
     });
   } else if (project === "spares") {
     await loadSpares();
@@ -1411,10 +1675,56 @@ function hydrateLaneTrackerForm() {
     ballSelect.value = options.includes(currentValue) ? currentValue : arsenalItems[0] || "";
   }
   renderLaneTrackerContext();
-  updateLaneVideoMode();
+  hydrateLaneSettingsControls();
+  updateLaneVideoMode(state.laneVideoMode);
   updateLaneCalibrationSummary();
   renderLaneBreakdownVisual();
   renderLaneTierState();
+}
+
+function hydrateLaneSettingsControls() {
+  const calibration = cleanLaneCalibration(state.laneCalibration);
+  const detection = { ...defaultLaneDetection(), ...(state.laneDetection || {}) };
+  state.laneCalibration = calibration;
+  state.laneDetection = detection;
+
+  document.querySelectorAll("input[name='tracking_mode_choice']").forEach((input) => {
+    input.checked = input.value === state.laneVideoMode;
+  });
+  const trackingMode = document.querySelector("#lane-tracking-mode");
+  if (trackingMode) trackingMode.value = state.laneVideoMode;
+
+  const cameraAngle = document.querySelector("#lane-camera-angle");
+  if (cameraAngle) cameraAngle.value = calibration.camera_angle;
+  const calibrationFields = [
+    ["#lane-calibration-release", calibration.release_board_hint],
+    ["#lane-calibration-target", calibration.target_board_hint],
+    ["#lane-calibration-breakpoint", calibration.breakpoint_board_hint],
+  ];
+  calibrationFields.forEach(([selector, value]) => {
+    const input = document.querySelector(selector);
+    if (input) input.value = value;
+  });
+  const markerFields = [
+    ["#lane-calibration-foul", calibration.markers.foul_line],
+    ["#lane-calibration-arrows", calibration.markers.arrows],
+    ["#lane-calibration-edges", calibration.markers.lane_edges],
+    ["#lane-calibration-pins", calibration.markers.pin_deck],
+  ];
+  markerFields.forEach(([selector, checked]) => {
+    const input = document.querySelector(selector);
+    if (input) input.checked = checked;
+  });
+  const detectionFields = [
+    ["input[name='detect_lane']", detection.lane_boards],
+    ["input[name='detect_ball']", detection.ball_path],
+    ["input[name='detect_release']", detection.release_point],
+    ["input[name='detect_pins']", detection.pin_result],
+  ];
+  detectionFields.forEach(([selector, checked]) => {
+    const input = document.querySelector(selector);
+    if (input) input.checked = checked;
+  });
 }
 
 function renderLaneTrackerContext() {
@@ -1447,30 +1757,32 @@ function renderLaneTrackerContext() {
   `;
 }
 
-function updateLaneVideoMode(mode = document.querySelector("input[name='tracking_mode_choice']:checked")?.value || "recorded_video") {
+function updateLaneVideoMode(mode = document.querySelector("input[name='tracking_mode_choice']:checked")?.value || state.laneVideoMode || "recorded_video", persist = false) {
+  state.laneVideoMode = mode === "live_video" ? "live_video" : "recorded_video";
   const trackingMode = document.querySelector("#lane-tracking-mode");
   const modeLabel = document.querySelector("#lane-video-mode-label");
   const status = document.querySelector("#lane-video-status");
-  if (trackingMode) trackingMode.value = mode;
+  if (trackingMode) trackingMode.value = state.laneVideoMode;
   document.querySelectorAll("input[name='tracking_mode_choice']").forEach((input) => {
-    input.checked = input.value === mode;
+    input.checked = input.value === state.laneVideoMode;
   });
-  if (modeLabel) modeLabel.textContent = mode === "live_video" ? "Live Camera" : "Recorded Video";
+  if (modeLabel) modeLabel.textContent = state.laneVideoMode === "live_video" ? "Live Camera" : "Recorded Video";
   document.querySelectorAll("[data-lane-video-panel]").forEach((panel) => {
-    panel.classList.toggle("is-active", panel.dataset.laneVideoPanel === mode);
+    panel.classList.toggle("is-active", panel.dataset.laneVideoPanel === state.laneVideoMode);
   });
   if (status) {
-    status.textContent = mode === "live_video"
+    status.textContent = state.laneVideoMode === "live_video"
       ? "Live camera mode selected. Tap Start Camera to preview the lane, or Upload And Analyze Video to create a development analysis."
       : "Recorded video mode selected. Choose a clip, then run backend analysis.";
   }
-  if (mode !== "live_video") {
+  if (state.laneVideoMode !== "live_video") {
     stopLaneLiveCamera(true);
   }
+  if (persist) queueAppSettingsSave();
 }
 
 async function startLaneLiveCamera() {
-  updateLaneVideoMode("live_video");
+  updateLaneVideoMode("live_video", true);
   const video = document.querySelector("#lane-live-video");
   const placeholder = document.querySelector("#lane-live-placeholder");
   if (!video) return;
@@ -1683,6 +1995,7 @@ function laneIdealMovementModel(values) {
     phaseItems,
   };
 }
+
 function lanePinSvg(pinNumber) {
   const pinId = `lane-pin-${pinNumber}`;
   return `
@@ -1967,18 +2280,25 @@ function updateLaneBreakdownView(updates = {}) {
     tilt: clamp(Number.isFinite(updates.tilt) ? updates.tilt : Number(current.tilt) || 58, 38, 70),
   };
   renderLaneBreakdownVisual();
+  queueAppSettingsSave();
 }
 
 function laneDetectionOptions() {
-  return {
-    lane_boards: Boolean(document.querySelector("input[name='detect_lane']")?.checked),
+  const laneInput = document.querySelector("input[name='detect_lane']");
+  if (!laneInput) return { ...defaultLaneDetection(), ...(state.laneDetection || {}) };
+  state.laneDetection = {
+    lane_boards: Boolean(laneInput.checked),
     ball_path: Boolean(document.querySelector("input[name='detect_ball']")?.checked),
     release_point: Boolean(document.querySelector("input[name='detect_release']")?.checked),
     pin_result: Boolean(document.querySelector("input[name='detect_pins']")?.checked),
   };
+  return state.laneDetection;
 }
 
 function laneCalibrationData() {
+  if (!document.querySelector("#lane-calibration-foul")) {
+    return cleanLaneCalibration(state.laneCalibration);
+  }
   const markers = {
     foul_line: Boolean(document.querySelector("#lane-calibration-foul")?.checked),
     arrows: Boolean(document.querySelector("#lane-calibration-arrows")?.checked),
@@ -1986,7 +2306,7 @@ function laneCalibrationData() {
     pin_deck: Boolean(document.querySelector("#lane-calibration-pins")?.checked),
   };
   const visibleCount = Object.values(markers).filter(Boolean).length;
-  return {
+  const calibration = {
     camera_angle: document.querySelector("#lane-camera-angle")?.value || "behind_bowler",
     release_board_hint: document.querySelector("#lane-calibration-release")?.value.trim() || "",
     target_board_hint: document.querySelector("#lane-calibration-target")?.value.trim() || "",
@@ -1994,6 +2314,8 @@ function laneCalibrationData() {
     markers,
     readiness: Math.round((visibleCount / Object.keys(markers).length) * 100),
   };
+  state.laneCalibration = cleanLaneCalibration(calibration);
+  return state.laneCalibration;
 }
 
 function updateLaneCalibrationSummary() {
@@ -2529,9 +2851,11 @@ function renderSpareSessionWorkspace() {
 function bindSpareSessionControls() {
   document.querySelector("#spare-session-date")?.addEventListener("input", (event) => {
     state.spareSession.session_date = event.target.value;
+    queueAppSettingsSave();
   });
   document.querySelector("#spare-session-alley")?.addEventListener("input", (event) => {
     state.spareSession.alley = event.target.value;
+    queueAppSettingsSave();
   });
   document.querySelector("#spare-session-games")?.addEventListener("input", handleSpareSessionInput);
   document.querySelector("#spare-session-games")?.addEventListener("change", handleSpareSessionInput);
@@ -2540,6 +2864,7 @@ function bindSpareSessionControls() {
     state.spareSession = defaultSpareSession();
     renderSpareSessionWorkspace();
     bindSpareSessionControls();
+    queueAppSettingsSave();
   });
 }
 
@@ -2558,6 +2883,7 @@ function handleSpareSessionInput(event) {
     row[rowField] = event.target.type === "checkbox" ? event.target.checked : event.target.value;
   }
   renderSpareSessionSummary();
+  queueAppSettingsSave();
 }
 
 async function saveSpareSession() {
@@ -2571,6 +2897,7 @@ async function saveSpareSession() {
   renderSpareSessionList();
   renderHomeDashboard();
   bindSpareSessionControls();
+  queueAppSettingsSave();
 }
 
 function renderSpareSessionList() {
@@ -2590,7 +2917,7 @@ async function loadSpares() {
   state.spares = await api("/api/spares");
   const sessions = await api("/api/spare-sessions");
   state.spareSessions = sessions.sessions || [];
-  state.spareSession = normalizeSpareSession(sessions.latest || state.spareSession);
+  state.spareSession = normalizeSpareSession(state.spareSession || sessions.latest);
   renderHomeDashboard();
   renderSpareSessionWorkspace();
   renderSpareSessionList();
@@ -2695,6 +3022,30 @@ function renderChat() {
   const channelList = document.querySelector("#chat-channel-list");
   const channelSelect = document.querySelector("#community-channel");
   const activeTitle = document.querySelector("#active-channel-title");
+  const profileCard = document.querySelector("#social-profile-card");
+  const socialStats = document.querySelector("#social-stats");
+  const visiblePosts = state.communityPosts.filter((post) => post.channel === state.chatChannel);
+  const totalComments = state.communityPosts.reduce((sum, post) => sum + Number(post.comments_count || 0), 0);
+  const totalLikes = state.communityPosts.reduce((sum, post) => sum + Number(post.likes || 0), 0);
+
+  if (profileCard) {
+    const profile = state.profile || {};
+    const displayName = displayNameForProfile(profile);
+    profileCard.innerHTML = `
+      <div class="social-avatar">${escapeHtml(displayName.slice(0, 2).toUpperCase())}</div>
+      <div>
+        <strong>${escapeHtml(displayName)}</strong>
+        <span>${escapeHtml(profile.homeCenter || "Home center not set")}</span>
+      </div>
+    `;
+  }
+  if (socialStats) {
+    socialStats.innerHTML = `
+      <article><strong>${state.communityPosts.length}</strong><span>posts</span></article>
+      <article><strong>${totalLikes}</strong><span>likes</span></article>
+      <article><strong>${totalComments}</strong><span>comments</span></article>
+    `;
+  }
   if (channelList) {
     channelList.innerHTML = chatChannels
       .map(
@@ -2702,6 +3053,7 @@ function renderChat() {
           <button type="button" class="${channel === state.chatChannel ? "is-active" : ""}" data-chat-channel="${escapeHtml(channel)}">
             <strong>${escapeHtml(channel)}</strong>
             <span>${escapeHtml(description)}</span>
+            <small>${state.communityPosts.filter((post) => post.channel === channel).length}</small>
           </button>
         `
       )
@@ -2714,7 +3066,7 @@ function renderChat() {
     channelSelect.value = state.chatChannel;
   }
   if (activeTitle) {
-    activeTitle.textContent = state.chatChannel;
+    activeTitle.textContent = `${state.chatChannel} (${visiblePosts.length})`;
   }
 
   renderCommunityPosts();
@@ -2724,6 +3076,24 @@ function renderChat() {
       <p>${escapeHtml(message.text)}</p>
     </article>
   `);
+}
+
+const socialPostTypeLabels = {
+  update: "Update",
+  video: "Video",
+  score: "Score",
+  question: "Question",
+  gear: "Gear",
+};
+
+function renderSocialTags(tags) {
+  return String(tags || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((tag) => `<span>#${escapeHtml(tag.replace(/^#/, ""))}</span>`)
+    .join("");
 }
 
 function renderCommunityPosts() {
@@ -2736,14 +3106,38 @@ function renderCommunityPosts() {
         .map(
           (post) => `
             <article class="community-post">
-              <div>
-                <span>${escapeHtml(post.user_name || "StrikeIQ member")}</span>
-                <strong>${escapeHtml(post.title || "Untitled video")}</strong>
+              <div class="community-post-header">
+                <div class="social-avatar">${escapeHtml(String(post.user_name || "SI").slice(0, 2).toUpperCase())}</div>
+                <div>
+                  <span>${escapeHtml(post.user_name || "StrikeIQ member")} · ${escapeHtml(socialPostTypeLabels[post.post_type] || "Post")}</span>
+                  <strong>${escapeHtml(post.title || "Untitled post")}</strong>
+                </div>
               </div>
+              ${post.score ? `<p class="social-score">${escapeHtml(post.score)}</p>` : ""}
+              ${post.body ? `<p>${escapeHtml(post.body)}</p>` : ""}
               ${post.shot_type ? `<p class="community-meta">Shot type: ${escapeHtml(post.shot_type)}</p>` : ""}
               ${post.feedback_request ? `<p>${escapeHtml(post.feedback_request)}</p>` : ""}
               ${post.video_url ? `<a href="${escapeHtml(post.video_url)}" target="_blank" rel="noopener">Open Video</a>` : ""}
               ${post.video_name && !post.video_url ? `<small>${escapeHtml(post.video_name)}</small>` : ""}
+              ${post.tags ? `<div class="social-tags">${renderSocialTags(post.tags)}</div>` : ""}
+              <div class="social-actions">
+                <button type="button" data-social-like="${post.id}">Like <span>${Number(post.likes || 0)}</span></button>
+                <span>${Number(post.comments_count || 0)} comments</span>
+              </div>
+              ${(post.comments || []).length ? `
+                <div class="social-comments">
+                  ${(post.comments || []).map((comment) => `
+                    <article>
+                      <strong>${escapeHtml(comment.user_name || "StrikeIQ member")}</strong>
+                      <p>${escapeHtml(comment.body)}</p>
+                    </article>
+                  `).join("")}
+                </div>
+              ` : ""}
+              <form class="social-comment-form" data-post-id="${post.id}">
+                <input name="body" placeholder="Write a comment" aria-label="Write a comment" required>
+                <button type="submit">Comment</button>
+              </form>
               <small>${escapeHtml(post.created_at || "")}</small>
             </article>
           `
@@ -3171,6 +3565,7 @@ function renderDetail(pattern) {
     button.addEventListener("click", () => {
       state.handedness = button.dataset.handedness;
       state.targetPath = null;
+      queueAppSettingsSave();
       renderDetail(pattern);
     });
   });
@@ -3244,6 +3639,7 @@ function bindTargetPathControls(pattern) {
       const current = activeTargetPath(pattern);
       current[input.dataset.targetPath] = clamp(Number(input.value) || current[input.dataset.targetPath], 1, 40);
       state.targetPath = current;
+      queueAppSettingsSave();
       redraw();
     });
   });
@@ -3253,6 +3649,7 @@ function bindTargetPathControls(pattern) {
     panel.querySelectorAll("[data-target-path]").forEach((input) => {
       input.value = Math.round(defaultTargetPath(pattern)[input.dataset.targetPath]);
     });
+    queueAppSettingsSave();
     redraw();
   });
 }
@@ -4733,7 +5130,11 @@ function bindEvents() {
     }
     const modeInput = event.target.closest("input[name='tracking_mode_choice']");
     if (modeInput) {
-      updateLaneVideoMode(modeInput.value);
+      updateLaneVideoMode(modeInput.value, true);
+    }
+    if (event.target.closest("input[name='detect_lane'], input[name='detect_ball'], input[name='detect_release'], input[name='detect_pins']")) {
+      laneDetectionOptions();
+      queueAppSettingsSave();
     }
     const videoFile = event.target.closest("#lane-video-file");
     if (videoFile) {
@@ -4742,6 +5143,7 @@ function bindEvents() {
     if (event.target.closest(".lane-calibration-panel")) {
       updateLaneCalibrationSummary();
       renderLaneBreakdownVisual();
+      queueAppSettingsSave();
     }
   });
   document.addEventListener("input", (event) => {
@@ -4757,6 +5159,7 @@ function bindEvents() {
     if (event.target.closest(".lane-calibration-panel")) {
       updateLaneCalibrationSummary();
       renderLaneBreakdownVisual();
+      queueAppSettingsSave();
     }
     if (event.target.closest("#shot-form")) {
       renderLaneBreakdownVisual();
@@ -4812,7 +5215,7 @@ function bindEvents() {
   elements.logout.addEventListener("click", handleLogout);
   elements.upgradeButton.addEventListener("click", () => setProject("upgrade"));
 
-  document.addEventListener("click", (event) => {
+  document.addEventListener("click", async (event) => {
     if (event.target.closest("#find-lane-centers")) {
       findNearbyLaneCenters();
       return;
@@ -4868,6 +5271,7 @@ function bindEvents() {
       updateLaneCalibrationSummary();
       const status = document.querySelector("#lane-video-status");
       if (status) status.textContent = "Calibration confirmed for the next analysis run.";
+      queueAppSettingsSave();
       return;
     }
 
@@ -4930,6 +5334,19 @@ function bindEvents() {
     if (channelButton) {
       state.chatChannel = channelButton.dataset.chatChannel;
       renderChat();
+      queueAppSettingsSave();
+      return;
+    }
+
+    const likeButton = event.target.closest("[data-social-like]");
+    if (likeButton) {
+      likeButton.disabled = true;
+      try {
+        state.communityPosts = await api(`/api/chat/posts/${likeButton.dataset.socialLike}/reactions`, { method: "POST" });
+        renderChat();
+      } catch {
+        likeButton.disabled = false;
+      }
       return;
     }
 
@@ -4949,7 +5366,15 @@ function bindEvents() {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
 
-    if (form.id === "custom-pattern-form") {
+    if (form.classList.contains("social-comment-form")) {
+      event.preventDefault();
+      const postId = form.dataset.postId;
+      const payload = formPayload(form);
+      payload.user_name = displayNameForProfile(state.profile) || "StrikeIQ member";
+      await api(`/api/chat/posts/${postId}/comments`, { method: "POST", body: JSON.stringify(payload) });
+      form.reset();
+      await loadCommunityPosts();
+    } else if (form.id === "custom-pattern-form") {
       event.preventDefault();
       const pattern = await api("/api/custom-patterns", { method: "POST", body: JSON.stringify(formPayload(form)) });
       form.reset();
@@ -4991,11 +5416,12 @@ function bindEvents() {
       const payload = formPayload(form);
       payload.user_name = displayNameForProfile(state.profile) || "StrikeIQ member";
       state.chatChannel = String(payload.channel || state.chatChannel);
+      queueAppSettingsSave();
       const status = document.querySelector("#community-post-status");
-      if (status) status.textContent = "Posting feedback...";
+      if (status) status.textContent = "Publishing post...";
       await api("/api/chat/posts", { method: "POST", body: JSON.stringify(payload) });
       form.reset();
-      if (status) status.textContent = "Feedback posted.";
+      if (status) status.textContent = "Post published.";
       await loadCommunityPosts();
     } else if (form.id === "coach-form") {
       event.preventDefault();
@@ -5062,6 +5488,7 @@ async function init() {
   syncMobileFilterState();
   window.addEventListener("resize", syncMobileFilterState);
   bindEvents();
+  await loadAppSettings();
   requireLogin();
   await loadSources();
   await loadPatternTypes();

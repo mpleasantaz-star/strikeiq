@@ -218,6 +218,38 @@ CREATE TABLE IF NOT EXISTS mobile_sync_records (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS community_posts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel TEXT NOT NULL,
+  title TEXT NOT NULL,
+  post_type TEXT NOT NULL DEFAULT 'video',
+  user_name TEXT,
+  shot_type TEXT,
+  body TEXT,
+  feedback_request TEXT,
+  video_url TEXT,
+  video_name TEXT,
+  tags TEXT,
+  score TEXT,
+  likes INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER NOT NULL,
+  user_name TEXT,
+  body TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (post_id) REFERENCES community_posts(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key TEXT PRIMARY KEY,
+  payload_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS bowling_balls (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   brand TEXT,

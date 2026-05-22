@@ -73,6 +73,87 @@ def ensure_mobile_sync_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def ensure_app_settings_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS app_settings (
+          setting_key TEXT PRIMARY KEY,
+          payload_json TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+
+def default_app_settings() -> dict:
+    return {
+        "accountEmail": "",
+        "profile": None,
+        "subscriptionTier": "free",
+        "ui": {},
+    }
+
+
+def clean_app_settings(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "settings object is required")
+
+    account_email = str(payload.get("accountEmail") or "").strip().lower()[:200]
+    profile = payload.get("profile")
+    if profile is not None and not isinstance(profile, dict):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "profile must be an object or null")
+
+    subscription_tier = "pro" if payload.get("subscriptionTier") == "pro" else "free"
+    ui = payload.get("ui") if isinstance(payload.get("ui"), dict) else {}
+    clean_payload = {
+        "accountEmail": account_email,
+        "profile": profile,
+        "subscriptionTier": subscription_tier,
+        "ui": ui,
+    }
+    if len(json.dumps(clean_payload, ensure_ascii=True)) > 65536:
+        raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "settings payload is too large")
+    return clean_payload
+
+
+def get_app_settings() -> dict:
+    with get_connection() as connection:
+        ensure_app_settings_table(connection)
+        row = connection.execute(
+            """
+            SELECT payload_json, updated_at
+            FROM app_settings
+            WHERE setting_key = 'default'
+            """
+        ).fetchone()
+
+    if row is None:
+        return {"updated_at": None, "payload": default_app_settings()}
+
+    return {"updated_at": row["updated_at"], "payload": clean_app_settings(json.loads(row["payload_json"]))}
+
+
+def update_app_settings(payload: dict) -> dict:
+    settings_payload = payload.get("settings", payload)
+    clean_payload = clean_app_settings(settings_payload)
+    payload_json = json.dumps(clean_payload, ensure_ascii=True)
+    with get_connection() as connection:
+        ensure_app_settings_table(connection)
+        connection.execute(
+            """
+            INSERT INTO app_settings (setting_key, payload_json, updated_at)
+            VALUES ('default', ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(setting_key) DO UPDATE SET
+              payload_json = excluded.payload_json,
+              updated_at = CURRENT_TIMESTAMP
+            """,
+            (payload_json,),
+        )
+        connection.commit()
+
+    return get_app_settings()
+
+
 def get_mobile_sync() -> dict:
     with get_connection() as connection:
         ensure_mobile_sync_table(connection)
@@ -389,12 +470,30 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           channel TEXT NOT NULL,
           title TEXT NOT NULL,
+          post_type TEXT NOT NULL DEFAULT 'video',
           user_name TEXT,
           shot_type TEXT,
+          body TEXT,
           feedback_request TEXT,
           video_url TEXT,
           video_name TEXT,
+          tags TEXT,
+          score TEXT,
+          likes INTEGER NOT NULL DEFAULT 0,
           created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    ensure_community_post_columns(connection)
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS community_comments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          post_id INTEGER NOT NULL,
+          user_name TEXT,
+          body TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (post_id) REFERENCES community_posts(id) ON DELETE CASCADE
         )
         """
     )
@@ -406,12 +505,27 @@ def ensure_tracker_tables(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE INDEX IF NOT EXISTS idx_lane_video_uploads_created ON lane_video_uploads(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_lane_video_analyses_created ON lane_video_analyses(created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_community_posts_channel ON community_posts(channel, created_at)")
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_community_comments_post ON community_comments(post_id, created_at)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_brand ON bowling_balls(brand)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_cover ON bowling_balls(cover)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_condition ON bowling_balls(condition)")
     connection.execute("CREATE INDEX IF NOT EXISTS idx_bowling_balls_active ON bowling_balls(is_active)")
     seed_ball_catalog(connection)
     seed_lane_tracker_sessions(connection)
+
+
+def ensure_community_post_columns(connection: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in connection.execute("PRAGMA table_info(community_posts)").fetchall()}
+    migrations = {
+        "post_type": "ALTER TABLE community_posts ADD COLUMN post_type TEXT NOT NULL DEFAULT 'video'",
+        "body": "ALTER TABLE community_posts ADD COLUMN body TEXT",
+        "tags": "ALTER TABLE community_posts ADD COLUMN tags TEXT",
+        "score": "ALTER TABLE community_posts ADD COLUMN score TEXT",
+        "likes": "ALTER TABLE community_posts ADD COLUMN likes INTEGER NOT NULL DEFAULT 0",
+    }
+    for column, statement in migrations.items():
+        if column not in columns:
+            connection.execute(statement)
 
 
 def ensure_lane_video_analysis_columns(connection: sqlite3.Connection) -> None:
@@ -1521,41 +1635,128 @@ def create_shot(payload: dict) -> dict:
 def get_chat_posts() -> list[dict]:
     with get_connection() as connection:
         ensure_tracker_tables(connection)
-        return dict_rows(
+        posts = dict_rows(
             connection.execute(
                 """
-                SELECT id, channel, title, user_name, shot_type, feedback_request, video_url, video_name, created_at
-                FROM community_posts
-                ORDER BY created_at DESC, id DESC
+                SELECT
+                  p.id,
+                  p.channel,
+                  p.title,
+                  p.post_type,
+                  p.user_name,
+                  p.shot_type,
+                  p.body,
+                  p.feedback_request,
+                  p.video_url,
+                  p.video_name,
+                  p.tags,
+                  p.score,
+                  p.likes,
+                  p.created_at,
+                  COUNT(c.id) AS comments_count
+                FROM community_posts p
+                LEFT JOIN community_comments c ON c.post_id = p.id
+                GROUP BY p.id
+                ORDER BY p.created_at DESC, p.id DESC
                 LIMIT 100
                 """
             )
         )
+        if not posts:
+            return posts
+
+        post_ids = [post["id"] for post in posts]
+        placeholders = ",".join("?" for _ in post_ids)
+        comments = dict_rows(
+            connection.execute(
+                f"""
+                SELECT id, post_id, user_name, body, created_at
+                FROM community_comments
+                WHERE post_id IN ({placeholders})
+                ORDER BY created_at ASC, id ASC
+                """,
+                post_ids,
+            )
+        )
+
+    comments_by_post: dict[int, list[dict]] = {}
+    for comment in comments:
+        comments_by_post.setdefault(comment["post_id"], []).append(comment)
+    for post in posts:
+        post["comments"] = comments_by_post.get(post["id"], [])[-3:]
+    return posts
 
 
 def create_chat_post(payload: dict) -> dict:
-    title = require_text(payload, "title", "Video title")
+    title = require_text(payload, "title", "Post title")
     channel = optional_text(payload, "channel") or "# video-feedback"
     if not channel.startswith("#"):
         channel = f"# {channel.strip()}"
+    post_type = (optional_text(payload, "post_type") or "video").lower()
+    if post_type not in {"update", "video", "score", "question", "gear"}:
+        post_type = "update"
+    tags = optional_text(payload, "tags")
+    if tags:
+        tags = ", ".join(part.strip().lstrip("#")[:28] for part in tags.split(",") if part.strip())[:180]
 
     with get_connection() as connection:
         ensure_tracker_tables(connection)
         connection.execute(
             """
-            INSERT INTO community_posts (channel, title, user_name, shot_type, feedback_request, video_url, video_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO community_posts (
+              channel, title, post_type, user_name, shot_type, body, feedback_request, video_url, video_name, tags, score
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 channel,
                 title,
+                post_type,
                 optional_text(payload, "user_name") or "StrikeIQ member",
                 optional_text(payload, "shot_type"),
+                optional_text(payload, "body"),
                 optional_text(payload, "feedback_request"),
                 optional_text(payload, "video_url"),
                 optional_text(payload, "video_name"),
+                tags,
+                optional_text(payload, "score"),
             ),
         )
+        connection.commit()
+    return get_chat_posts()
+
+
+def create_chat_comment(post_id: int, payload: dict) -> list[dict]:
+    body = require_text(payload, "body", "Comment")
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        post_exists = connection.execute("SELECT 1 FROM community_posts WHERE id = ?", (post_id,)).fetchone()
+        if post_exists is None:
+            raise ApiError(HTTPStatus.NOT_FOUND, "Post not found")
+        connection.execute(
+            """
+            INSERT INTO community_comments (post_id, user_name, body)
+            VALUES (?, ?, ?)
+            """,
+            (post_id, optional_text(payload, "user_name") or "StrikeIQ member", body),
+        )
+        connection.commit()
+    return get_chat_posts()
+
+
+def react_to_chat_post(post_id: int) -> list[dict]:
+    with get_connection() as connection:
+        ensure_tracker_tables(connection)
+        cursor = connection.execute(
+            """
+            UPDATE community_posts
+            SET likes = COALESCE(likes, 0) + 1
+            WHERE id = ?
+            """,
+            (post_id,),
+        )
+        if cursor.rowcount == 0:
+            raise ApiError(HTTPStatus.NOT_FOUND, "Post not found")
         connection.commit()
     return get_chat_posts()
 
@@ -2275,6 +2476,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(get_import_queue())
             elif parsed.path == "/api/catalog/status":
                 self.send_json(get_catalog_status())
+            elif parsed.path == "/api/app-settings":
+                self.send_json(get_app_settings())
             elif parsed.path == "/api/mobile-sync":
                 self.send_json(get_mobile_sync())
             elif parsed.path == "/api/nearby-centers":
@@ -2325,6 +2528,8 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(run_external_ref_sync(), HTTPStatus.CREATED)
             elif parsed.path == "/api/coach/chat":
                 self.send_json(create_ai_coach_reply(self.read_json()))
+            elif parsed.path == "/api/app-settings":
+                self.send_json(update_app_settings(self.read_json()))
             elif parsed.path == "/api/mobile-sync":
                 self.send_json(update_mobile_sync(self.read_json()))
             elif parsed.path == "/api/custom-patterns":
@@ -2345,6 +2550,12 @@ class AppHandler(SimpleHTTPRequestHandler):
                 self.send_json(create_shot(self.read_json()), HTTPStatus.CREATED)
             elif parsed.path == "/api/chat/posts":
                 self.send_json(create_chat_post(self.read_json()), HTTPStatus.CREATED)
+            elif re.fullmatch(r"/api/chat/posts/\d+/comments", parsed.path):
+                post_id = int(parsed.path.split("/")[4])
+                self.send_json(create_chat_comment(post_id, self.read_json()), HTTPStatus.CREATED)
+            elif re.fullmatch(r"/api/chat/posts/\d+/reactions", parsed.path):
+                post_id = int(parsed.path.split("/")[4])
+                self.send_json(react_to_chat_post(post_id), HTTPStatus.CREATED)
             elif parsed.path.startswith("/api/imports/") and parsed.path.endswith("/status"):
                 import_id_text = parsed.path.removeprefix("/api/imports/").removesuffix("/status")
                 self.send_json(update_import_status(int(import_id_text), self.read_json()))
