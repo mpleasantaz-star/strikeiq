@@ -1846,6 +1846,7 @@ h1 {
 
 .lane-result-heading {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -1864,6 +1865,18 @@ h1 {
   color: var(--muted);
   font-size: 0.86rem;
   line-height: 1.4;
+}
+
+.lane-result-heading > span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(76, 201, 240, 0.28);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  padding: 7px 10px;
+  text-transform: uppercase;
 }
 
 .lane-result-buttons {
@@ -2231,7 +2244,7 @@ h1 {
 
 .lane-video-subject {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 0.75fr));
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.35fr);
   gap: 8px;
   align-items: stretch;
   border: 1px solid rgba(76, 201, 240, 0.14);
@@ -2240,12 +2253,13 @@ h1 {
   padding: 10px;
 }
 
-.lane-video-subject > div {
+.lane-video-subject-main {
   display: grid;
   gap: 4px;
 }
 
-.lane-video-subject strong {
+.lane-video-subject strong,
+.lane-video-subject label {
   color: #ffffff;
 }
 
@@ -2254,35 +2268,30 @@ h1 {
   line-height: 1.35;
 }
 
-.lane-video-subject label {
-  cursor: pointer;
-}
-
-.lane-video-subject input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.lane-video-subject label span {
+.lane-video-guest-fields {
   display: grid;
-  min-height: 100%;
-  place-items: center;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.lane-video-guest-fields[hidden] {
+  display: none;
+}
+
+.lane-video-subject select,
+.lane-video-guest-fields input {
   border: 1px solid rgba(76, 201, 240, 0.16);
   border-radius: 8px;
   background: rgba(5, 7, 10, 0.48);
-  color: var(--muted);
+  color: #ffffff;
   font-weight: 900;
-  padding: 10px;
-  text-align: center;
+  padding: 11px 12px;
 }
 
-.lane-video-subject input:checked + span {
+.lane-video-subject select:focus,
+.lane-video-guest-fields input:focus {
   border-color: rgba(76, 201, 240, 0.52);
-  background: linear-gradient(135deg, rgba(10, 132, 255, 0.30), rgba(76, 201, 240, 0.16));
-  color: #ffffff;
+  outline: none;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
@@ -5545,6 +5554,7 @@ button:hover {
   .spare-game-header,
   .spare-frame-grid,
   .lane-video-subject,
+  .lane-video-guest-fields,
   .lane-analysis-share-grid,
   .lane-detection-grid,
   .lane-calibration-checklist,
@@ -5685,6 +5695,7 @@ button:hover {
   .home-priority-strip,
   .home-metrics,
   .lane-video-subject,
+  .lane-video-guest-fields,
   .lane-track-correction-grid,
   .lane-analysis-share-grid,
   .lane-result-buttons,

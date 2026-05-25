@@ -1472,12 +1472,16 @@ def create_lane_video_analysis(payload: dict) -> dict:
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else {}
     calibration = payload.get("calibration") if isinstance(payload.get("calibration"), dict) else {}
+    guest_user = payload.get("guest_user") if isinstance(payload.get("guest_user"), dict) else {}
     video_subject = (optional_text(payload, "video_subject") or "me").lower()
     if video_subject not in {"me", "guest", "unknown"}:
         video_subject = "me"
+    guest_user_name = str(guest_user.get("name") or payload.get("guest_user_name") or "").strip()[:120]
+    guest_user_email = str(guest_user.get("email") or payload.get("guest_user_email") or "").strip()[:200]
+    guest_user_phone = str(guest_user.get("phone") or payload.get("guest_user_phone") or "").strip()[:60]
     video_subject_label = optional_text(payload, "video_subject_label") or {
-        "me": "Me",
-        "guest": "Guest bowler",
+        "me": "Active user",
+        "guest": f"Guest user: {guest_user_name}" if guest_user_name else "Guest user",
         "unknown": "Unknown bowler",
     }[video_subject]
     use_profile_context = bool(payload.get("use_profile_context")) and video_subject == "me"
@@ -1498,14 +1502,16 @@ def create_lane_video_analysis(payload: dict) -> dict:
         video_size = 0
     ball = str(context.get("ball") or payload.get("ball") or "").strip() or "Selected ball"
     lane_center = str(context.get("lane_center") or payload.get("lane_center") or "").strip() or "Practice center"
-    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}|{video_subject}"
+    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}|{video_subject}|{guest_user_name}"
     seed = sum(ord(char) for char in seed_text)
     speed_mph = round(15.2 + (seed % 31) / 10, 2)
+    rev_rate_rpm = 280 + (seed % 245)
     hook_inches = round(12.0 + ((seed // 3) % 95) / 5, 2)
     boards_crossed = round(8.0 + ((seed // 7) % 70) / 5, 2)
     release_board = str(14 + seed % 12)
     arrows_board = str(8 + seed % 9)
-    breakpoint = f"{5 + seed % 8} board at {38 + seed % 12} ft"
+    breakpoint_board_value = 5 + seed % 8
+    breakpoint = f"{breakpoint_board_value} board at {38 + seed % 12} ft"
     entry_board = f"{16 + (seed % 4) * 0.5:.1f}"
     miss_options = ["Flush", "High", "Light", "Through breakpoint"]
     pocket_options = ["Flush", "Light mixer", "High pocket", "Review angle"]
@@ -1516,6 +1522,8 @@ def create_lane_video_analysis(payload: dict) -> dict:
     confidence = 38 + seed % 18 if LANE_ANALYSIS_ENGINE == "development_estimator" else 72 + seed % 22
     handedness = str(context.get("handedness") or "").strip().lower()
     is_left = handedness == "left"
+    ideal_arrows_board = max(1, min(39, int(arrows_board) + (2 if is_left else -2)))
+    ideal_breakpoint_board = max(1, min(39, breakpoint_board_value + (3 if is_left else -3)))
     move_to_hold = "right" if is_left else "left"
     move_to_recover = "left" if is_left else "right"
     pin_result_lower = pin_result.lower()
@@ -1552,7 +1560,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
             "camera_angle": "auto_video",
             "release_board_hint": release_board,
             "target_board_hint": arrows_board,
-            "breakpoint_board_hint": str(5 + seed % 8),
+            "breakpoint_board_hint": str(breakpoint_board_value),
             "markers": {"foul_line": True, "arrows": True, "lane_edges": True, "pin_deck": True},
             "readiness": calibration_readiness,
         }
@@ -1562,6 +1570,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         f"{'profile fallback allowed' if use_profile_context else 'profile ignored'}) "
         f"using {camera_angle} calibration ({calibration_readiness}% ready): "
         f"{'estimated' if LANE_ANALYSIS_ENGINE == 'development_estimator' else 'detected'} {ball} at {speed_mph:.2f} mph, "
+        f"{rev_rate_rpm} rpm, "
         f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
         f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
         f"pocket read {pocket_quality}, pin result {pin_result}. "
@@ -1579,18 +1588,26 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "video_subject": video_subject,
         "video_subject_label": video_subject_label,
         "use_profile_context": "true" if use_profile_context else "false",
+        "guest_user_name": guest_user_name if video_subject == "guest" else "",
+        "guest_user_email": guest_user_email if video_subject == "guest" else "",
+        "guest_user_phone": guest_user_phone if video_subject == "guest" else "",
         "video_name": video_name,
         "ball": ball if ball != "Selected ball" else "",
         "lane_center": lane_center if lane_center != "Practice center" else "",
         "handedness": handedness if use_profile_context else "",
         "speed_mph": f"{speed_mph:.2f}",
         "ball_speed": f"{speed_mph:.2f} mph",
+        "rev_rate": str(rev_rate_rpm),
+        "rev_rate_rpm": str(rev_rate_rpm),
         "hook_inches": f"{hook_inches:.2f}",
         "boards_crossed": f"{boards_crossed:.2f}",
         "feet_board": release_board,
         "release_board": release_board,
         "arrows_board": arrows_board,
+        "ideal_arrows_board": str(ideal_arrows_board),
         "breakpoint": breakpoint,
+        "breakpoint_board": str(breakpoint_board_value),
+        "ideal_breakpoint_board": str(ideal_breakpoint_board),
         "entry_board": entry_board,
         "miss_direction": miss_direction,
         "pocket_quality": pocket_quality,
@@ -1607,7 +1624,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "calibration_readiness": str(calibration_readiness),
         "calibration_summary": (
             f"Auto-detected lane markers from video: release board {release_board}, "
-            f"arrow board {arrows_board}, breakpoint board {5 + seed % 8}."
+            f"arrow board {arrows_board}, breakpoint board {breakpoint_board_value}."
             if auto_calibration
             else f"Manual calibration {calibration_readiness}% ready."
         ),

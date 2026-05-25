@@ -21,6 +21,7 @@ const state = {
   laneReviewSyncRaf: null,
   laneReviewSyncClock: 0,
   laneVideoMode: "recorded_video",
+  laneAutoNextMoveSource: "",
   laneDetection: { lane_boards: true, ball_path: true, release_point: true, pin_result: true },
   laneCalibration: {
     camera_angle: "behind_bowler",
@@ -332,23 +333,20 @@ const projectDetails = {
           <input type="hidden" name="analysis_run_id" id="lane-analysis-run-id">
           <input type="hidden" id="lane-video-upload-id">
           <section class="lane-video-subject" aria-label="Video subject">
-            <div>
+            <label class="lane-video-subject-main">
               <p class="eyebrow">Video Subject</p>
               <strong>Who is in this video?</strong>
               <small>Guest or unknown clips ignore your profile defaults and rely on video analysis only.</small>
+              <select id="lane-video-subject-select" name="video_subject">
+                <option value="me">Active user</option>
+                <option value="guest">Guest user</option>
+              </select>
+            </label>
+            <div class="lane-video-guest-fields" data-lane-guest-fields hidden>
+              <label>Guest name<input id="lane-guest-name" name="guest_user_name" autocomplete="name" placeholder="Guest bowler"></label>
+              <label>Email address<input id="lane-guest-email" name="guest_user_email" autocomplete="email" inputmode="email" placeholder="guest@example.com"></label>
+              <label>Phone number<input id="lane-guest-phone" name="guest_user_phone" autocomplete="tel" inputmode="tel" placeholder="555-123-4567"></label>
             </div>
-            <label>
-              <input type="radio" name="video_subject" value="me" checked>
-              <span>Me</span>
-            </label>
-            <label>
-              <input type="radio" name="video_subject" value="guest">
-              <span>Guest bowler</span>
-            </label>
-            <label>
-              <input type="radio" name="video_subject" value="unknown">
-              <span>Unknown</span>
-            </label>
           </section>
           <div class="lane-video-panels">
             <div class="lane-video-panel is-active" data-lane-video-panel="recorded_video">
@@ -608,8 +606,9 @@ const projectDetails = {
             <div>
               <p class="eyebrow">Result</p>
               <h3>Quick Pin Fall</h3>
-              <p>Select a common result or type your own. The lane visual updates standing and fallen pins.</p>
+              <p>Select a common result or type your own. StrikeIQ auto-builds the adjustment and next move from the latest shot inputs.</p>
             </div>
+            <span id="lane-auto-next-move-state">Auto next move</span>
           </div>
           <div class="lane-result-buttons" aria-label="Quick pin fall results">
             <button type="button" data-lane-result="Strike">Strike</button>
@@ -2026,6 +2025,39 @@ function syncLaneRecommendationFields(payload = {}, { overwrite = false } = {}) 
   }
 }
 
+const laneRecommendationDriverFields = new Set([
+  "feet_board",
+  "arrows_board",
+  "ball_speed",
+  "result",
+  "speed_mph",
+  "release_board",
+  "entry_board",
+  "pocket_quality",
+  "pin_result",
+  "miss_direction",
+  "leave_pin",
+]);
+
+function laneRecommendationDriverChanged(target) {
+  const field = target?.closest?.("input, select, textarea");
+  return Boolean(field?.form?.id === "shot-form" && laneRecommendationDriverFields.has(field.name));
+}
+
+function updateLaneAutoNextMoveState(message = "") {
+  const stateLabel = document.querySelector("#lane-auto-next-move-state");
+  if (!stateLabel) return;
+  stateLabel.textContent = message || state.laneAutoNextMoveSource || "Auto next move";
+}
+
+function syncLaneAutoNextMove({ overwrite = true, source = "" } = {}) {
+  const form = document.querySelector("#shot-form");
+  if (!form) return;
+  state.laneAutoNextMoveSource = source || "Auto from latest shot";
+  syncLaneRecommendationFields(formPayload(form), { overwrite });
+  updateLaneAutoNextMoveState(state.laneAutoNextMoveSource);
+}
+
 function renderLaneShotSavePreview() {
   const preview = document.querySelector("#lane-shot-save-preview");
   const form = document.querySelector("#shot-form");
@@ -2071,8 +2103,7 @@ function applyLaneQuickResult(value) {
   if (leaveInput) {
     leaveInput.value = value && !/\bstrike\b/i.test(value) ? value : "";
   }
-  const form = document.querySelector("#shot-form");
-  if (form) syncLaneRecommendationFields(formPayload(form), { overwrite: true });
+  syncLaneAutoNextMove({ overwrite: true, source: value ? `Auto from ${value}` : "Auto from latest shot" });
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
   renderLaneBreakdownVisual();
@@ -2118,6 +2149,7 @@ function hydrateLaneTrackerForm() {
   renderLaneTrackerContext();
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
+  updateLaneAutoNextMoveState();
   hydrateLaneSettingsControls();
   updateLaneVideoMode(state.laneVideoMode);
   updateLaneCalibrationSummary();
@@ -2655,6 +2687,8 @@ function applyLaneAnalysisFields(fields = {}) {
   });
   applyAutoLaneCalibration(fields);
   syncLaneRecommendationFields(formPayload(form));
+  state.laneAutoNextMoveSource = "Auto from video analysis";
+  updateLaneAutoNextMoveState();
   renderLaneBreakdownVisual(fields);
   syncLaneTrackCorrectionFields(fields);
   syncLaneAnalysisShareMessage();
@@ -2724,7 +2758,7 @@ function applyLaneTrackCorrection() {
     confidence_notes: "Track values were adjusted to match the source video review.",
   };
   applyAutoLaneCalibration(state.laneVideoAnalysisFields);
-  syncLaneRecommendationFields(state.laneVideoAnalysisFields, { overwrite: true });
+  syncLaneAutoNextMove({ overwrite: true, source: "Auto from corrected video track" });
   renderLaneBreakdownVisual(state.laneVideoAnalysisFields);
   syncLaneTrackCorrectionFields(state.laneVideoAnalysisFields);
   syncLaneAnalysisShareMessage();
@@ -3457,13 +3491,27 @@ function applyLaneAnalysisRun(runId) {
 }
 
 function selectedLaneVideoSubject() {
-  const selected = document.querySelector("input[name='video_subject']:checked")?.value || "me";
-  const normalized = ["me", "guest", "unknown"].includes(selected) ? selected : "me";
+  const selected = document.querySelector("#lane-video-subject-select")?.value || "me";
+  const normalized = selected === "guest" ? "guest" : "me";
+  const guestName = document.querySelector("#lane-guest-name")?.value.trim() || "";
+  const guestEmail = document.querySelector("#lane-guest-email")?.value.trim() || "";
+  const guestPhone = document.querySelector("#lane-guest-phone")?.value.trim() || "";
   return {
     value: normalized,
-    label: normalized === "me" ? "Me" : normalized === "guest" ? "Guest bowler" : "Unknown bowler",
+    label: normalized === "me" ? "Active user" : (guestName ? `Guest user: ${guestName}` : "Guest user"),
     useProfileContext: normalized === "me",
+    guestName,
+    guestEmail,
+    guestPhone,
+    hasGuestContact: Boolean(guestEmail || guestPhone),
   };
+}
+
+function syncLaneVideoSubjectFields() {
+  const subject = selectedLaneVideoSubject();
+  const fields = document.querySelector("[data-lane-guest-fields]");
+  if (fields) fields.hidden = subject.value !== "guest";
+  return subject;
 }
 
 function laneAnalysisShareText(fields = state.laneVideoAnalysisFields || {}) {
@@ -3473,6 +3521,9 @@ function laneAnalysisShareText(fields = state.laneVideoAnalysisFields || {}) {
     "StrikeIQ shot analysis",
     fields.video_name && `Video: ${fields.video_name}`,
     subjectLabel && `Subject: ${subjectLabel}`,
+    fields.guest_user_name && `Guest: ${fields.guest_user_name}`,
+    fields.guest_user_email && `Guest email: ${fields.guest_user_email}`,
+    fields.guest_user_phone && `Guest phone: ${fields.guest_user_phone}`,
     fields.lane_center && `Center: ${fields.lane_center}`,
     fields.ball && `Ball: ${fields.ball}`,
     fields.release_board && `Board start: ${fields.release_board}`,
@@ -3540,12 +3591,23 @@ async function analyzeLaneVideo() {
   }
   let upload = null;
   const videoSubject = selectedLaneVideoSubject();
+  if (videoSubject.value === "guest" && (!videoSubject.guestName || !videoSubject.hasGuestContact)) {
+    const message = "Add the guest user's name and either an email address or phone number before analyzing.";
+    if (status) status.textContent = message;
+    setLaneVideoWorkflow("analyze", message);
+    return;
+  }
   const request = {
     tracking_mode: payload.tracking_mode || "recorded_video",
     video_name: payload.video_name || file?.name || "",
     video_subject: videoSubject.value,
     video_subject_label: videoSubject.label,
     use_profile_context: videoSubject.useProfileContext,
+    guest_user: videoSubject.value === "guest" ? {
+      name: videoSubject.guestName,
+      email: videoSubject.guestEmail,
+      phone: videoSubject.guestPhone,
+    } : null,
     upload_id: "",
     video: file ? { name: file.name, size: file.size, type: file.type || "video" } : null,
     detection: laneDetectionOptions(),
@@ -6229,6 +6291,7 @@ async function updateImportStatus(importId, reviewStatus) {
 
 function bindEvents() {
   setAuthMode("create");
+  syncLaneVideoSubjectFields();
   elements.loginForm.addEventListener("submit", handleLogin);
   elements.profileForm.addEventListener("submit", handleProfileSubmit);
   elements.findHomeCenters?.addEventListener("click", findNearbyHomeCenters);
@@ -6256,13 +6319,13 @@ function bindEvents() {
       laneDetectionOptions();
       queueAppSettingsSave();
     }
-    if (event.target.closest("input[name='video_subject']")) {
-      const subject = selectedLaneVideoSubject();
+    if (event.target.closest("#lane-video-subject-select")) {
+      const subject = syncLaneVideoSubjectFields();
       const status = document.querySelector("#lane-video-status");
       if (status) {
         status.textContent = subject.useProfileContext
           ? "Profile context will be used only as fallback for this video."
-          : "Profile context will be ignored for this video; analysis will rely on the clip.";
+          : "Add guest details, then analysis will rely on the clip instead of the active profile.";
       }
     }
     const videoFile = event.target.closest("#lane-video-file");
@@ -6291,6 +6354,16 @@ function bindEvents() {
       queueAppSettingsSave();
     }
     if (event.target.closest("#shot-form")) {
+      if (laneRecommendationDriverChanged(event.target)) {
+        const fieldName = event.target.closest("input, select, textarea")?.name || "";
+        const sourceLabel = fieldName === "result" || fieldName === "pin_result"
+          ? "Auto from pin result"
+          : "Auto from latest shot";
+        syncLaneAutoNextMove({ overwrite: true, source: sourceLabel });
+      } else if (["adjustment", "next_move"].includes(event.target.closest("input, select, textarea")?.name || "")) {
+        state.laneAutoNextMoveSource = "Manual override";
+        updateLaneAutoNextMoveState();
+      }
       renderLaneFreeSnapshot();
       renderLaneShotSavePreview();
       renderLaneBreakdownVisual();
