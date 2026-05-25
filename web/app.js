@@ -331,6 +331,25 @@ const projectDetails = {
           <input type="hidden" name="shot_source" id="lane-shot-source" value="video_capture">
           <input type="hidden" name="analysis_run_id" id="lane-analysis-run-id">
           <input type="hidden" id="lane-video-upload-id">
+          <section class="lane-video-subject" aria-label="Video subject">
+            <div>
+              <p class="eyebrow">Video Subject</p>
+              <strong>Who is in this video?</strong>
+              <small>Guest or unknown clips ignore your profile defaults and rely on video analysis only.</small>
+            </div>
+            <label>
+              <input type="radio" name="video_subject" value="me" checked>
+              <span>Me</span>
+            </label>
+            <label>
+              <input type="radio" name="video_subject" value="guest">
+              <span>Guest bowler</span>
+            </label>
+            <label>
+              <input type="radio" name="video_subject" value="unknown">
+              <span>Unknown</span>
+            </label>
+          </section>
           <div class="lane-video-panels">
             <div class="lane-video-panel is-active" data-lane-video-panel="recorded_video">
               <label>Recorded Shot
@@ -469,6 +488,36 @@ const projectDetails = {
                 <textarea name="output_preview" id="lane-output-preview" placeholder="AI-generated lane and ball breakdown will appear here after backend video analysis is connected."></textarea>
               </label>
             </details>
+            <section class="lane-analysis-share" data-lane-analysis-detail hidden aria-label="Share completed shot analysis">
+              <div class="lane-analysis-share-heading">
+                <div>
+                  <p class="eyebrow">Share</p>
+                  <h3>Send Completed Analysis</h3>
+                </div>
+                <span id="lane-analysis-share-state">Ready</span>
+              </div>
+              <div class="lane-analysis-share-grid">
+                <label>
+                  Send by
+                  <select id="lane-analysis-share-method">
+                    <option value="email">Email</option>
+                    <option value="text">Text</option>
+                  </select>
+                </label>
+                <label>
+                  Recipient
+                  <input id="lane-analysis-share-recipient" type="text" placeholder="coach@example.com or 555-123-4567">
+                </label>
+              </div>
+              <label>
+                Share message
+                <textarea id="lane-analysis-share-message" readonly placeholder="Analyze a shot to prepare a shareable summary."></textarea>
+              </label>
+              <div class="lane-analysis-share-actions">
+                <button type="button" class="secondary-button" data-lane-share-analysis>Prepare Message</button>
+                <p id="lane-analysis-share-status" class="empty-state">Email and text use your device apps until backend delivery is connected.</p>
+              </div>
+            </section>
           </section>
           <div class="lane-video-actions">
             <button type="button" class="secondary-button" data-lane-video-analyze disabled>Upload And Analyze Video</button>
@@ -1873,9 +1922,11 @@ function laneAdjustmentRecommendation(payload = {}) {
   const speed = laneMetricNumber(payload.speed_mph || payload.ball_speed);
   const result = String(payload.pin_result || payload.result || "").trim();
   const resultText = result.toLowerCase();
-  const handedness = String(payload.handedness || payload.bowling_hand || state.handedness || "right").toLowerCase();
+  const profileContextAllowed = payload.use_profile_context !== false && payload.use_profile_context !== "false";
+  const handedness = String(payload.handedness || payload.bowling_hand || (profileContextAllowed ? state.handedness : "unknown") || "right").toLowerCase();
+  const hasKnownHand = handedness === "left" || handedness === "right";
   const isLeft = handedness === "left";
-  const direction = (rightText, leftText) => (isLeft ? leftText : rightText);
+  const direction = (rightText, leftText, neutralText = "inside") => (hasKnownHand ? (isLeft ? leftText : rightText) : neutralText);
   const lineShape = Number.isFinite(boardStart) && Number.isFinite(arrowStart)
     ? Math.abs(boardStart - arrowStart)
     : null;
@@ -2396,6 +2447,7 @@ function handleLaneVideoFile(fileInput) {
   const file = fileInput.files?.[0];
   if (uploadId) uploadId.value = "";
   state.laneVideoAnalysisFields = null;
+  syncLaneAnalysisShareMessage();
   setLaneAnalysisDetailsVisible(false);
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
@@ -2476,6 +2528,7 @@ function clearLaneSourceReview({ keepRecorded = false } = {}) {
     state.laneReviewVideoUrl = null;
   }
   state.laneVideoAnalysisFields = null;
+  syncLaneAnalysisShareMessage();
   if (placeholder) placeholder.classList.remove("is-hidden");
   if (label) label.textContent = "No clip selected";
   updateLaneVisualSync(0);
@@ -2581,6 +2634,7 @@ function applyLaneAnalysisFields(fields = {}) {
   applyAutoLaneCalibration(fields);
   syncLaneRecommendationFields(formPayload(form));
   renderLaneBreakdownVisual(fields);
+  syncLaneAnalysisShareMessage();
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
   setLaneAnalysisDetailsVisible(true);
@@ -2658,7 +2712,9 @@ function laneSmoothMotionPath(markers) {
 }
 
 function laneIdealMovementModel(values) {
-  const handedness = String(values.handedness || state.handedness || "right").toLowerCase();
+  const profileContextAllowed = values.use_profile_context !== false && values.use_profile_context !== "false";
+  const handedness = String(values.handedness || (profileContextAllowed ? state.handedness : "unknown") || "right").toLowerCase();
+  const hasKnownHand = handedness === "left" || handedness === "right";
   const isLeft = handedness === "left";
   const releaseBoard = Number(values.releaseBoard);
   const arrowsBoard = Number(values.arrowsBoard);
@@ -2685,7 +2741,7 @@ function laneIdealMovementModel(values) {
     },
     {
       label: "Roll to pocket",
-      ideal: `Final motion should roll back toward the ${isLeft ? "1-2" : "1-3"} pocket near ${movementBoardText(pocketBoard)}.`,
+      ideal: `Final motion should roll back toward the ${hasKnownHand ? (isLeft ? "1-2" : "1-3") : "detected"} pocket near ${movementBoardText(pocketBoard)}.`,
       actual: `${movementBoardText(breakpointBoard)} breakpoint to ${movementBoardText(entryBoard)} entry`,
       status: returnToPocket >= 5 && entryDelta <= 3 ? "match" : "review",
     },
@@ -2697,14 +2753,14 @@ function laneIdealMovementModel(values) {
     },
     {
       label: "Pin result",
-      ideal: `Best strike result is pocket contact with clean carry through the ${isLeft ? "1-2" : "1-3"} pocket.`,
+      ideal: `Best strike result is pocket contact with clean carry through the ${hasKnownHand ? (isLeft ? "1-2" : "1-3") : "detected"} pocket.`,
       actual: values.pinResult ? String(values.pinResult) : "Log pin fall result",
       status: values.pinResult ? "match" : "pending",
     },
   ];
   const matches = phaseItems.filter((item) => item.status === "match").length;
   return {
-    handedness: isLeft ? "Left handed" : "Right handed",
+    handedness: hasKnownHand ? (isLeft ? "Left handed" : "Right handed") : "Hand not detected",
     matchLabel: `${matches}/${phaseItems.length} checkpoints`,
     phaseItems,
   };
@@ -3132,6 +3188,7 @@ function renderLaneBreakdownVisual(fields = null) {
       speed_mph: speed,
       pin_result: pinResultValue,
       handedness: laneValue("handedness") || laneValue("bowling_hand"),
+      use_profile_context: laneValue("use_profile_context") || "true",
     });
     const movement = laneIdealMovementModel({
       releaseBoard,
@@ -3141,6 +3198,7 @@ function renderLaneBreakdownVisual(fields = null) {
       speed,
       pinResult: pinResultValue,
       handedness: laneValue("handedness") || laneValue("bowling_hand"),
+      use_profile_context: laneValue("use_profile_context") || "true",
     });
     idealContainer.innerHTML = `
       <div class="lane-ideal-heading">
@@ -3317,6 +3375,67 @@ function applyLaneAnalysisRun(runId) {
   if (status) status.textContent = `${analysis.video_name || "Analysis"} applied to the shot form.`;
 }
 
+function selectedLaneVideoSubject() {
+  const selected = document.querySelector("input[name='video_subject']:checked")?.value || "me";
+  const normalized = ["me", "guest", "unknown"].includes(selected) ? selected : "me";
+  return {
+    value: normalized,
+    label: normalized === "me" ? "Me" : normalized === "guest" ? "Guest bowler" : "Unknown bowler",
+    useProfileContext: normalized === "me",
+  };
+}
+
+function laneAnalysisShareText(fields = state.laneVideoAnalysisFields || {}) {
+  if (!fields || !Object.keys(fields).length) return "";
+  const subjectLabel = fields.video_subject_label || titleFromSlug(fields.video_subject || "video shot");
+  const lines = [
+    "StrikeIQ shot analysis",
+    fields.video_name && `Video: ${fields.video_name}`,
+    subjectLabel && `Subject: ${subjectLabel}`,
+    fields.lane_center && `Center: ${fields.lane_center}`,
+    fields.ball && `Ball: ${fields.ball}`,
+    fields.release_board && `Board start: ${fields.release_board}`,
+    fields.arrows_board && `Arrow start: ${fields.arrows_board}`,
+    fields.breakpoint && `Breakpoint: ${fields.breakpoint}`,
+    (fields.speed_mph || fields.ball_speed) && `Speed: ${fields.speed_mph || fields.ball_speed}`,
+    fields.pin_result && `Pin fall: ${fields.pin_result}`,
+    fields.pocket_quality && `Pocket: ${fields.pocket_quality}`,
+    fields.adjustment && `Adjustment: ${fields.adjustment}`,
+    fields.next_move && `Next move: ${fields.next_move}`,
+  ].filter(Boolean);
+  return lines.join("\n");
+}
+
+function syncLaneAnalysisShareMessage() {
+  const message = document.querySelector("#lane-analysis-share-message");
+  const stateLabel = document.querySelector("#lane-analysis-share-state");
+  const text = laneAnalysisShareText();
+  if (message) message.value = text;
+  if (stateLabel) stateLabel.textContent = text ? "Ready" : "Pending";
+}
+
+function prepareLaneAnalysisShare() {
+  const status = document.querySelector("#lane-analysis-share-status");
+  const method = document.querySelector("#lane-analysis-share-method")?.value || "email";
+  const recipient = document.querySelector("#lane-analysis-share-recipient")?.value.trim() || "";
+  const message = laneAnalysisShareText();
+  syncLaneAnalysisShareMessage();
+  if (!message) {
+    if (status) status.textContent = "Analyze a shot first, then StrikeIQ can prepare the completed breakdown.";
+    return;
+  }
+  const encodedBody = encodeURIComponent(message);
+  if (method === "text") {
+    const phone = recipient.replace(/[^\d+]/g, "");
+    window.location.href = `sms:${phone || ""}?&body=${encodedBody}`;
+    if (status) status.textContent = "Opening your text app with the completed shot analysis.";
+    return;
+  }
+  const subject = encodeURIComponent("StrikeIQ shot analysis");
+  window.location.href = `mailto:${encodeURIComponent(recipient)}?subject=${subject}&body=${encodedBody}`;
+  if (status) status.textContent = "Opening your email app with the completed shot analysis.";
+}
+
 async function analyzeLaneVideo() {
   const form = document.querySelector("#shot-form");
   if (!form) return;
@@ -3339,19 +3458,23 @@ async function analyzeLaneVideo() {
     return;
   }
   let upload = null;
+  const videoSubject = selectedLaneVideoSubject();
   const request = {
     tracking_mode: payload.tracking_mode || "recorded_video",
     video_name: payload.video_name || file?.name || "",
+    video_subject: videoSubject.value,
+    video_subject_label: videoSubject.label,
+    use_profile_context: videoSubject.useProfileContext,
     upload_id: "",
     video: file ? { name: file.name, size: file.size, type: file.type || "video" } : null,
     detection: laneDetectionOptions(),
     calibration: laneCalibrationData(),
     context: {
-      lane_center: payload.lane_center || state.profile?.homeCenter || "",
-      ball: payload.ball || profileArsenalItems()[0] || "",
-      handedness: state.profile?.handedness || "",
-      delivery: state.profile?.delivery || "",
-      ball_weight: state.profile?.ballWeight || "",
+      lane_center: videoSubject.useProfileContext ? (payload.lane_center || state.profile?.homeCenter || "") : (payload.lane_center || ""),
+      ball: videoSubject.useProfileContext ? (payload.ball || profileArsenalItems()[0] || "") : (payload.ball || ""),
+      handedness: videoSubject.useProfileContext ? (state.profile?.handedness || "") : "",
+      delivery: videoSubject.useProfileContext ? (state.profile?.delivery || "") : "",
+      ball_weight: videoSubject.useProfileContext ? (state.profile?.ballWeight || "") : "",
     },
   };
   if (status) status.textContent = file ? "Uploading selected video..." : "Creating live-mode development analysis...";
@@ -6052,6 +6175,15 @@ function bindEvents() {
       laneDetectionOptions();
       queueAppSettingsSave();
     }
+    if (event.target.closest("input[name='video_subject']")) {
+      const subject = selectedLaneVideoSubject();
+      const status = document.querySelector("#lane-video-status");
+      if (status) {
+        status.textContent = subject.useProfileContext
+          ? "Profile context will be used only as fallback for this video."
+          : "Profile context will be ignored for this video; analysis will rely on the clip.";
+      }
+    }
     const videoFile = event.target.closest("#lane-video-file");
     if (videoFile) {
       handleLaneVideoFile(videoFile);
@@ -6151,6 +6283,10 @@ function bindEvents() {
 
     if (event.target.closest("[data-lane-video-analyze]")) {
       analyzeLaneVideo();
+      return;
+    }
+    if (event.target.closest("[data-lane-share-analysis]")) {
+      prepareLaneAnalysisShare();
       return;
     }
 

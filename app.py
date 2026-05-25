@@ -1472,6 +1472,15 @@ def create_lane_video_analysis(payload: dict) -> dict:
     context = payload.get("context") if isinstance(payload.get("context"), dict) else {}
     detection = payload.get("detection") if isinstance(payload.get("detection"), dict) else {}
     calibration = payload.get("calibration") if isinstance(payload.get("calibration"), dict) else {}
+    video_subject = (optional_text(payload, "video_subject") or "me").lower()
+    if video_subject not in {"me", "guest", "unknown"}:
+        video_subject = "me"
+    video_subject_label = optional_text(payload, "video_subject_label") or {
+        "me": "Me",
+        "guest": "Guest bowler",
+        "unknown": "Unknown bowler",
+    }[video_subject]
+    use_profile_context = bool(payload.get("use_profile_context")) and video_subject == "me"
     upload_id = optional_text(payload, "upload_id")
     upload = get_lane_video_upload(upload_id)
     if upload_id and not upload:
@@ -1489,7 +1498,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         video_size = 0
     ball = str(context.get("ball") or payload.get("ball") or "").strip() or "Selected ball"
     lane_center = str(context.get("lane_center") or payload.get("lane_center") or "").strip() or "Practice center"
-    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}"
+    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}|{video_subject}"
     seed = sum(ord(char) for char in seed_text)
     speed_mph = round(15.2 + (seed % 31) / 10, 2)
     hook_inches = round(12.0 + ((seed // 3) % 95) / 5, 2)
@@ -1549,7 +1558,9 @@ def create_lane_video_analysis(payload: dict) -> dict:
         }
     camera_angle = "auto video" if auto_calibration else str(calibration.get("camera_angle") or "behind_bowler").replace("_", " ")
     output_preview = (
-        f"Development analysis for {video_name} using {camera_angle} calibration ({calibration_readiness}% ready): "
+        f"Development analysis for {video_name} ({video_subject_label}; "
+        f"{'profile fallback allowed' if use_profile_context else 'profile ignored'}) "
+        f"using {camera_angle} calibration ({calibration_readiness}% ready): "
         f"detected {ball} at {speed_mph:.2f} mph, "
         f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
         f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
@@ -1564,9 +1575,13 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "backend_status": "development_estimator" if LANE_ANALYSIS_ENGINE == "development_estimator" else "external_engine_configured",
         "tracking_mode": tracking_mode,
         "shot_source": "video_capture",
+        "video_subject": video_subject,
+        "video_subject_label": video_subject_label,
+        "use_profile_context": "true" if use_profile_context else "false",
         "video_name": video_name,
         "ball": ball if ball != "Selected ball" else "",
         "lane_center": lane_center if lane_center != "Practice center" else "",
+        "handedness": handedness if use_profile_context else "",
         "speed_mph": f"{speed_mph:.2f}",
         "ball_speed": f"{speed_mph:.2f} mph",
         "hook_inches": f"{hook_inches:.2f}",

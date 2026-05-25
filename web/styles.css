@@ -2229,6 +2229,63 @@ h1 {
   opacity: 0.76;
 }
 
+.lane-video-subject {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 0.75fr));
+  gap: 8px;
+  align-items: stretch;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.30);
+  padding: 10px;
+}
+
+.lane-video-subject > div {
+  display: grid;
+  gap: 4px;
+}
+
+.lane-video-subject strong {
+  color: #ffffff;
+}
+
+.lane-video-subject small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.lane-video-subject label {
+  cursor: pointer;
+}
+
+.lane-video-subject input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.lane-video-subject label span {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  border: 1px solid rgba(76, 201, 240, 0.16);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.48);
+  color: var(--muted);
+  font-weight: 900;
+  padding: 10px;
+  text-align: center;
+}
+
+.lane-video-subject input:checked + span {
+  border-color: rgba(76, 201, 240, 0.52);
+  background: linear-gradient(135deg, rgba(10, 132, 255, 0.30), rgba(76, 201, 240, 0.16));
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
 .lane-video-panels {
   display: grid;
 }
@@ -3881,6 +3938,64 @@ h1 {
   min-height: 96px;
 }
 
+.lane-analysis-share {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(76, 201, 240, 0.12);
+  padding-top: 12px;
+}
+
+.lane-analysis-share[hidden] {
+  display: none;
+}
+
+.lane-analysis-share-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.lane-analysis-share-heading h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.lane-analysis-share-heading span {
+  border: 1px solid rgba(76, 201, 240, 0.22);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  text-transform: uppercase;
+}
+
+.lane-analysis-share-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.45fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.lane-analysis-share textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.lane-analysis-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lane-analysis-share-actions p {
+  margin: 0;
+}
+
 .lane-analysis-history {
   display: grid;
   gap: 10px;
@@ -5369,6 +5484,8 @@ button:hover {
   .ball-catalog-tools,
   .spare-game-header,
   .spare-frame-grid,
+  .lane-video-subject,
+  .lane-analysis-share-grid,
   .lane-detection-grid,
   .lane-calibration-checklist,
   .lane-auto-calibration-grid {
@@ -5470,6 +5587,8 @@ button:hover {
 
   .lane-video-header,
   .lane-video-actions,
+  .lane-analysis-share-heading,
+  .lane-analysis-share-actions,
   .lane-free-snapshot-heading,
   .lane-breakdown-heading,
   .lane-output-heading,
@@ -5503,6 +5622,8 @@ button:hover {
   .home-split,
   .home-priority-strip,
   .home-metrics,
+  .lane-video-subject,
+  .lane-analysis-share-grid,
   .lane-result-buttons,
   .lane-shot-save-grid,
   .lane-free-snapshot-grid,
