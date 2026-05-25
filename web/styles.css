@@ -3008,8 +3008,33 @@ h1 {
     linear-gradient(90deg, #020305, #10243a 42%, #020305),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 18px, transparent 18px 38px);
   box-shadow:
+    0 22px 30px rgba(0, 0, 0, 0.56),
     inset 0 0 22px rgba(0, 0, 0, 0.78),
+    inset 7px 0 11px rgba(255, 255, 255, 0.08),
+    inset -7px 0 13px rgba(0, 0, 0, 0.52),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.lane-3d-gutter::before,
+.lane-3d-gutter::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  left: 2px;
+  height: 9px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(2, 3, 5, 0.68));
+  filter: blur(0.2px);
+  pointer-events: none;
+  transform: translateZ(7px);
+}
+
+.lane-3d-gutter::before {
+  top: 0;
+}
+
+.lane-3d-gutter::after {
+  bottom: 0;
 }
 
 .lane-3d-surface {
@@ -3021,7 +3046,11 @@ h1 {
   border-left: 2px solid rgba(76, 201, 240, 0.18);
   border-right: 2px solid rgba(76, 201, 240, 0.18);
   box-shadow:
+    0 42px 70px rgba(0, 0, 0, 0.62),
     0 28px 54px rgba(0, 0, 0, 0.54),
+    inset 9px 0 12px rgba(255, 255, 255, 0.14),
+    inset -9px 0 12px rgba(55, 25, 8, 0.34),
+    inset 0 12px 18px rgba(255, 239, 174, 0.20),
     inset 0 0 24px rgba(255, 239, 174, 0.15);
 }
 
@@ -3058,9 +3087,12 @@ h1 {
     linear-gradient(180deg, #131820, #05070a 76%),
     linear-gradient(90deg, rgba(255, 255, 255, 0.18), transparent);
   box-shadow:
+    inset 9px 0 16px rgba(255, 255, 255, 0.08),
+    inset -9px 0 14px rgba(0, 0, 0, 0.52),
     inset 0 -8px 16px rgba(0, 0, 0, 0.78),
     0 10px 22px rgba(0, 0, 0, 0.48);
-  transform: translateZ(-8px);
+  transform: translateZ(18px) rotateX(-6deg);
+  transform-origin: top center;
 }
 
 .lane-3d-pin-deck {
@@ -3074,7 +3106,23 @@ h1 {
     linear-gradient(180deg, rgba(5, 7, 10, 0.36), transparent 42%),
     repeating-linear-gradient(90deg, rgba(255, 250, 224, 0.16) 0 10px, rgba(89, 45, 17, 0.16) 10px 20px);
   border-bottom: 1px solid rgba(80, 42, 16, 0.42);
-  box-shadow: inset 0 -12px 20px rgba(55, 25, 8, 0.18);
+  box-shadow:
+    inset 0 9px 12px rgba(255, 240, 174, 0.22),
+    inset 0 -12px 20px rgba(55, 25, 8, 0.28),
+    0 7px 12px rgba(0, 0, 0, 0.22);
+  transform: translateZ(2px);
+}
+
+.lane-3d-pin-deck::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -5px;
+  left: 0;
+  height: 5px;
+  background: linear-gradient(180deg, rgba(87, 44, 16, 0.62), rgba(18, 8, 3, 0.70));
+  pointer-events: none;
+  transform: translateZ(3px);
 }
 
 .lane-3d-zone {
@@ -3101,6 +3149,9 @@ h1 {
   padding: 3px 6px;
   text-transform: uppercase;
   transform: rotateX(calc(-1 * var(--lane-3d-tilt)));
+  box-shadow:
+    0 5px 11px rgba(0, 0, 0, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
 }
 
 .lane-3d-zone-backend {
@@ -3128,6 +3179,10 @@ h1 {
   top: 24%;
   height: 48%;
   background: linear-gradient(90deg, transparent, rgba(202, 242, 255, 0.28), transparent);
+  box-shadow:
+    inset 0 12px 16px rgba(255, 255, 255, 0.08),
+    inset 0 -12px 18px rgba(0, 0, 0, 0.08);
+  transform: translateZ(1px);
 }
 
 .lane-3d-approach {
@@ -3172,6 +3227,7 @@ h1 {
   border-bottom: 18px solid rgba(36, 18, 8, 0.58);
   border-left: 5px solid transparent;
   filter: drop-shadow(0 1px 0 rgba(255, 248, 221, 0.26));
+  transform: translateZ(4px);
 }
 
 .lane-3d-dots {
@@ -3184,6 +3240,7 @@ h1 {
   border-radius: 999px;
   background: rgba(36, 18, 8, 0.64);
   box-shadow: 0 0 0 1px rgba(255, 248, 221, 0.20);
+  transform: translateZ(4px);
 }
 
 .lane-3d-pins {
@@ -3305,6 +3362,7 @@ h1 {
   text-transform: uppercase;
   transform: rotateX(calc(-1 * var(--lane-3d-tilt)));
   transform-origin: right center;
+  text-shadow: 0 2px 5px rgba(0, 0, 0, 0.76);
 }
 
 .lane-3d-distance-foul { top: 89%; }
@@ -3359,7 +3417,11 @@ h1 {
   border: 2px solid #ffffff;
   border-radius: 999px;
   background: #05070a;
-  box-shadow: 0 0 12px rgba(76, 201, 240, 0.82);
+  box-shadow:
+    0 6px 10px rgba(0, 0, 0, 0.44),
+    inset 0 2px 3px rgba(255, 255, 255, 0.26),
+    0 0 12px rgba(76, 201, 240, 0.82);
+  transform: translateZ(8px);
 }
 
 .lane-3d-marker small {
@@ -3390,7 +3452,9 @@ h1 {
   border: 1px solid rgba(76, 201, 240, 0.18);
   border-radius: 8px;
   background: #05070a;
-  box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.48);
+  box-shadow:
+    0 18px 32px rgba(0, 0, 0, 0.46),
+    inset 0 0 18px rgba(0, 0, 0, 0.48);
   overflow: hidden;
 }
 
@@ -3399,25 +3463,29 @@ h1 {
 }
 
 .lane-breakdown-gutter {
-  fill: #071525;
+  fill: url("#laneGutterGradient");
+  filter: url("#laneObjectShadow");
   stroke: rgba(76, 201, 240, 0.16);
   stroke-width: 0.6;
 }
 
 .lane-breakdown-backstop {
-  fill: #06080c;
+  fill: url("#laneBackstopGradient");
+  filter: url("#laneObjectShadow");
   stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 0.4;
 }
 
 .lane-breakdown-surface {
   fill: url("#laneWoodPattern");
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.36));
   stroke: rgba(74, 38, 15, 0.72);
   stroke-width: 0.6;
 }
 
 .lane-breakdown-pin-deck {
-  fill: rgba(5, 7, 10, 0.16);
+  fill: url("#lanePinDeckGradient");
+  filter: url("#laneObjectShadow");
   stroke: rgba(74, 38, 15, 0.38);
   stroke-width: 0.45;
 }
@@ -3503,6 +3571,7 @@ h1 {
 .lane-breakdown-dots circle,
 .lane-breakdown-arrows polygon {
   fill: rgba(36, 18, 8, 0.50);
+  filter: url("#laneObjectShadow");
   stroke: rgba(255, 245, 211, 0.46);
   stroke-width: 0.25;
 }
@@ -3514,15 +3583,15 @@ h1 {
 
 .lane-breakdown-pin .pin-body,
 .lane-breakdown-fallen-pin .pin-body {
-  fill: #fff8ec;
+  fill: url("#lanePinBodyGradient");
   stroke: rgba(96, 49, 18, 0.34);
   stroke-width: 0.42;
-  filter: url("#laneBallShadow");
+  filter: url("#laneObjectShadow");
 }
 
 .lane-breakdown-pin .pin-band,
 .lane-breakdown-fallen-pin .pin-band {
-  fill: #c91f2b;
+  fill: url("#lanePinBandGradient");
   opacity: 0.90;
 }
 
@@ -3579,7 +3648,7 @@ h1 {
 
 .lane-breakdown-ball {
   fill: url("#laneBallGradient");
-  filter: url("#laneBallShadow");
+  filter: url("#laneObjectShadow") url("#laneBallShadow");
   stroke: rgba(255, 255, 255, 0.88);
   stroke-width: 0.8;
 }
@@ -3603,16 +3672,6 @@ h1 {
   stroke-dasharray: 3 2;
   stroke-width: 1.6;
   animation: laneTrackerPulse 1.2s ease-in-out infinite;
-}
-
-@keyframes laneTrackerChase {
-  from {
-    stroke-dashoffset: 464;
-  }
-
-  to {
-    stroke-dashoffset: 0;
-  }
 }
 
 @keyframes laneTrackerPulse {

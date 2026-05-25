@@ -2820,13 +2820,17 @@ function renderLaneBreakdownVisual(fields = null) {
   const entryBoard = laneBoardValue(laneValue("entry_board"), 17.5);
   const pinResultValue = laneValue("pin_result") || laneValue("result");
   const standingPins = laneStandingPinsFromResult(pinResultValue);
-  const hasAnalysis = Boolean(
+  const hasAnalysis = Boolean(isVideoDriven && (
     laneValue("analysis_run_id") ||
+    laneValue("release_board", "feet_board") ||
+    laneValue("arrows_board") ||
+    laneValue("breakpoint") ||
+    laneValue("entry_board") ||
     laneValue("speed_mph") ||
     laneValue("hook_inches") ||
     laneValue("pin_result") ||
     laneValue("pocket_quality")
-  );
+  ));
   const laneScale = {
     pinDeckY: 34,
     headPinY: 58,
@@ -2909,6 +2913,23 @@ function renderLaneBreakdownVisual(fields = null) {
   const zoom = clamp(Number(state.laneBreakdownView?.zoom) || 1, 0.75, 1.65);
   const tilt = clamp(Number(state.laneBreakdownView?.tilt) || 58, 38, 70);
   state.laneBreakdownView = { mode, rotation, zoom, tilt };
+  const track3dHtml = hasAnalysis ? `
+                <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
+                <path d="${motionPath}" class="lane-breakdown-path"></path>
+                <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
+                <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
+                <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
+                <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
+  ` : "";
+  const track2dHtml = hasAnalysis ? `
+        <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
+        <path d="${motionPath}" class="lane-breakdown-path"></path>
+        <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
+        <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
+        <circle cx="${markers[0].x}" cy="${markers[0].y}" r="3.2" class="lane-breakdown-ball-start"></circle>
+        <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
+        <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
+  ` : "";
 
   if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
   document.querySelectorAll("[data-lane-breakdown-view]").forEach((button) => {
@@ -2943,12 +2964,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <span class="lane-3d-distance lane-3d-distance-deck">62 ft 10 in deck</span>
               <span class="lane-3d-width-label">41.5 in lane | 39 boards</span>
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true" data-lane-sync-scope>
-                <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
-                <path d="${motionPath}" class="lane-breakdown-path"></path>
-                <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
-                <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
-                <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
-                <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
+                ${track3dHtml}
               </svg>
               ${markers.map((marker) => `
                 <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
@@ -3003,6 +3019,35 @@ function renderLaneBreakdownVisual(fields = null) {
           <filter id="laneBallShadow">
             <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.42"></feDropShadow>
           </filter>
+          <linearGradient id="laneGutterGradient" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%" stop-color="#020409"></stop>
+            <stop offset="46%" stop-color="#193656"></stop>
+            <stop offset="100%" stop-color="#020409"></stop>
+          </linearGradient>
+          <linearGradient id="laneBackstopGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#2a3544"></stop>
+            <stop offset="58%" stop-color="#080b10"></stop>
+            <stop offset="100%" stop-color="#020305"></stop>
+          </linearGradient>
+          <linearGradient id="lanePinDeckGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#f5c879" stop-opacity="0.46"></stop>
+            <stop offset="52%" stop-color="#b5682a" stop-opacity="0.26"></stop>
+            <stop offset="100%" stop-color="#2a1308" stop-opacity="0.34"></stop>
+          </linearGradient>
+          <linearGradient id="lanePinBodyGradient" x1="15%" x2="88%" y1="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"></stop>
+            <stop offset="38%" stop-color="#fff3dc"></stop>
+            <stop offset="72%" stop-color="#d2a065"></stop>
+            <stop offset="100%" stop-color="#7b421c"></stop>
+          </linearGradient>
+          <linearGradient id="lanePinBandGradient" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#ff7468"></stop>
+            <stop offset="52%" stop-color="#c91f2b"></stop>
+            <stop offset="100%" stop-color="#620813"></stop>
+          </linearGradient>
+          <filter id="laneObjectShadow">
+            <feDropShadow dx="1.4" dy="2.4" stdDeviation="1.6" flood-color="#000000" flood-opacity="0.44"></feDropShadow>
+          </filter>
         </defs>
         <rect x="0.5" y="0.5" width="159" height="299" rx="6" class="lane-breakdown-room"></rect>
         <rect x="18" y="0.5" width="124" height="22" rx="3" class="lane-breakdown-backstop"></rect>
@@ -3049,13 +3094,7 @@ function renderLaneBreakdownVisual(fields = null) {
         <g class="lane-breakdown-pins" aria-hidden="true">
           ${fallenPin2dHtml}${standingPin2dHtml}
         </g>
-        <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
-        <path d="${motionPath}" class="lane-breakdown-path"></path>
-        <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
-        <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
-        <circle cx="${markers[0].x}" cy="${markers[0].y}" r="3.2" class="lane-breakdown-ball-start"></circle>
-        <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
-        <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
+        ${track2dHtml}
         ${markers.map((marker) => `
           <g class="lane-breakdown-marker ${marker.className}">
             <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
