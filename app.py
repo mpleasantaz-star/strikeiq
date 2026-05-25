@@ -1879,6 +1879,10 @@ def create_lane_video_analysis(payload: dict) -> dict:
             if has_motion_track
             else str(motion.get("reason") or "No stable ball path was detected.")
         ),
+        "analysis_source": "Uploaded video frame motion" if has_motion_track else "Needs manual video review",
+        "motion_points": str(motion.get("frame_points") or 0),
+        "motion_duration": f"{float(motion.get('duration') or 0):.2f}" if has_motion_track else "",
+        "speed_available": "true" if speed_available else "false",
         "trajectory_points": json.dumps(motion.get("trajectory", []), ensure_ascii=True) if has_motion_track else "[]",
         "result": result,
         "output_preview": output_preview,

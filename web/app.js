@@ -469,6 +469,7 @@ const projectDetails = {
                 </div>
                 <div class="lane-source-review-frame">
                   <video id="lane-source-review-video" muted playsinline controls preload="metadata"></video>
+                  <svg id="lane-source-motion-overlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-label="Detected ball path overlay"></svg>
                   <div id="lane-source-review-placeholder">
                     <span>Real shot video</span>
                     <small>Select a recording or start live camera to compare it with the visual breakdown.</small>
@@ -2622,10 +2623,91 @@ function laneVideoProgressFromSource(video) {
   return state.laneReviewSyncProgress || 0;
 }
 
+function laneTrajectoryPoints(fields = state.laneVideoAnalysisFields || {}) {
+  const raw = fields?.trajectory_points;
+  if (!raw) return [];
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((point) => ({
+        time: Number(point.time),
+        x: Number(point.x),
+        y: Number(point.y),
+      }))
+      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+      .map((point) => ({
+        ...point,
+        x: clamp(point.x, 0, 1),
+        y: clamp(point.y, 0, 1),
+      }));
+  } catch {
+    return [];
+  }
+}
+
+function laneOverlayPath(points) {
+  return points
+    .map((point, index) => `${index ? "L" : "M"} ${(point.x * 100).toFixed(2)} ${(point.y * 100).toFixed(2)}`)
+    .join(" ");
+}
+
+function renderLaneSourceMotionOverlay(fields = state.laneVideoAnalysisFields || {}) {
+  const overlay = document.querySelector("#lane-source-motion-overlay");
+  if (!overlay) return;
+  const points = laneTrajectoryPoints(fields);
+  if (points.length < 2) {
+    overlay.innerHTML = "";
+    overlay.classList.remove("is-active");
+    return;
+  }
+  const path = laneOverlayPath(points);
+  overlay.classList.add("is-active");
+  overlay.innerHTML = `
+    <path d="${path}" class="lane-source-track-underlay"></path>
+    <path d="${path}" class="lane-source-track"></path>
+    <circle r="2.4" class="lane-source-track-ball" data-lane-source-ball></circle>
+    <circle r="3.1" class="lane-source-track-ring" data-lane-source-ring></circle>
+  `;
+  updateLaneSourceMotionOverlaySync(document.querySelector("#lane-source-review-video"));
+}
+
+function updateLaneSourceMotionOverlaySync(video) {
+  const overlay = document.querySelector("#lane-source-motion-overlay");
+  const path = overlay?.querySelector(".lane-source-track");
+  const ball = overlay?.querySelector("[data-lane-source-ball]");
+  const ring = overlay?.querySelector("[data-lane-source-ring]");
+  if (!overlay || !path || !ball) return;
+  const points = laneTrajectoryPoints();
+  if (points.length < 2) return;
+  const firstTime = Number.isFinite(points[0].time) ? points[0].time : 0;
+  const lastTime = Number.isFinite(points[points.length - 1].time) ? points[points.length - 1].time : 1;
+  const hasTimedPath = lastTime > firstTime;
+  const progress = hasTimedPath && video
+    ? clamp((Number(video.currentTime || 0) - firstTime) / (lastTime - firstTime), 0, 1)
+    : state.laneReviewSyncProgress;
+  let length = 0;
+  try {
+    length = path.getTotalLength();
+  } catch {
+    return;
+  }
+  if (!Number.isFinite(length) || length <= 0) return;
+  const ballPoint = path.getPointAtLength(length * progress);
+  const ringPoint = path.getPointAtLength(length * Math.max(0, progress - 0.035));
+  ball.setAttribute("cx", ballPoint.x.toFixed(2));
+  ball.setAttribute("cy", ballPoint.y.toFixed(2));
+  if (ring) {
+    ring.setAttribute("cx", ringPoint.x.toFixed(2));
+    ring.setAttribute("cy", ringPoint.y.toFixed(2));
+  }
+}
+
 function updateLaneVisualSync(progress = null) {
   const video = document.querySelector("#lane-source-review-video");
   const nextProgress = clamp(progress === null ? laneVideoProgressFromSource(video) : progress, 0, 1);
   state.laneReviewSyncProgress = nextProgress;
+  updateLaneSourceMotionOverlaySync(video);
   document.querySelectorAll("[data-lane-sync-scope]").forEach((scope) => {
     const path = scope.querySelector("[data-lane-sync-path]");
     const tracker = scope.querySelector("[data-lane-sync-tracker]");
@@ -3299,7 +3381,13 @@ function renderLaneBreakdownVisual(fields = null) {
   const pocket = laneValue("pocket_quality") || "Pending";
   const pins = pinResultValue || "Pending";
   const confidence = laneValue("confidence");
+  const motionPoints = laneValue("motion_points");
+  const analysisSource = laneValue("analysis_source") || (hasTrackData ? "Detected video motion" : "Pending");
+  const qualityLabel = laneValue("confidence_label") || (hasTrackData ? "Motion estimate" : "Needs review");
   const metrics = [
+    ["Source", escapeHtml(analysisSource)],
+    ["Quality", escapeHtml(qualityLabel)],
+    ["Motion Points", motionPoints ? escapeHtml(motionPoints) : "Pending"],
     ["Speed", laneMetricText(speed, " mph") || escapeHtml(speed) || "Pending"],
     ["Hook", laneMetricText(hook, " in") || "Pending"],
     ["Boards", laneMetricText(boards) || "Pending"],
@@ -3311,6 +3399,7 @@ function renderLaneBreakdownVisual(fields = null) {
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
     <p>${hasAnalysis ? (hasTrackData ? (isDevelopmentEstimate ? "Motion-based path mapped from the source video. Verify pin fall and correct the track if the ball was obscured." : "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown.") : "No stable ball path was detected from this video, so StrikeIQ is not drawing a track yet. Use source video review or correction fields.") : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
   `;
+  renderLaneSourceMotionOverlay(sourceFields);
   if (idealContainer) {
     const recommendation = laneAdjustmentRecommendation({
       ...sourceFields,
