@@ -344,8 +344,7 @@ const projectDetails = {
             </label>
             <div class="lane-video-guest-fields" data-lane-guest-fields hidden>
               <label>Guest name<input id="lane-guest-name" name="guest_user_name" autocomplete="name" placeholder="Guest bowler"></label>
-              <label>Email address<input id="lane-guest-email" name="guest_user_email" autocomplete="email" inputmode="email" placeholder="guest@example.com"></label>
-              <label>Phone number<input id="lane-guest-phone" name="guest_user_phone" autocomplete="tel" inputmode="tel" placeholder="555-123-4567"></label>
+              <label>Cell phone number<input id="lane-guest-phone" name="guest_user_phone" autocomplete="tel" inputmode="tel" placeholder="555-123-4567"></label>
             </div>
           </section>
           <div class="lane-video-panels">
@@ -3599,16 +3598,14 @@ function selectedLaneVideoSubject() {
   const selected = document.querySelector("#lane-video-subject-select")?.value || "me";
   const normalized = selected === "guest" ? "guest" : "me";
   const guestName = document.querySelector("#lane-guest-name")?.value.trim() || "";
-  const guestEmail = document.querySelector("#lane-guest-email")?.value.trim() || "";
   const guestPhone = document.querySelector("#lane-guest-phone")?.value.trim() || "";
   return {
     value: normalized,
     label: normalized === "me" ? "Active user" : (guestName ? `Guest user: ${guestName}` : "Guest user"),
     useProfileContext: normalized === "me",
     guestName,
-    guestEmail,
     guestPhone,
-    hasGuestContact: Boolean(guestEmail || guestPhone),
+    hasGuestContact: Boolean(guestPhone),
   };
 }
 
@@ -3627,7 +3624,6 @@ function laneAnalysisShareText(fields = state.laneVideoAnalysisFields || {}) {
     fields.video_name && `Video: ${fields.video_name}`,
     subjectLabel && `Subject: ${subjectLabel}`,
     fields.guest_user_name && `Guest: ${fields.guest_user_name}`,
-    fields.guest_user_email && `Guest email: ${fields.guest_user_email}`,
     fields.guest_user_phone && `Guest phone: ${fields.guest_user_phone}`,
     fields.lane_center && `Center: ${fields.lane_center}`,
     fields.ball && `Ball: ${fields.ball}`,
@@ -3697,7 +3693,7 @@ async function analyzeLaneVideo() {
   let upload = null;
   const videoSubject = selectedLaneVideoSubject();
   if (videoSubject.value === "guest" && (!videoSubject.guestName || !videoSubject.hasGuestContact)) {
-    const message = "Add the guest user's name and either an email address or phone number before analyzing.";
+    const message = "Add the guest user's name and cell phone number before analyzing.";
     if (status) status.textContent = message;
     setLaneVideoWorkflow("analyze", message);
     return;
@@ -3710,7 +3706,6 @@ async function analyzeLaneVideo() {
     use_profile_context: videoSubject.useProfileContext,
     guest_user: videoSubject.value === "guest" ? {
       name: videoSubject.guestName,
-      email: videoSubject.guestEmail,
       phone: videoSubject.guestPhone,
     } : null,
     upload_id: "",

@@ -1677,7 +1677,6 @@ def create_lane_video_analysis(payload: dict) -> dict:
     if video_subject not in {"me", "guest", "unknown"}:
         video_subject = "me"
     guest_user_name = str(guest_user.get("name") or payload.get("guest_user_name") or "").strip()[:120]
-    guest_user_email = str(guest_user.get("email") or payload.get("guest_user_email") or "").strip()[:200]
     guest_user_phone = str(guest_user.get("phone") or payload.get("guest_user_phone") or "").strip()[:60]
     video_subject_label = optional_text(payload, "video_subject_label") or {
         "me": "Active user",
@@ -1827,7 +1826,6 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "video_subject_label": video_subject_label,
         "use_profile_context": "true" if use_profile_context else "false",
         "guest_user_name": guest_user_name if video_subject == "guest" else "",
-        "guest_user_email": guest_user_email if video_subject == "guest" else "",
         "guest_user_phone": guest_user_phone if video_subject == "guest" else "",
         "video_name": video_name,
         "ball": ball if ball != "Selected ball" else "",
