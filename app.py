@@ -1466,6 +1466,206 @@ def get_shot_stats() -> dict:
     }
 
 
+def lane_upload_absolute_path(upload: dict | None) -> Path | None:
+    if not upload:
+        return None
+    relative_path = str(upload.get("relative_path") or "").strip()
+    stored_name = str(upload.get("stored_name") or "").strip()
+    candidate = (ROOT / relative_path) if relative_path else (LANE_VIDEO_DIR / stored_name)
+    try:
+        resolved = candidate.resolve()
+        lane_root = LANE_VIDEO_DIR.resolve()
+        if lane_root not in resolved.parents and resolved != lane_root:
+            return None
+    except OSError:
+        return None
+    return resolved if resolved.exists() else None
+
+
+def board_from_lane_x(x_value: float) -> float:
+    # Approximate board mapping before true lane-edge calibration is available.
+    # Most phone clips include gutters/approach around the lane, so avoid treating
+    # the full frame width as the 39-board lane.
+    return max(1.0, min(39.0, 20.0 + (x_value - 0.5) * 26.0))
+
+
+def smooth_motion_points(points: list[dict]) -> list[dict]:
+    if len(points) < 3:
+        return points
+    smoothed: list[dict] = []
+    for index, point in enumerate(points):
+        window = points[max(0, index - 2): index + 3]
+        smoothed.append(
+            {
+                **point,
+                "x": sum(item["x"] for item in window) / len(window),
+                "y": sum(item["y"] for item in window) / len(window),
+            }
+        )
+    return smoothed
+
+
+def analyze_lane_video_motion(video_path: Path | None) -> dict:
+    if not video_path:
+        return {"ok": False, "reason": "No stored video file was available for motion analysis."}
+    try:
+        import cv2  # type: ignore
+    except ImportError:
+        return {"ok": False, "reason": "OpenCV is not available in this Python environment."}
+
+    capture = cv2.VideoCapture(str(video_path))
+    if not capture.isOpened():
+        return {"ok": False, "reason": "The uploaded video could not be opened for frame analysis."}
+
+    try:
+        fps = float(capture.get(cv2.CAP_PROP_FPS) or 30.0)
+        frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        sample_step = max(1, frame_count // 180) if frame_count else 2
+        previous_gray = None
+        tracked_points: list[dict] = []
+        last_point: dict | None = None
+        frame_index = 0
+        resize_width = 480
+
+        while True:
+            ok, frame = capture.read()
+            if not ok:
+                break
+            if frame_index % sample_step:
+                frame_index += 1
+                continue
+
+            height, width = frame.shape[:2]
+            scale = resize_width / max(1, width)
+            if width > resize_width:
+                frame = cv2.resize(frame, (resize_width, int(height * scale)))
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = cv2.GaussianBlur(gray, (7, 7), 0)
+            if previous_gray is None:
+                previous_gray = gray
+                frame_index += 1
+                continue
+
+            diff = cv2.absdiff(gray, previous_gray)
+            previous_gray = gray
+            _, threshold = cv2.threshold(diff, 24, 255, cv2.THRESH_BINARY)
+            threshold = cv2.morphologyEx(threshold, cv2.MORPH_OPEN, None, iterations=1)
+            threshold = cv2.dilate(threshold, None, iterations=2)
+            contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            frame_height, frame_width = gray.shape[:2]
+            candidates = []
+            for contour in contours:
+                area = cv2.contourArea(contour)
+                if area < 12 or area > 1800:
+                    continue
+                x, y, w, h = cv2.boundingRect(contour)
+                if w <= 2 or h <= 2:
+                    continue
+                x_norm = (x + w / 2) / frame_width
+                y_norm = (y + h / 2) / frame_height
+                if x_norm < 0.08 or x_norm > 0.92 or y_norm < 0.05 or y_norm > 0.98:
+                    continue
+                aspect = w / max(1, h)
+                if aspect < 0.35 or aspect > 2.8:
+                    continue
+                perimeter = cv2.arcLength(contour, True)
+                circularity = 4 * math.pi * area / (perimeter * perimeter) if perimeter else 0
+                if circularity < 0.10:
+                    continue
+                distance_penalty = 0.0
+                if last_point:
+                    distance_penalty = math.hypot(x_norm - last_point["x"], y_norm - last_point["y"]) * 1.6
+                score = circularity + min(area / 300.0, 2.0) - distance_penalty
+                candidates.append(
+                    {
+                        "frame": frame_index,
+                        "time": frame_index / fps if fps else 0.0,
+                        "x": x_norm,
+                        "y": y_norm,
+                        "area": area,
+                        "score": score,
+                    }
+                )
+
+            if candidates:
+                selected = max(candidates, key=lambda item: item["score"])
+                if not last_point or math.hypot(selected["x"] - last_point["x"], selected["y"] - last_point["y"]) <= 0.16:
+                    tracked_points.append(selected)
+                    last_point = selected
+            frame_index += 1
+    finally:
+        capture.release()
+
+    if len(tracked_points) < 8:
+        return {"ok": False, "reason": "No stable moving ball path was found in the sampled frames."}
+
+    segments: list[list[dict]] = []
+    current_segment: list[dict] = []
+    for point in tracked_points:
+        if current_segment and math.hypot(point["x"] - current_segment[-1]["x"], point["y"] - current_segment[-1]["y"]) > 0.13:
+            if len(current_segment) >= 5:
+                segments.append(current_segment)
+            current_segment = []
+        current_segment.append(point)
+    if len(current_segment) >= 5:
+        segments.append(current_segment)
+    if segments:
+        tracked_points = max(
+            segments,
+            key=lambda segment: len(segment) + abs(segment[-1]["y"] - segment[0]["y"]) * 80,
+        )
+
+    points = smooth_motion_points(tracked_points)
+    if len(points) >= 8:
+        first_y = sum(point["y"] for point in points[: max(2, len(points) // 5)]) / max(2, len(points) // 5)
+        last_y = sum(point["y"] for point in points[-max(2, len(points) // 5):]) / max(2, len(points) // 5)
+        if last_y < first_y:
+            end_index = min(range(len(points)), key=lambda index: points[index]["y"])
+        else:
+            end_index = max(range(len(points)), key=lambda index: points[index]["y"])
+        points = points[: end_index + 1]
+    if len(points) < 8:
+        return {"ok": False, "reason": "Motion was found, but the usable ball-path segment was too short."}
+    vertical_travel = abs(points[-1]["y"] - points[0]["y"])
+    horizontal_travel = max(point["x"] for point in points) - min(point["x"] for point in points)
+    if vertical_travel < 0.12 and horizontal_travel < 0.05:
+        return {"ok": False, "reason": "Motion was detected, but it did not form a usable lane-length ball path."}
+
+    release_point = points[0]
+    entry_point = points[-1]
+    arrow_point = points[max(0, min(len(points) - 1, round((len(points) - 1) * 0.28)))]
+    mid_points = points[max(0, round(len(points) * 0.35)): max(1, round(len(points) * 0.88))]
+    breakpoint_point = points[max(0, min(len(points) - 1, round((len(points) - 1) * 0.72)))]
+    duration = max(0.01, entry_point["time"] - release_point["time"])
+    speed_mph = max(8.0, min(24.0, (60.0 / duration) * 0.681818)) if duration <= 6.0 else 0.0
+    release_board = board_from_lane_x(release_point["x"])
+    arrows_board = board_from_lane_x(arrow_point["x"])
+    breakpoint_board = board_from_lane_x(breakpoint_point["x"])
+    entry_board = board_from_lane_x(entry_point["x"])
+    boards_crossed = abs(entry_board - release_board)
+    hook_inches = abs(entry_board - breakpoint_board) * 1.063
+    confidence = max(42, min(82, int(42 + len(points) * 0.7 + vertical_travel * 35)))
+    trajectory = [
+        {"time": round(point["time"], 3), "x": round(point["x"], 4), "y": round(point["y"], 4)}
+        for point in points[:: max(1, len(points) // 24)]
+    ]
+    return {
+        "ok": True,
+        "frame_points": len(points),
+        "duration": duration,
+        "release_board": release_board,
+        "arrows_board": arrows_board,
+        "breakpoint_board": breakpoint_board,
+        "entry_board": entry_board,
+        "speed_mph": speed_mph,
+        "speed_available": speed_mph > 0,
+        "boards_crossed": boards_crossed,
+        "hook_inches": hook_inches,
+        "confidence": confidence,
+        "trajectory": trajectory,
+    }
+
+
 def create_lane_video_analysis(payload: dict) -> dict:
     tracking_mode = optional_text(payload, "tracking_mode") or "recorded_video"
     video = payload.get("video") if isinstance(payload.get("video"), dict) else {}
@@ -1502,32 +1702,65 @@ def create_lane_video_analysis(payload: dict) -> dict:
         video_size = 0
     ball = str(context.get("ball") or payload.get("ball") or "").strip() or "Selected ball"
     lane_center = str(context.get("lane_center") or payload.get("lane_center") or "").strip() or "Practice center"
-    seed_text = f"{tracking_mode}|{video_name}|{ball}|{lane_center}|{video_size}|{video_subject}|{guest_user_name}"
-    seed = sum(ord(char) for char in seed_text)
-    speed_mph = round(15.2 + (seed % 31) / 10, 2)
-    rev_rate_rpm = 280 + (seed % 245)
-    hook_inches = round(12.0 + ((seed // 3) % 95) / 5, 2)
-    boards_crossed = round(8.0 + ((seed // 7) % 70) / 5, 2)
-    release_board = str(14 + seed % 12)
-    arrows_board = str(8 + seed % 9)
-    breakpoint_board_value = 5 + seed % 8
-    breakpoint = f"{breakpoint_board_value} board at {38 + seed % 12} ft"
-    entry_board = f"{16 + (seed % 4) * 0.5:.1f}"
-    miss_options = ["Flush", "High", "Light", "Through breakpoint"]
-    pocket_options = ["Flush", "Light mixer", "High pocket", "Review angle"]
-    pin_options = ["Strike", "10 pin", "4 pin", "2-8 leave"]
-    miss_direction = miss_options[seed % len(miss_options)]
-    pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
-    pin_result = pin_options[(seed // 11) % len(pin_options)]
-    confidence = 38 + seed % 18 if LANE_ANALYSIS_ENGINE == "development_estimator" else 72 + seed % 22
+    motion = analyze_lane_video_motion(lane_upload_absolute_path(upload)) if upload else {
+        "ok": False,
+        "reason": "No uploaded video file was available for frame analysis.",
+    }
+    has_motion_track = bool(motion.get("ok"))
+    if has_motion_track:
+        speed_mph = round(float(motion["speed_mph"]), 2)
+        speed_available = bool(motion.get("speed_available"))
+        rev_rate_rpm = ""
+        hook_inches = round(float(motion["hook_inches"]), 2)
+        boards_crossed = round(float(motion["boards_crossed"]), 2)
+        release_board = f"{float(motion['release_board']):.1f}"
+        arrows_board = f"{float(motion['arrows_board']):.1f}"
+        breakpoint_board_value = float(motion["breakpoint_board"])
+        breakpoint = f"{breakpoint_board_value:.1f} board estimated from video motion"
+        entry_board = f"{float(motion['entry_board']):.1f}"
+        miss_direction = "Review from video"
+        pocket_quality = "Review from video"
+        pin_result = optional_text(payload, "pin_result") or optional_text(payload, "result") or "Review pin fall"
+        confidence = int(motion["confidence"])
+        analysis_backend_status = "video_motion_estimator"
+    else:
+        speed_mph = 0.0
+        speed_available = False
+        rev_rate_rpm = ""
+        hook_inches = 0.0
+        boards_crossed = 0.0
+        release_board = ""
+        arrows_board = ""
+        breakpoint_board_value = 0.0
+        breakpoint = ""
+        entry_board = ""
+        miss_direction = ""
+        pocket_quality = ""
+        pin_result = ""
+        confidence = 0
+        analysis_backend_status = "vision_review_required"
     handedness = str(context.get("handedness") or "").strip().lower()
     is_left = handedness == "left"
-    ideal_arrows_board = max(1, min(39, int(arrows_board) + (2 if is_left else -2)))
-    ideal_breakpoint_board = max(1, min(39, breakpoint_board_value + (3 if is_left else -3)))
+    ideal_arrows_board = (
+        max(1, min(39, round(float(arrows_board) + (2 if is_left else -2), 1)))
+        if has_motion_track else ""
+    )
+    ideal_breakpoint_board = (
+        max(1, min(39, round(breakpoint_board_value + (3 if is_left else -3), 1)))
+        if has_motion_track else ""
+    )
     move_to_hold = "right" if is_left else "left"
     move_to_recover = "left" if is_left else "right"
     pin_result_lower = pin_result.lower()
-    if "strike" in pin_result_lower:
+    if not has_motion_track:
+        adjustment = "No automatic move yet. Review the source video or correct the track before saving."
+        next_move = "Use the source video to mark board start, arrow start, speed, and pin fall."
+        adjustment_priority = "Needs review"
+    elif "review" in pin_result_lower or not pin_result_lower:
+        adjustment = "Add the actual pin fall result, then StrikeIQ will calculate the next move from the detected path."
+        next_move = "Confirm pin fall from the source video and review the detected board path."
+        adjustment_priority = "Add result"
+    elif "strike" in pin_result_lower:
         adjustment = "Stay with the same board start, arrow start, and speed."
         next_move = "Repeat this shot once. If carry stays strong, keep the line; if corners appear, adjust from the next result."
         adjustment_priority = "Hold"
@@ -1547,11 +1780,11 @@ def create_lane_video_analysis(payload: dict) -> dict:
         adjustment = "Make a 1-board move toward the pocket and keep speed as close as possible."
         next_move = "Use the next shot to confirm whether the leave was angle, speed, or carry related."
         adjustment_priority = "Small move"
-    auto_calibration = bool(calibration.get("auto_detect")) or str(calibration.get("mode") or "") == "auto_video"
-    calibration_readiness = 100 if auto_calibration else int(calibration.get("readiness") or 0)
-    if calibration_readiness >= 100 and LANE_ANALYSIS_ENGINE != "development_estimator":
+    auto_calibration = has_motion_track or bool(calibration.get("auto_detect")) or str(calibration.get("mode") or "") == "auto_video"
+    calibration_readiness = 100 if has_motion_track else int(calibration.get("readiness") or 0)
+    if calibration_readiness >= 100 and analysis_backend_status != "vision_review_required":
         confidence = min(96, confidence + 4)
-    result = "Strike" if pin_result == "Strike" else pin_result
+    result = "Strike" if pin_result == "Strike" else (pin_result if pin_result != "Review pin fall" else "")
     if auto_calibration:
         calibration = {
             **calibration,
@@ -1560,29 +1793,34 @@ def create_lane_video_analysis(payload: dict) -> dict:
             "camera_angle": "auto_video",
             "release_board_hint": release_board,
             "target_board_hint": arrows_board,
-            "breakpoint_board_hint": str(breakpoint_board_value),
+            "breakpoint_board_hint": f"{breakpoint_board_value:.1f}" if has_motion_track else "",
             "markers": {"foul_line": True, "arrows": True, "lane_edges": True, "pin_deck": True},
             "readiness": calibration_readiness,
         }
     camera_angle = "auto video" if auto_calibration else str(calibration.get("camera_angle") or "behind_bowler").replace("_", " ")
-    output_preview = (
-        f"Development analysis for {video_name} ({video_subject_label}; "
-        f"{'profile fallback allowed' if use_profile_context else 'profile ignored'}) "
-        f"using {camera_angle} calibration ({calibration_readiness}% ready): "
-        f"{'estimated' if LANE_ANALYSIS_ENGINE == 'development_estimator' else 'detected'} {ball} at {speed_mph:.2f} mph, "
-        f"{rev_rate_rpm} rpm, "
-        f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
-        f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
-        f"pocket read {pocket_quality}, pin result {pin_result}. "
-        f"Recommended adjustment: {adjustment}"
-        + (" Verify and correct the track against the video before saving." if LANE_ANALYSIS_ENGINE == "development_estimator" else "")
-    )
+    if has_motion_track:
+        output_preview = (
+            f"Video motion estimate for {video_name} ({video_subject_label}; "
+            f"{'profile fallback allowed' if use_profile_context else 'profile ignored'}): "
+            f"tracked {motion['frame_points']} moving ball points from the uploaded video. "
+            f"{f'Estimated speed {speed_mph:.2f} mph, ' if speed_available else 'Speed needs review, '}"
+            f"release board {release_board}, arrows {arrows_board}, "
+            f"breakpoint {breakpoint}, entry board {entry_board}, {hook_inches:.1f} in hook, "
+            f"{boards_crossed:.1f} boards crossed. Pin fall still needs review from the source video. "
+            f"Recommended adjustment: {adjustment}"
+        )
+    else:
+        output_preview = (
+            f"Video uploaded for {video_name}, but StrikeIQ could not identify a stable ball path from the frames. "
+            f"Reason: {motion.get('reason')}. The visual track is hidden until a path is detected or corrected manually."
+        )
     analysis_run_id = f"lane-video-{uuid.uuid4().hex[:12]}"
     fields = {
         "analysis_run_id": analysis_run_id,
         "analysis_engine": LANE_ANALYSIS_ENGINE,
         "analysis_tier": "paid",
-        "backend_status": "development_estimator" if LANE_ANALYSIS_ENGINE == "development_estimator" else "external_engine_configured",
+        "backend_status": analysis_backend_status,
+        "analysis_status": "motion_detected" if has_motion_track else "needs_review",
         "tracking_mode": tracking_mode,
         "shot_source": "video_capture",
         "video_subject": video_subject,
@@ -1595,18 +1833,18 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "ball": ball if ball != "Selected ball" else "",
         "lane_center": lane_center if lane_center != "Practice center" else "",
         "handedness": handedness if use_profile_context else "",
-        "speed_mph": f"{speed_mph:.2f}",
-        "ball_speed": f"{speed_mph:.2f} mph",
+        "speed_mph": f"{speed_mph:.2f}" if has_motion_track and speed_available else "",
+        "ball_speed": f"{speed_mph:.2f} mph" if has_motion_track and speed_available else "",
         "rev_rate": str(rev_rate_rpm),
         "rev_rate_rpm": str(rev_rate_rpm),
-        "hook_inches": f"{hook_inches:.2f}",
-        "boards_crossed": f"{boards_crossed:.2f}",
+        "hook_inches": f"{hook_inches:.2f}" if has_motion_track else "",
+        "boards_crossed": f"{boards_crossed:.2f}" if has_motion_track else "",
         "feet_board": release_board,
         "release_board": release_board,
         "arrows_board": arrows_board,
         "ideal_arrows_board": str(ideal_arrows_board),
         "breakpoint": breakpoint,
-        "breakpoint_board": str(breakpoint_board_value),
+        "breakpoint_board": f"{breakpoint_board_value:.1f}" if has_motion_track else "",
         "ideal_breakpoint_board": str(ideal_breakpoint_board),
         "entry_board": entry_board,
         "miss_direction": miss_direction,
@@ -1618,27 +1856,30 @@ def create_lane_video_analysis(payload: dict) -> dict:
         "adjustment_priority": adjustment_priority,
         "adjustment_reason": (
             f"Based on board start {release_board}, arrow start {arrows_board}, "
-            f"speed {speed_mph:.2f} mph, and pin fall {pin_result}."
+            f"{f'speed {speed_mph:.2f} mph' if speed_available else 'speed pending'}, and pin fall {pin_result}."
+            if has_motion_track
+            else "No stable video track was detected, so StrikeIQ did not calculate a board move."
         ),
         "calibration_status": "Auto calibrated" if auto_calibration else "Manual calibration",
         "calibration_readiness": str(calibration_readiness),
         "calibration_summary": (
             f"Auto-detected lane markers from video: release board {release_board}, "
-            f"arrow board {arrows_board}, breakpoint board {breakpoint_board_value}."
-            if auto_calibration
+            f"arrow board {arrows_board}, breakpoint board {breakpoint_board_value:.1f}."
+            if has_motion_track
             else f"Manual calibration {calibration_readiness}% ready."
         ),
         "confidence": str(confidence),
         "confidence_label": (
-            "Development estimate - verify track"
-            if LANE_ANALYSIS_ENGINE == "development_estimator"
-            else ("Calibrated video analysis" if calibration_readiness >= 100 else "Video analysis")
+            "Video motion estimate - verify pin result"
+            if has_motion_track
+            else "Needs video review"
         ),
         "confidence_notes": (
-            "Local development mode does not track the ball frame-by-frame yet. Correct the track against the source video before saving."
-            if LANE_ANALYSIS_ENGINE == "development_estimator"
-            else "Vision model generated this track from the source video."
+            "This estimate is based on moving pixels from the uploaded video. Verify pin fall and correct the track if the ball was obscured."
+            if has_motion_track
+            else str(motion.get("reason") or "No stable ball path was detected.")
         ),
+        "trajectory_points": json.dumps(motion.get("trajectory", []), ensure_ascii=True) if has_motion_track else "[]",
         "result": result,
         "output_preview": output_preview,
     }
@@ -1661,8 +1902,12 @@ def create_lane_video_analysis(payload: dict) -> dict:
     ]
     result_payload = {
         "analysis_run_id": analysis_run_id,
-        "status": "ready",
-        "message": "Development video analysis complete from stored upload. Replace this estimator with the production vision model later.",
+        "status": "ready" if has_motion_track else "needs_review",
+        "message": (
+            "Video motion analysis complete. Verify the pin result against the source video before saving."
+            if has_motion_track
+            else f"Video uploaded, but no stable ball path was detected. {motion.get('reason')}"
+        ),
         "upload_id": upload_id,
         "fields": fields,
         "free_output": {field["key"]: fields.get(field["key"], "") for field in FREE_LANE_OUTPUT_FIELDS},

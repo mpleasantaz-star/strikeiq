@@ -2961,6 +2961,10 @@ function applyAutoLaneCalibration(fields = {}) {
   const releaseBoard = String(laneMetricNumber(fields.release_board || fields.feet_board) || "");
   const targetBoard = String(laneMetricNumber(fields.arrows_board) || "");
   const breakpointBoard = String(laneMetricNumber(fields.breakpoint) || "");
+  if (!releaseBoard && !targetBoard && !breakpointBoard) {
+    updateLaneCalibrationSummary(fields);
+    return;
+  }
   state.laneCalibration = cleanLaneCalibration({
     camera_angle: fields.camera_angle || "auto_video",
     release_board_hint: releaseBoard,
@@ -2984,13 +2988,22 @@ function renderLaneBreakdownVisual(fields = null) {
   const sourceFields = fields || state.laneVideoAnalysisFields || formFields;
   const isVideoDriven = Boolean(fields || state.laneVideoAnalysisFields);
   const laneValue = (primaryName, fallbackName = "") => laneVisualValue(sourceFields, primaryName, fallbackName, !isVideoDriven);
+  const hasTrackData = Boolean(isVideoDriven && (
+    laneValue("release_board", "feet_board") ||
+    laneValue("arrows_board") ||
+    laneValue("breakpoint") ||
+    laneValue("entry_board") ||
+    laneValue("speed_mph") ||
+    laneValue("hook_inches")
+  ));
   const releaseBoard = laneBoardValue(laneValue("release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 17);
   const arrowsBoard = laneBoardValue(laneValue("arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
   const breakpointBoard = laneBoardValue(laneValue("breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
   const entryBoard = laneBoardValue(laneValue("entry_board"), 17.5);
   const pinResultValue = laneValue("pin_result") || laneValue("result");
   const standingPins = laneStandingPinsFromResult(pinResultValue);
-  const isDevelopmentEstimate = laneValue("backend_status") === "development_estimator" || laneValue("analysis_engine") === "development_estimator";
+  const isDevelopmentEstimate = ["development_estimator", "video_motion_estimator", "vision_review_required"].includes(laneValue("backend_status"))
+    || laneValue("analysis_engine") === "development_estimator";
   const hasAnalysis = Boolean(isVideoDriven && (
     laneValue("analysis_run_id") ||
     laneValue("release_board", "feet_board") ||
@@ -3084,7 +3097,7 @@ function renderLaneBreakdownVisual(fields = null) {
   const zoom = clamp(Number(state.laneBreakdownView?.zoom) || 1, 0.75, 1.65);
   const tilt = clamp(Number(state.laneBreakdownView?.tilt) || 58, 38, 70);
   state.laneBreakdownView = { mode, rotation, zoom, tilt };
-  const track3dHtml = hasAnalysis ? `
+  const track3dHtml = hasTrackData ? `
                 <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
                 <path d="${motionPath}" class="lane-breakdown-path"></path>
                 <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
@@ -3092,7 +3105,7 @@ function renderLaneBreakdownVisual(fields = null) {
                 <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
                 <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
   ` : "";
-  const track2dHtml = hasAnalysis ? `
+  const track2dHtml = hasTrackData ? `
         <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
         <path d="${motionPath}" class="lane-breakdown-path"></path>
         <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
@@ -3102,7 +3115,20 @@ function renderLaneBreakdownVisual(fields = null) {
         <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
   ` : "";
 
-  if (stateLabel) stateLabel.textContent = hasAnalysis ? (isDevelopmentEstimate ? "Estimate" : "Analysis") : "Preview";
+  const marker3dHtml = hasTrackData ? markers.map((marker) => `
+                <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
+                  <b>${marker.label}</b>
+                  <small>B${Math.round(marker.board * 10) / 10}</small>
+                </span>
+              `).join("") : "";
+  const marker2dHtml = hasTrackData ? markers.map((marker) => `
+          <g class="lane-breakdown-marker ${marker.className}">
+            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
+            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y + 7}" text-anchor="${labelSide === "left" ? "end" : "start"}">B${Math.round(marker.board * 10) / 10}</text>
+          </g>
+        `).join("") : "";
+
+  if (stateLabel) stateLabel.textContent = hasAnalysis ? (hasTrackData ? (isDevelopmentEstimate ? "Estimate" : "Analysis") : "Needs Review") : "Preview";
   document.querySelectorAll("[data-lane-breakdown-view]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.laneBreakdownView === mode);
   });
@@ -3137,12 +3163,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true" data-lane-sync-scope>
                 ${track3dHtml}
               </svg>
-              ${markers.map((marker) => `
-                <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
-                  <b>${marker.label}</b>
-                  <small>B${Math.round(marker.board * 10) / 10}</small>
-                </span>
-              `).join("")}
+              ${marker3dHtml}
             </div>
             <div class="lane-3d-gutter right"></div>
           </div>
@@ -3266,12 +3287,7 @@ function renderLaneBreakdownVisual(fields = null) {
           ${fallenPin2dHtml}${standingPin2dHtml}
         </g>
         ${track2dHtml}
-        ${markers.map((marker) => `
-          <g class="lane-breakdown-marker ${marker.className}">
-            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
-            <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y + 7}" text-anchor="${labelSide === "left" ? "end" : "start"}">B${Math.round(marker.board * 10) / 10}</text>
-          </g>
-        `).join("")}
+        ${marker2dHtml}
       </svg>
       </div>
     </div>
@@ -3293,7 +3309,7 @@ function renderLaneBreakdownVisual(fields = null) {
   ];
   metricsContainer.innerHTML = `
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
-    <p>${hasAnalysis ? (isDevelopmentEstimate ? "Estimated path mapped to the visual review. Correct it against the source video before saving." : "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown.") : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
+    <p>${hasAnalysis ? (hasTrackData ? (isDevelopmentEstimate ? "Motion-based path mapped from the source video. Verify pin fall and correct the track if the ball was obscured." : "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown.") : "No stable ball path was detected from this video, so StrikeIQ is not drawing a track yet. Use source video review or correction fields.") : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
   `;
   if (idealContainer) {
     const recommendation = laneAdjustmentRecommendation({
