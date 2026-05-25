@@ -3786,6 +3786,65 @@ h1 {
   line-height: 1.45;
 }
 
+.lane-track-correction {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 183, 77, 0.18);
+  padding-top: 12px;
+}
+
+.lane-track-correction[hidden] {
+  display: none;
+}
+
+.lane-track-correction-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.lane-track-correction-heading h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.lane-track-correction-heading span {
+  border: 1px solid rgba(255, 183, 77, 0.36);
+  border-radius: 999px;
+  color: #ffd08a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  padding: 7px 10px;
+  text-transform: uppercase;
+}
+
+.lane-track-correction > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.lane-track-correction-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lane-track-correction-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lane-track-correction-actions p {
+  margin: 0;
+}
+
 .lane-ideal-movement {
   grid-column: 1 / -1;
   display: grid;
@@ -5429,6 +5488,7 @@ button:hover {
   }
 
   .home-metrics,
+  .lane-track-correction-grid,
   .lane-breakdown-metrics,
   .lane-output-columns,
   .lane-ideal-grid {
@@ -5587,6 +5647,8 @@ button:hover {
 
   .lane-video-header,
   .lane-video-actions,
+  .lane-track-correction-heading,
+  .lane-track-correction-actions,
   .lane-analysis-share-heading,
   .lane-analysis-share-actions,
   .lane-free-snapshot-heading,
@@ -5623,6 +5685,7 @@ button:hover {
   .home-priority-strip,
   .home-metrics,
   .lane-video-subject,
+  .lane-track-correction-grid,
   .lane-analysis-share-grid,
   .lane-result-buttons,
   .lane-shot-save-grid,

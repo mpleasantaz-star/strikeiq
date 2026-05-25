@@ -1513,7 +1513,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
     miss_direction = miss_options[seed % len(miss_options)]
     pocket_quality = pocket_options[(seed // 5) % len(pocket_options)]
     pin_result = pin_options[(seed // 11) % len(pin_options)]
-    confidence = 72 + seed % 22
+    confidence = 38 + seed % 18 if LANE_ANALYSIS_ENGINE == "development_estimator" else 72 + seed % 22
     handedness = str(context.get("handedness") or "").strip().lower()
     is_left = handedness == "left"
     move_to_hold = "right" if is_left else "left"
@@ -1541,7 +1541,7 @@ def create_lane_video_analysis(payload: dict) -> dict:
         adjustment_priority = "Small move"
     auto_calibration = bool(calibration.get("auto_detect")) or str(calibration.get("mode") or "") == "auto_video"
     calibration_readiness = 100 if auto_calibration else int(calibration.get("readiness") or 0)
-    if calibration_readiness >= 100:
+    if calibration_readiness >= 100 and LANE_ANALYSIS_ENGINE != "development_estimator":
         confidence = min(96, confidence + 4)
     result = "Strike" if pin_result == "Strike" else pin_result
     if auto_calibration:
@@ -1561,11 +1561,12 @@ def create_lane_video_analysis(payload: dict) -> dict:
         f"Development analysis for {video_name} ({video_subject_label}; "
         f"{'profile fallback allowed' if use_profile_context else 'profile ignored'}) "
         f"using {camera_angle} calibration ({calibration_readiness}% ready): "
-        f"detected {ball} at {speed_mph:.2f} mph, "
+        f"{'estimated' if LANE_ANALYSIS_ENGINE == 'development_estimator' else 'detected'} {ball} at {speed_mph:.2f} mph, "
         f"release board {release_board}, arrows {arrows_board}, breakpoint {breakpoint}, "
         f"entry board {entry_board}, {hook_inches:.1f} in hook, {boards_crossed:.1f} boards crossed, "
         f"pocket read {pocket_quality}, pin result {pin_result}. "
         f"Recommended adjustment: {adjustment}"
+        + (" Verify and correct the track against the video before saving." if LANE_ANALYSIS_ENGINE == "development_estimator" else "")
     )
     analysis_run_id = f"lane-video-{uuid.uuid4().hex[:12]}"
     fields = {
@@ -1611,7 +1612,16 @@ def create_lane_video_analysis(payload: dict) -> dict:
             else f"Manual calibration {calibration_readiness}% ready."
         ),
         "confidence": str(confidence),
-        "confidence_label": "Calibrated development analysis" if calibration_readiness >= 100 else "Development analysis",
+        "confidence_label": (
+            "Development estimate - verify track"
+            if LANE_ANALYSIS_ENGINE == "development_estimator"
+            else ("Calibrated video analysis" if calibration_readiness >= 100 else "Video analysis")
+        ),
+        "confidence_notes": (
+            "Local development mode does not track the ball frame-by-frame yet. Correct the track against the source video before saving."
+            if LANE_ANALYSIS_ENGINE == "development_estimator"
+            else "Vision model generated this track from the source video."
+        ),
         "result": result,
         "output_preview": output_preview,
     }

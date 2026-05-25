@@ -480,6 +480,28 @@ const projectDetails = {
               <div id="lane-breakdown-visual" class="lane-breakdown-visual"></div>
             </div>
             <div id="lane-breakdown-metrics" class="lane-breakdown-metrics"></div>
+            <section class="lane-track-correction" data-lane-analysis-detail hidden aria-label="Correct estimated ball track">
+              <div class="lane-track-correction-heading">
+                <div>
+                  <p class="eyebrow">Correction</p>
+                  <h3>Correct Track From Video</h3>
+                </div>
+                <span id="lane-track-correction-state">Estimate</span>
+              </div>
+              <p>Use these fields when the source video shows a different start line, arrow, breakpoint, entry, speed, or pin result.</p>
+              <div class="lane-track-correction-grid">
+                <label>Board start<input data-lane-track-correction="release_board" inputmode="decimal" placeholder="18"></label>
+                <label>Arrow start<input data-lane-track-correction="arrows_board" inputmode="decimal" placeholder="12"></label>
+                <label>Breakpoint<input data-lane-track-correction="breakpoint" placeholder="8 board at 42 ft"></label>
+                <label>Entry board<input data-lane-track-correction="entry_board" inputmode="decimal" placeholder="17.5"></label>
+                <label>Ball speed<input data-lane-track-correction="speed_mph" inputmode="decimal" placeholder="16.8"></label>
+                <label>Pin result<input data-lane-track-correction="pin_result" placeholder="Strike, 10 pin, 2-8 leave"></label>
+              </div>
+              <div class="lane-track-correction-actions">
+                <button type="button" class="secondary-button" data-lane-track-apply>Update Visual Track</button>
+                <p id="lane-track-correction-status" class="empty-state">Development tracker estimates should be corrected against the actual video.</p>
+              </div>
+            </section>
             <div id="lane-ideal-movement" class="lane-ideal-movement"></div>
             <details class="lane-analysis-notes">
               <summary>Analysis notes</summary>
@@ -2634,6 +2656,7 @@ function applyLaneAnalysisFields(fields = {}) {
   applyAutoLaneCalibration(fields);
   syncLaneRecommendationFields(formPayload(form));
   renderLaneBreakdownVisual(fields);
+  syncLaneTrackCorrectionFields(fields);
   syncLaneAnalysisShareMessage();
   renderLaneFreeSnapshot();
   renderLaneShotSavePreview();
@@ -2652,6 +2675,63 @@ function laneMetricNumber(value) {
 function laneMetricText(value, suffix = "") {
   if (value === null || value === undefined || String(value).trim() === "") return "";
   return formatShotMetric(value, suffix);
+}
+
+function syncLaneTrackCorrectionFields(fields = state.laneVideoAnalysisFields || {}) {
+  document.querySelectorAll("[data-lane-track-correction]").forEach((input) => {
+    const key = input.dataset.laneTrackCorrection;
+    if (!key) return;
+    input.value = fields?.[key] || "";
+  });
+  const stateLabel = document.querySelector("#lane-track-correction-state");
+  if (stateLabel) {
+    const isEstimate = fields?.backend_status === "development_estimator" || fields?.analysis_engine === "development_estimator";
+    stateLabel.textContent = isEstimate ? "Estimate" : "Detected";
+  }
+}
+
+function applyLaneTrackCorrection() {
+  const form = document.querySelector("#shot-form");
+  if (!form) return;
+  const corrections = {};
+  document.querySelectorAll("[data-lane-track-correction]").forEach((input) => {
+    const key = input.dataset.laneTrackCorrection;
+    if (!key) return;
+    const value = input.value.trim();
+    if (value) corrections[key] = value;
+  });
+  if (!Object.keys(corrections).length) return;
+  Object.entries(corrections).forEach(([key, value]) => {
+    const field = form.elements[key] || (key === "speed_mph" ? form.elements.ball_speed : null);
+    if (field) field.value = key === "speed_mph" && !String(value).includes("mph") ? `${value} mph` : value;
+  });
+  if (corrections.release_board && form.elements.feet_board) {
+    form.elements.feet_board.value = corrections.release_board;
+  }
+  if (corrections.speed_mph && form.elements.ball_speed) {
+    form.elements.ball_speed.value = String(corrections.speed_mph).includes("mph") ? corrections.speed_mph : `${corrections.speed_mph} mph`;
+  }
+  if (corrections.pin_result && form.elements.result) {
+    form.elements.result.value = corrections.pin_result;
+  }
+  state.laneVideoAnalysisFields = {
+    ...(state.laneVideoAnalysisFields || {}),
+    ...corrections,
+    ball_speed: corrections.speed_mph ? (String(corrections.speed_mph).includes("mph") ? corrections.speed_mph : `${corrections.speed_mph} mph`) : state.laneVideoAnalysisFields?.ball_speed,
+    feet_board: corrections.release_board || state.laneVideoAnalysisFields?.feet_board,
+    result: corrections.pin_result || state.laneVideoAnalysisFields?.result,
+    confidence_label: "User-corrected track",
+    confidence_notes: "Track values were adjusted to match the source video review.",
+  };
+  applyAutoLaneCalibration(state.laneVideoAnalysisFields);
+  syncLaneRecommendationFields(state.laneVideoAnalysisFields, { overwrite: true });
+  renderLaneBreakdownVisual(state.laneVideoAnalysisFields);
+  syncLaneTrackCorrectionFields(state.laneVideoAnalysisFields);
+  syncLaneAnalysisShareMessage();
+  renderLaneFreeSnapshot();
+  renderLaneShotSavePreview();
+  const status = document.querySelector("#lane-track-correction-status");
+  if (status) status.textContent = "Visual track updated from your video correction.";
 }
 
 function laneBoardValue(value, fallback) {
@@ -2876,6 +2956,7 @@ function renderLaneBreakdownVisual(fields = null) {
   const entryBoard = laneBoardValue(laneValue("entry_board"), 17.5);
   const pinResultValue = laneValue("pin_result") || laneValue("result");
   const standingPins = laneStandingPinsFromResult(pinResultValue);
+  const isDevelopmentEstimate = laneValue("backend_status") === "development_estimator" || laneValue("analysis_engine") === "development_estimator";
   const hasAnalysis = Boolean(isVideoDriven && (
     laneValue("analysis_run_id") ||
     laneValue("release_board", "feet_board") ||
@@ -2987,7 +3068,7 @@ function renderLaneBreakdownVisual(fields = null) {
         <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
   ` : "";
 
-  if (stateLabel) stateLabel.textContent = hasAnalysis ? "Analysis" : "Preview";
+  if (stateLabel) stateLabel.textContent = hasAnalysis ? (isDevelopmentEstimate ? "Estimate" : "Analysis") : "Preview";
   document.querySelectorAll("[data-lane-breakdown-view]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.laneBreakdownView === mode);
   });
@@ -3178,7 +3259,7 @@ function renderLaneBreakdownVisual(fields = null) {
   ];
   metricsContainer.innerHTML = `
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
-    <p>${hasAnalysis ? "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown." : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
+    <p>${hasAnalysis ? (isDevelopmentEstimate ? "Estimated path mapped to the visual review. Correct it against the source video before saving." : "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown.") : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
   `;
   if (idealContainer) {
     const recommendation = laneAdjustmentRecommendation({
@@ -6287,6 +6368,10 @@ function bindEvents() {
     }
     if (event.target.closest("[data-lane-share-analysis]")) {
       prepareLaneAnalysisShare();
+      return;
+    }
+    if (event.target.closest("[data-lane-track-apply]")) {
+      applyLaneTrackCorrection();
       return;
     }
 
