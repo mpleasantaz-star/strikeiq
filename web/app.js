@@ -16,6 +16,10 @@ const state = {
   laneVisual: null,
   laneLiveStream: null,
   laneReviewVideoUrl: null,
+  laneVideoAnalysisFields: null,
+  laneReviewSyncProgress: 0,
+  laneReviewSyncRaf: null,
+  laneReviewSyncClock: 0,
   laneVideoMode: "recorded_video",
   laneDetection: { lane_boards: true, ball_path: true, release_point: true, pin_result: true },
   laneCalibration: {
@@ -1869,7 +1873,7 @@ function laneAdjustmentRecommendation(payload = {}) {
   const speed = laneMetricNumber(payload.speed_mph || payload.ball_speed);
   const result = String(payload.pin_result || payload.result || "").trim();
   const resultText = result.toLowerCase();
-  const handedness = state.profile?.handedness || state.handedness || "right";
+  const handedness = String(payload.handedness || payload.bowling_hand || state.handedness || "right").toLowerCase();
   const isLeft = handedness === "left";
   const direction = (rightText, leftText) => (isLeft ? leftText : rightText);
   const lineShape = Number.isFinite(boardStart) && Number.isFinite(arrowStart)
@@ -2391,6 +2395,7 @@ function handleLaneVideoFile(fileInput) {
   const uploadId = document.querySelector("#lane-video-upload-id");
   const file = fileInput.files?.[0];
   if (uploadId) uploadId.value = "";
+  state.laneVideoAnalysisFields = null;
   setLaneAnalysisDetailsVisible(false);
   if (!file) {
     if (status) status.textContent = "Select a practice clip from your phone, tablet, or computer.";
@@ -2423,6 +2428,8 @@ function setLaneSourceReviewFile(file) {
   video.srcObject = null;
   video.src = state.laneReviewVideoUrl;
   video.classList.add("is-active");
+  bindLaneSourceReviewSync(video);
+  updateLaneVisualSync(0);
   if (placeholder) placeholder.classList.add("is-hidden");
   if (label) label.textContent = file.name;
 }
@@ -2440,6 +2447,8 @@ function setLaneSourceReviewLive(stream) {
   video.removeAttribute("src");
   video.srcObject = stream;
   video.classList.add("is-active");
+  bindLaneSourceReviewSync(video);
+  updateLaneVisualSync(0);
   if (placeholder) placeholder.classList.add("is-hidden");
   if (label) label.textContent = "Live camera";
 }
@@ -2453,6 +2462,8 @@ function clearLaneSourceReview({ keepRecorded = false } = {}) {
   const video = document.querySelector("#lane-source-review-video");
   const placeholder = document.querySelector("#lane-source-review-placeholder");
   const label = document.querySelector("#lane-source-review-state");
+  stopLaneVisualSyncLoop();
+  state.laneReviewSyncProgress = 0;
   if (video) {
     video.pause();
     video.srcObject = null;
@@ -2464,13 +2475,104 @@ function clearLaneSourceReview({ keepRecorded = false } = {}) {
     URL.revokeObjectURL(state.laneReviewVideoUrl);
     state.laneReviewVideoUrl = null;
   }
+  state.laneVideoAnalysisFields = null;
   if (placeholder) placeholder.classList.remove("is-hidden");
   if (label) label.textContent = "No clip selected";
+  updateLaneVisualSync(0);
+}
+
+function bindLaneSourceReviewSync(video) {
+  if (!video || video.dataset.laneReviewSyncBound === "true") return;
+  video.dataset.laneReviewSyncBound = "true";
+  const update = () => updateLaneVisualSync();
+  video.addEventListener("loadedmetadata", update);
+  video.addEventListener("durationchange", update);
+  video.addEventListener("timeupdate", update);
+  video.addEventListener("seeked", update);
+  video.addEventListener("play", () => startLaneVisualSyncLoop());
+  video.addEventListener("pause", () => {
+    stopLaneVisualSyncLoop();
+    updateLaneVisualSync();
+  });
+  video.addEventListener("ended", () => {
+    stopLaneVisualSyncLoop();
+    updateLaneVisualSync(1);
+  });
+}
+
+function laneVideoProgressFromSource(video) {
+  if (!video) return state.laneReviewSyncProgress || 0;
+  const duration = Number(video.duration);
+  if (Number.isFinite(duration) && duration > 0) {
+    return clamp(video.currentTime / duration, 0, 1);
+  }
+  if (video.srcObject && !video.paused) {
+    const now = performance.now();
+    const previous = state.laneReviewSyncClock || now;
+    state.laneReviewSyncClock = now;
+    return (state.laneReviewSyncProgress + ((now - previous) / 6500)) % 1;
+  }
+  return state.laneReviewSyncProgress || 0;
+}
+
+function updateLaneVisualSync(progress = null) {
+  const video = document.querySelector("#lane-source-review-video");
+  const nextProgress = clamp(progress === null ? laneVideoProgressFromSource(video) : progress, 0, 1);
+  state.laneReviewSyncProgress = nextProgress;
+  document.querySelectorAll("[data-lane-sync-scope]").forEach((scope) => {
+    const path = scope.querySelector("[data-lane-sync-path]");
+    const tracker = scope.querySelector("[data-lane-sync-tracker]");
+    const ball = scope.querySelector("[data-lane-sync-ball]");
+    const ring = scope.querySelector("[data-lane-sync-ring]");
+    if (!path || !ball) return;
+    let length = 0;
+    try {
+      length = path.getTotalLength();
+    } catch (error) {
+      return;
+    }
+    if (!Number.isFinite(length) || length <= 0) return;
+    const ballPoint = path.getPointAtLength(length * nextProgress);
+    const ringProgress = Math.max(0, nextProgress - 0.035);
+    const ringPoint = path.getPointAtLength(length * ringProgress);
+    ball.setAttribute("transform", `translate(${ballPoint.x} ${ballPoint.y})`);
+    if (ring) {
+      ring.setAttribute("transform", `translate(${ringPoint.x} ${ringPoint.y})`);
+    }
+    if (tracker) {
+      const trail = Math.max(18, Math.min(54, length * 0.18));
+      tracker.style.strokeDasharray = `${trail} ${length}`;
+      tracker.style.strokeDashoffset = `${trail - (length * nextProgress)}`;
+    }
+  });
+}
+
+function startLaneVisualSyncLoop() {
+  stopLaneVisualSyncLoop();
+  state.laneReviewSyncClock = performance.now();
+  const tick = () => {
+    updateLaneVisualSync();
+    const video = document.querySelector("#lane-source-review-video");
+    if (video && !video.paused && !video.ended) {
+      state.laneReviewSyncRaf = requestAnimationFrame(tick);
+    } else {
+      state.laneReviewSyncRaf = null;
+    }
+  };
+  state.laneReviewSyncRaf = requestAnimationFrame(tick);
+}
+
+function stopLaneVisualSyncLoop() {
+  if (state.laneReviewSyncRaf) {
+    cancelAnimationFrame(state.laneReviewSyncRaf);
+    state.laneReviewSyncRaf = null;
+  }
 }
 
 function applyLaneAnalysisFields(fields = {}) {
   const form = document.querySelector("#shot-form");
   if (!form) return;
+  state.laneVideoAnalysisFields = { ...fields };
   Object.entries(fields).forEach(([name, value]) => {
     const field = form.elements[name];
     if (!field || value === null || value === undefined) return;
@@ -2507,13 +2609,14 @@ function laneBoardPercent(board) {
   return 24 + clamp(((board - 1) / 38) * 112, 0, 112);
 }
 
-function laneVisualValue(fields, primaryName, fallbackName = "") {
+function laneVisualValue(fields, primaryName, fallbackName = "", allowFormFallback = true) {
   if (fields?.[primaryName] !== undefined && fields?.[primaryName] !== null && fields?.[primaryName] !== "") {
     return fields[primaryName];
   }
   if (fallbackName && fields?.[fallbackName] !== undefined && fields?.[fallbackName] !== null && fields?.[fallbackName] !== "") {
     return fields[fallbackName];
   }
+  if (!allowFormFallback) return "";
   const form = document.querySelector("#shot-form");
   const primaryField = form?.elements?.[primaryName];
   if (primaryField?.value) return primaryField.value;
@@ -2555,7 +2658,7 @@ function laneSmoothMotionPath(markers) {
 }
 
 function laneIdealMovementModel(values) {
-  const handedness = state.profile?.handedness || state.handedness || "right";
+  const handedness = String(values.handedness || state.handedness || "right").toLowerCase();
   const isLeft = handedness === "left";
   const releaseBoard = Number(values.releaseBoard);
   const arrowsBoard = Number(values.arrowsBoard);
@@ -2707,19 +2810,22 @@ function renderLaneBreakdownVisual(fields = null) {
 
   const form = document.querySelector("#shot-form");
   const calibration = laneCalibrationData();
-  const sourceFields = fields || (form ? formPayload(form) : {});
-  const releaseBoard = laneBoardValue(laneVisualValue(sourceFields, "release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 17);
-  const arrowsBoard = laneBoardValue(laneVisualValue(sourceFields, "arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
-  const breakpointBoard = laneBoardValue(laneVisualValue(sourceFields, "breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
-  const entryBoard = laneBoardValue(laneVisualValue(sourceFields, "entry_board"), 17.5);
-  const pinResultValue = laneVisualValue(sourceFields, "pin_result") || laneVisualValue(sourceFields, "result");
+  const formFields = form ? formPayload(form) : {};
+  const sourceFields = fields || state.laneVideoAnalysisFields || formFields;
+  const isVideoDriven = Boolean(fields || state.laneVideoAnalysisFields);
+  const laneValue = (primaryName, fallbackName = "") => laneVisualValue(sourceFields, primaryName, fallbackName, !isVideoDriven);
+  const releaseBoard = laneBoardValue(laneValue("release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 17);
+  const arrowsBoard = laneBoardValue(laneValue("arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
+  const breakpointBoard = laneBoardValue(laneValue("breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
+  const entryBoard = laneBoardValue(laneValue("entry_board"), 17.5);
+  const pinResultValue = laneValue("pin_result") || laneValue("result");
   const standingPins = laneStandingPinsFromResult(pinResultValue);
   const hasAnalysis = Boolean(
-    laneVisualValue(sourceFields, "analysis_run_id") ||
-    laneVisualValue(sourceFields, "speed_mph") ||
-    laneVisualValue(sourceFields, "hook_inches") ||
-    laneVisualValue(sourceFields, "pin_result") ||
-    laneVisualValue(sourceFields, "pocket_quality")
+    laneValue("analysis_run_id") ||
+    laneValue("speed_mph") ||
+    laneValue("hook_inches") ||
+    laneValue("pin_result") ||
+    laneValue("pocket_quality")
   );
   const laneScale = {
     pinDeckY: 34,
@@ -2836,16 +2942,13 @@ function renderLaneBreakdownVisual(fields = null) {
               <span class="lane-3d-distance lane-3d-distance-pins">60 ft head pin</span>
               <span class="lane-3d-distance lane-3d-distance-deck">62 ft 10 in deck</span>
               <span class="lane-3d-width-label">41.5 in lane | 39 boards</span>
-              <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true">
+              <svg class="lane-3d-path" viewBox="0 0 160 300" preserveAspectRatio="none" aria-hidden="true" data-lane-sync-scope>
                 <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
                 <path d="${motionPath}" class="lane-breakdown-path"></path>
-                <path d="${motionPath}" class="lane-motion-tracker"></path>
-                <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
-                  <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
-                </circle>
-                <circle r="5.4" class="lane-breakdown-tracker-ring">
-                  <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
-                </circle>
+                <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
+                <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
+                <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
+                <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
               </svg>
               ${markers.map((marker) => `
                 <span class="lane-3d-marker ${marker.className}" style="left: ${(marker.x / 160) * 100}%; top: ${(marker.y / 300) * 100}%;">
@@ -2862,7 +2965,7 @@ function renderLaneBreakdownVisual(fields = null) {
       <div class="lane-breakdown-board-labels" aria-hidden="true">
         <span>1</span><span>10</span><span>20</span><span>30</span><span>39</span>
       </div>
-      <svg class="lane-breakdown-svg" viewBox="0 0 160 300" role="img" aria-label="Bowling ball path from release to pins">
+      <svg class="lane-breakdown-svg" viewBox="0 0 160 300" role="img" aria-label="Bowling ball path from release to pins" data-lane-sync-scope>
         <defs>
           <linearGradient id="laneWoodGradient" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0%" stop-color="#f0c66f"></stop>
@@ -2948,14 +3051,11 @@ function renderLaneBreakdownVisual(fields = null) {
         </g>
         <path d="${motionPath}" class="lane-breakdown-path-glow"></path>
         <path d="${motionPath}" class="lane-breakdown-path"></path>
-        <path d="${motionPath}" class="lane-motion-tracker"></path>
+        <path d="${motionPath}" class="lane-motion-tracker" data-lane-sync-tracker></path>
+        <path d="${motionPath}" class="lane-sync-path-reference" data-lane-sync-path></path>
         <circle cx="${markers[0].x}" cy="${markers[0].y}" r="3.2" class="lane-breakdown-ball-start"></circle>
-        <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving">
-          <animateMotion dur="4.4s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
-        </circle>
-        <circle r="5.4" class="lane-breakdown-tracker-ring">
-          <animateMotion dur="4.4s" begin="0.22s" repeatCount="indefinite" path="${motionPath}"></animateMotion>
-        </circle>
+        <circle r="4.8" class="lane-breakdown-ball lane-breakdown-ball-moving" data-lane-sync-ball></circle>
+        <circle r="5.4" class="lane-breakdown-tracker-ring" data-lane-sync-ring></circle>
         ${markers.map((marker) => `
           <g class="lane-breakdown-marker ${marker.className}">
             <text x="${labelSide === "left" ? marker.x - 5 : marker.x + 5}" y="${marker.y - 6}" text-anchor="${labelSide === "left" ? "end" : "start"}">${marker.label}</text>
@@ -2967,12 +3067,12 @@ function renderLaneBreakdownVisual(fields = null) {
     </div>
   `;
 
-  const speed = laneVisualValue(sourceFields, "speed_mph") || laneVisualValue(sourceFields, "ball_speed");
-  const hook = laneVisualValue(sourceFields, "hook_inches");
-  const boards = laneVisualValue(sourceFields, "boards_crossed");
-  const pocket = laneVisualValue(sourceFields, "pocket_quality") || "Pending";
+  const speed = laneValue("speed_mph") || laneValue("ball_speed");
+  const hook = laneValue("hook_inches");
+  const boards = laneValue("boards_crossed");
+  const pocket = laneValue("pocket_quality") || "Pending";
   const pins = pinResultValue || "Pending";
-  const confidence = laneVisualValue(sourceFields, "confidence");
+  const confidence = laneValue("confidence");
   const metrics = [
     ["Speed", laneMetricText(speed, " mph") || escapeHtml(speed) || "Pending"],
     ["Hook", laneMetricText(hook, " in") || "Pending"],
@@ -2983,7 +3083,7 @@ function renderLaneBreakdownVisual(fields = null) {
   ];
   metricsContainer.innerHTML = `
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
-    <p>${hasAnalysis ? "Analysis mapped to visual path and shot metrics. Open notes for the full breakdown." : "Preview uses calibration hints until a video analysis fills the shot data."}</p>
+    <p>${hasAnalysis ? "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown." : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
   `;
   if (idealContainer) {
     const recommendation = laneAdjustmentRecommendation({
@@ -2992,6 +3092,7 @@ function renderLaneBreakdownVisual(fields = null) {
       arrows_board: arrowsBoard,
       speed_mph: speed,
       pin_result: pinResultValue,
+      handedness: laneValue("handedness") || laneValue("bowling_hand"),
     });
     const movement = laneIdealMovementModel({
       releaseBoard,
@@ -3000,6 +3101,7 @@ function renderLaneBreakdownVisual(fields = null) {
       entryBoard,
       speed,
       pinResult: pinResultValue,
+      handedness: laneValue("handedness") || laneValue("bowling_hand"),
     });
     idealContainer.innerHTML = `
       <div class="lane-ideal-heading">
@@ -3032,6 +3134,8 @@ function renderLaneBreakdownVisual(fields = null) {
       <p class="lane-ideal-sources">Reference model: USBC lane landmarks plus USBC/BOWL.com skid-hook-roll movement guidance. Exact board targets still depend on pattern, ball, release, and lane transition.</p>
     `;
   }
+  bindLaneSourceReviewSync(document.querySelector("#lane-source-review-video"));
+  updateLaneVisualSync();
 }
 
 function updateLaneBreakdownView(updates = {}) {

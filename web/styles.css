@@ -3567,7 +3567,14 @@ h1 {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 3.1;
-  animation: laneTrackerChase 3.4s linear infinite;
+}
+
+.lane-sync-path-reference {
+  fill: none;
+  opacity: 0;
+  pointer-events: none;
+  stroke: transparent;
+  stroke-width: 0.1;
 }
 
 .lane-breakdown-ball {
