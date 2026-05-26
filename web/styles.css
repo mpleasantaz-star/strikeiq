@@ -672,6 +672,115 @@ h1 {
   padding: 6px 10px;
 }
 
+.workspace-disclosure {
+  min-width: 0;
+  border: 1px solid rgba(76, 201, 240, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 7, 10, 0.28);
+  padding: 0;
+}
+
+.workspace-disclosure + .workspace-disclosure,
+.workspace-disclosure + .project-list,
+.project-list + .workspace-disclosure,
+.project-metric + .workspace-disclosure,
+.workspace-disclosure + .project-metric {
+  margin-top: 10px;
+}
+
+.workspace-disclosure > summary {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 0 14px;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.workspace-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.workspace-disclosure > summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--accent-2);
+  font-size: 1rem;
+}
+
+.workspace-disclosure[open] > summary {
+  border-bottom: 1px solid rgba(76, 201, 240, 0.12);
+}
+
+.workspace-disclosure[open] > summary::after {
+  content: "-";
+}
+
+.workspace-disclosure > *:not(summary) {
+  margin: 12px;
+}
+
+.workspace-disclosure:not([open]) > *:not(summary),
+.nested-disclosure:not([open]) > *:not(summary) {
+  display: none;
+}
+
+.workspace-disclosure .project-list,
+.workspace-disclosure .project-metric {
+  margin-right: 12px;
+  margin-left: 12px;
+}
+
+.compact-form {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.nested-disclosure {
+  min-width: 0;
+  border-top: 1px solid rgba(76, 201, 240, 0.10);
+  padding-top: 8px;
+}
+
+.nested-disclosure > summary {
+  min-height: 34px;
+  color: var(--accent-2);
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.10em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.nested-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.nested-disclosure > summary::after {
+  content: " +";
+  color: #ffffff;
+}
+
+.nested-disclosure[open] > summary::after {
+  content: " -";
+}
+
+.nested-disclosure > *:not(summary) {
+  margin-top: 10px;
+}
+
+.lane-context-disclosure .lane-profile-context {
+  margin: 12px;
+}
+
 .project-tabs {
   position: sticky;
   top: 0;

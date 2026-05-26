@@ -218,32 +218,38 @@ const projectDetails = {
         </label>
       </section>
       <div id="ball-summary" class="project-metric"></div>
-      <form id="ball-form" class="note-form project-form">
-        <div class="form-row">
-          <label>Brand<input name="brand" placeholder="Storm, Hammer, Motiv"></label>
-          <label>Ball name<input name="name" placeholder="Benchmark solid" required></label>
-        </div>
-        <div class="form-row">
-          <label>Cover<input name="cover" placeholder="Reactive solid"></label>
-          <label>Core<input name="core" placeholder="Symmetric, asymmetric"></label>
-        </div>
-        <div class="form-row">
-          <label>Surface<input name="surface" placeholder="3000, 2000, polish"></label>
-          <label>Layout<input name="layout" placeholder="Pin up, control, etc."></label>
-        </div>
-        <div class="form-row">
-          <label>RG<input name="rg" inputmode="decimal" placeholder="2.48"></label>
-          <label>Differential<input name="differential" inputmode="decimal" placeholder="0.051"></label>
-        </div>
-        <div class="form-row">
-          <label>Lane use<input name="condition" placeholder="Medium house shot"></label>
-          <label>Strength<input name="strength" inputmode="numeric" placeholder="7"></label>
-        </div>
-        <label>Motion<textarea name="motion" placeholder="Early, smooth, angular, controllable"></textarea></label>
-        <label>Research URL<input name="research_url" placeholder="https://manufacturer.com/ball"></label>
-        <label>Notes<textarea name="notes" placeholder="When to use it, lane shape, misses"></textarea></label>
-        <button type="submit">Save Ball</button>
-      </form>
+      <details class="workspace-disclosure">
+        <summary>Add custom ball</summary>
+        <form id="ball-form" class="note-form project-form compact-form">
+          <div class="form-row">
+            <label>Brand<input name="brand" placeholder="Storm, Hammer, Motiv"></label>
+            <label>Ball name<input name="name" placeholder="Benchmark solid" required></label>
+          </div>
+          <div class="form-row">
+            <label>Cover<input name="cover" placeholder="Reactive solid"></label>
+            <label>Core<input name="core" placeholder="Symmetric, asymmetric"></label>
+          </div>
+          <details class="nested-disclosure">
+            <summary>More ball details</summary>
+            <div class="form-row">
+              <label>Surface<input name="surface" placeholder="3000, 2000, polish"></label>
+              <label>Layout<input name="layout" placeholder="Pin up, control, etc."></label>
+            </div>
+            <div class="form-row">
+              <label>RG<input name="rg" inputmode="decimal" placeholder="2.48"></label>
+              <label>Differential<input name="differential" inputmode="decimal" placeholder="0.051"></label>
+            </div>
+            <div class="form-row">
+              <label>Lane use<input name="condition" placeholder="Medium house shot"></label>
+              <label>Strength<input name="strength" inputmode="numeric" placeholder="7"></label>
+            </div>
+            <label>Motion<textarea name="motion" placeholder="Early, smooth, angular, controllable"></textarea></label>
+            <label>Research URL<input name="research_url" placeholder="https://manufacturer.com/ball"></label>
+            <label>Notes<textarea name="notes" placeholder="When to use it, lane shape, misses"></textarea></label>
+          </details>
+          <button type="submit">Save Ball</button>
+        </form>
+      </details>
       <div id="ball-list" class="project-list"></div>
     `,
   },
@@ -265,24 +271,29 @@ const projectDetails = {
         </div>
         <p id="spare-session-status" class="empty-state"></p>
       </section>
-      <form id="spare-form" class="note-form project-form">
-        <h3>Quick Spare Conversion Log</h3>
-        <div class="form-row">
-          <label>Leave<input name="leave" placeholder="10 pin" required></label>
-          <label>Ball<input name="ball" placeholder="Spare ball"></label>
-        </div>
-        <div class="form-row">
-          <label>Attempts<input name="attempts" inputmode="numeric" placeholder="5" required></label>
-          <label>Makes<input name="makes" inputmode="numeric" placeholder="4" required></label>
-        </div>
-        <label>Notes<textarea name="notes" placeholder="Miss direction, target, setup"></textarea></label>
-        <button type="submit">Log Spare</button>
-      </form>
+      <details class="workspace-disclosure">
+        <summary>Quick spare conversion</summary>
+        <form id="spare-form" class="note-form project-form compact-form">
+          <div class="form-row">
+            <label>Leave<input name="leave" placeholder="10 pin" required></label>
+            <label>Ball<input name="ball" placeholder="Spare ball"></label>
+          </div>
+          <div class="form-row">
+            <label>Attempts<input name="attempts" inputmode="numeric" placeholder="5" required></label>
+            <label>Makes<input name="makes" inputmode="numeric" placeholder="4" required></label>
+          </div>
+          <label>Notes<textarea name="notes" placeholder="Miss direction, target, setup"></textarea></label>
+          <button type="submit">Log Spare</button>
+        </form>
+      </details>
       <div id="spare-summary" class="project-metric"></div>
-      <h3>Saved Sessions</h3>
-      <div id="spare-session-list" class="project-list"></div>
-      <h3>Quick Logs</h3>
-      <div id="spare-list" class="project-list"></div>
+      <details class="workspace-disclosure">
+        <summary>Saved scoring history</summary>
+        <h3>Saved Sessions</h3>
+        <div id="spare-session-list" class="project-list"></div>
+        <h3>Quick Logs</h3>
+        <div id="spare-list" class="project-list"></div>
+      </details>
     `,
   },
   shots: {
@@ -290,7 +301,10 @@ const projectDetails = {
     title: "Lane Tracker",
     description: "Track sessions, targets, misses, leaves, and next moves.",
     content: `
-      <section id="lane-profile-context" class="lane-profile-context" aria-label="Lane tracker profile context"></section>
+      <details class="workspace-disclosure lane-context-disclosure">
+        <summary>Profile context</summary>
+        <section id="lane-profile-context" class="lane-profile-context" aria-label="Lane tracker profile context"></section>
+      </details>
       <form id="shot-form" class="note-form project-form">
         <section class="lane-tier-panel lane-tier-panel-free" data-lane-tier="free" aria-label="Free lane tracker">
           <div>
@@ -399,48 +413,51 @@ const projectDetails = {
             <strong>Analysis details will appear after upload.</strong>
             <p>Calibration, detection output, visual review, and recommendations stay collapsed until StrikeIQ analyzes the selected shot.</p>
           </section>
-          <section class="lane-calibration-panel lane-auto-calibration" data-lane-analysis-detail hidden aria-label="Automatic lane calibration">
-            <div class="lane-calibration-heading">
-              <div>
-                <p class="eyebrow">Setup</p>
-                <h3>Auto Calibration</h3>
+          <details class="workspace-disclosure" data-lane-analysis-detail hidden>
+            <summary>Detection setup</summary>
+            <section class="lane-calibration-panel lane-auto-calibration" aria-label="Automatic lane calibration">
+              <div class="lane-calibration-heading">
+                <div>
+                  <p class="eyebrow">Setup</p>
+                  <h3>Auto Calibration</h3>
+                </div>
+                <span id="lane-calibration-status">Auto</span>
               </div>
-              <span id="lane-calibration-status">Auto</span>
+              <div class="lane-auto-calibration-grid">
+                <span>Foul line</span>
+                <span>Arrows</span>
+                <span>Lane edges</span>
+                <span>Pin deck</span>
+              </div>
+              <div class="lane-calibration-actions">
+                <p id="lane-calibration-summary" class="empty-state">Upload a recorded shot and StrikeIQ will detect the lane markers during analysis.</p>
+              </div>
+            </section>
+            <div class="lane-detection-grid">
+              <article>
+                <span>Lane Detection</span>
+                <strong>Boards, arrows, breakpoint</strong>
+                <small>Maps feet board, target board, breakpoint, and entry board.</small>
+              </article>
+              <article>
+                <span>Ball Detection</span>
+                <strong>Speed, hook, path</strong>
+                <small>Tracks release speed, hook shape, boards crossed, and motion.</small>
+              </article>
+              <article>
+                <span>Impact Detection</span>
+                <strong>Pocket and pins</strong>
+                <small>Reads pocket quality, pin result, miss direction, and leaves.</small>
+              </article>
             </div>
-            <div class="lane-auto-calibration-grid">
-              <span>Foul line</span>
-              <span>Arrows</span>
-              <span>Lane edges</span>
-              <span>Pin deck</span>
+            <div class="lane-detection-options">
+              <label><input type="checkbox" name="detect_lane" checked> Lane boards</label>
+              <label><input type="checkbox" name="detect_ball" checked> Ball path</label>
+              <label><input type="checkbox" name="detect_release" checked> Release point</label>
+              <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
             </div>
-            <div class="lane-calibration-actions">
-              <p id="lane-calibration-summary" class="empty-state">Upload a recorded shot and StrikeIQ will detect the lane markers during analysis.</p>
-            </div>
-          </section>
-          <div class="lane-detection-grid" data-lane-analysis-detail hidden>
-            <article>
-              <span>Lane Detection</span>
-              <strong>Boards, arrows, breakpoint</strong>
-              <small>Maps feet board, target board, breakpoint, and entry board.</small>
-            </article>
-            <article>
-              <span>Ball Detection</span>
-              <strong>Speed, hook, path</strong>
-              <small>Tracks release speed, hook shape, boards crossed, and motion.</small>
-            </article>
-            <article>
-              <span>Impact Detection</span>
-              <strong>Pocket and pins</strong>
-              <small>Reads pocket quality, pin result, miss direction, and leaves.</small>
-            </article>
-          </div>
-          <div class="lane-detection-options" data-lane-analysis-detail hidden>
-            <label><input type="checkbox" name="detect_lane" checked> Lane boards</label>
-            <label><input type="checkbox" name="detect_ball" checked> Ball path</label>
-            <label><input type="checkbox" name="detect_release" checked> Release point</label>
-            <label><input type="checkbox" name="detect_pins" checked> Pin result</label>
-          </div>
-          <section id="lane-output-contract" class="lane-output-contract" data-lane-analysis-detail hidden aria-label="Lane tracker output contract"></section>
+            <section id="lane-output-contract" class="lane-output-contract" aria-label="Lane tracker output contract"></section>
+          </details>
           <section class="lane-breakdown-panel" data-lane-analysis-detail hidden aria-label="Lane video visual breakdown">
             <div class="lane-breakdown-heading">
               <div>
@@ -544,7 +561,8 @@ const projectDetails = {
             <button type="button" class="secondary-button" data-lane-review-shot disabled>Review And Log Shot</button>
             <p id="lane-video-status" class="empty-state">Backend analysis workflow ready. Production vision detection connects after the model service is selected.</p>
           </div>
-          <section class="lane-analysis-history" aria-label="Recent lane video analyses">
+          <details class="workspace-disclosure lane-analysis-history" aria-label="Recent lane video analyses">
+            <summary>Recent analyses</summary>
             <div class="lane-analysis-heading">
               <div>
                 <p class="eyebrow">Review</p>
@@ -553,7 +571,7 @@ const projectDetails = {
               <button type="button" class="secondary-button" data-refresh-lane-analyses>Refresh</button>
             </div>
             <div id="lane-analysis-history"></div>
-          </section>
+          </details>
         </section>
         <div class="lane-form-heading">
           <h3 data-lane-tier="free">Log Basic Shot</h3>
@@ -561,38 +579,41 @@ const projectDetails = {
           <p data-lane-tier="free">Capture the four essentials from the shot so you can build a simple lane history.</p>
           <p data-lane-tier="pro">Use the profile defaults, then capture the shot result and next adjustment.</p>
         </div>
-        <div class="form-row" data-lane-tier="pro">
-          <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
-          <label>Center<input name="lane_center" id="lane-session-center" list="lane-center-options" placeholder="Home center or bowling alley"></label>
-        </div>
-        <div class="center-picker-tools lane-center-tools" data-lane-tier="pro">
-          <button id="find-lane-centers" type="button">Find Nearby Centers</button>
-          <select id="nearby-lane-centers" aria-label="Nearby lane tracker bowling centers">
-            <option value="">Select a nearby center</option>
-          </select>
-          <p id="lane-center-status" class="empty-state">Type manually or use location to populate nearby bowling centers.</p>
-          <datalist id="lane-center-options"></datalist>
-        </div>
-        <div class="form-row" data-lane-tier="pro">
-          <label>Lane<input name="lane_number" placeholder="Pair 7-8 / lane 12"></label>
-          <label>Game<input type="number" name="game_number" min="1" max="20" placeholder="1"></label>
-          <label>Frame<input name="frame_number" placeholder="1-10"></label>
-        </div>
-        <div class="form-row" data-lane-tier="pro">
-          <label>Ball
-            <select name="ball" id="lane-shot-ball"></select>
-          </label>
-          <label>Lane Condition
-            <select name="lane_condition">
-              <option value="">Select condition</option>
-              <option>Fresh</option>
-              <option>Transition</option>
-              <option>Burn</option>
-              <option>Carrydown</option>
-              <option>Unknown</option>
+        <details class="workspace-disclosure" data-lane-tier="pro">
+          <summary>Session details</summary>
+          <div class="form-row">
+            <label>Date<input type="date" name="session_date" id="lane-session-date"></label>
+            <label>Center<input name="lane_center" id="lane-session-center" list="lane-center-options" placeholder="Home center or bowling alley"></label>
+          </div>
+          <div class="center-picker-tools lane-center-tools">
+            <button id="find-lane-centers" type="button">Find Nearby Centers</button>
+            <select id="nearby-lane-centers" aria-label="Nearby lane tracker bowling centers">
+              <option value="">Select a nearby center</option>
             </select>
-          </label>
-        </div>
+            <p id="lane-center-status" class="empty-state">Type manually or use location to populate nearby bowling centers.</p>
+            <datalist id="lane-center-options"></datalist>
+          </div>
+          <div class="form-row">
+            <label>Lane<input name="lane_number" placeholder="Pair 7-8 / lane 12"></label>
+            <label>Game<input type="number" name="game_number" min="1" max="20" placeholder="1"></label>
+            <label>Frame<input name="frame_number" placeholder="1-10"></label>
+          </div>
+          <div class="form-row">
+            <label>Ball
+              <select name="ball" id="lane-shot-ball"></select>
+            </label>
+            <label>Lane Condition
+              <select name="lane_condition">
+                <option value="">Select condition</option>
+                <option>Fresh</option>
+                <option>Transition</option>
+                <option>Burn</option>
+                <option>Carrydown</option>
+                <option>Unknown</option>
+              </select>
+            </label>
+          </div>
+        </details>
         <div class="form-row lane-basic-fields">
           <label>Board Start<input name="feet_board" placeholder="22"></label>
           <label>Arrow Start<input name="arrows_board" placeholder="12"></label>
@@ -620,11 +641,13 @@ const projectDetails = {
           </div>
           <div id="lane-shot-save-preview" class="lane-shot-save-preview"></div>
         </section>
-        <div class="form-row" data-lane-tier="pro">
-          <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
-        </div>
-        <div class="analysis-panel" data-lane-tier="pro">
-          <h3>Video Analysis</h3>
+        <details class="workspace-disclosure" data-lane-tier="pro">
+          <summary>Advanced shot fields</summary>
+          <div class="form-row">
+            <label>Breakpoint<input name="breakpoint" placeholder="8 downlane"></label>
+          </div>
+          <div class="analysis-panel">
+            <h3>Video Analysis</h3>
           <div class="form-row">
             <label>Video Name<input name="video_name" placeholder="Practice clip or upload name"></label>
             <label>Speed MPH<input type="number" name="speed_mph" min="0" step="0.01" placeholder="16.5"></label>
@@ -645,31 +668,37 @@ const projectDetails = {
             <label>Confidence<input type="number" name="confidence" min="0" max="100" placeholder="100"></label>
             <label>Confidence Label<input name="confidence_label" placeholder="Good, Review"></label>
           </div>
-        </div>
-        <div class="form-row" data-lane-tier="pro">
-          <label>Miss Direction
-            <select name="miss_direction">
-              <option value="">Select miss</option>
-              <option>Flush</option>
-              <option>High</option>
-              <option>Light</option>
-              <option>Left</option>
-              <option>Right</option>
-              <option>Early hook</option>
-              <option>Through breakpoint</option>
-            </select>
-          </label>
-          <label>Leave<input name="leave_pin" placeholder="10 pin, 2-8, split"></label>
-        </div>
+          </div>
+          <div class="form-row">
+            <label>Miss Direction
+              <select name="miss_direction">
+                <option value="">Select miss</option>
+                <option>Flush</option>
+                <option>High</option>
+                <option>Light</option>
+                <option>Left</option>
+                <option>Right</option>
+                <option>Early hook</option>
+                <option>Through breakpoint</option>
+              </select>
+            </label>
+            <label>Leave<input name="leave_pin" placeholder="10 pin, 2-8, split"></label>
+          </div>
+        </details>
         <input type="hidden" name="pattern_slug" id="shot-pattern-slug">
-        <label data-lane-tier="pro">Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
-        <label data-lane-tier="pro">Next Move<textarea name="next_move" placeholder="Move feet, change ball, change speed, change target"></textarea></label>
-        <label data-lane-tier="pro">Notes<textarea name="notes" placeholder="Reaction, carry, lane read, confidence"></textarea></label>
+        <details class="workspace-disclosure" data-lane-tier="pro">
+          <summary>Adjustment notes</summary>
+          <label>Adjustment<textarea name="adjustment" placeholder="2 left with feet, slower speed, ball change"></textarea></label>
+          <label>Next Move<textarea name="next_move" placeholder="Move feet, change ball, change speed, change target"></textarea></label>
+          <label>Notes<textarea name="notes" placeholder="Reaction, carry, lane read, confidence"></textarea></label>
+        </details>
         <button type="submit">Log Shot</button>
       </form>
       <div id="lane-summary" class="project-metric"></div>
-      <h3>Saved Lane History</h3>
-      <div id="shot-list" class="project-list"></div>
+      <details class="workspace-disclosure">
+        <summary>Saved lane history</summary>
+        <div id="shot-list" class="project-list"></div>
+      </details>
     `,
   },
   chat: {
@@ -692,49 +721,58 @@ const projectDetails = {
               <h3 id="active-channel-title"># video-feedback</h3>
             </div>
           </div>
-          <form id="community-post-form" class="note-form project-form">
-            <div class="form-row">
-              <label>Channel<select name="channel" id="community-channel"></select></label>
-              <label>Post type
-                <select name="post_type" id="community-post-type">
-                  <option value="update">Update</option>
-                  <option value="video">Video feedback</option>
-                  <option value="score">Score drop</option>
-                  <option value="question">Question</option>
-                  <option value="gear">Gear check</option>
-                </select>
-              </label>
-            </div>
-            <div class="form-row">
-              <label>Title<input name="title" placeholder="League night recap" required></label>
-              <label>Score / stat<input name="score" placeholder="236 game, 612 set, 82% spares"></label>
-            </div>
-            <label>Post<textarea name="body" placeholder="Share what happened, what you learned, or what help you want."></textarea></label>
-            <div class="form-row">
-              <label>Shot type<input name="shot_type" placeholder="League / Practice / Tournament / Spare"></label>
-              <label>Video link<input name="video_url" placeholder="Paste YouTube, Drive, or Hudl link"></label>
-            </div>
-            <label>Feedback request<textarea name="feedback_request" placeholder="Ask for a read, release note, ball change idea, or spare plan."></textarea></label>
-            <label>Tags<input name="tags" placeholder="league, transition, 10-pin"></label>
-            <button type="submit">Publish Post</button>
-            <p id="community-post-status" class="empty-state"></p>
-          </form>
+          <details class="workspace-disclosure">
+            <summary>Create post</summary>
+            <form id="community-post-form" class="note-form project-form compact-form">
+              <div class="form-row">
+                <label>Channel<select name="channel" id="community-channel"></select></label>
+                <label>Post type
+                  <select name="post_type" id="community-post-type">
+                    <option value="update">Update</option>
+                    <option value="video">Video feedback</option>
+                    <option value="score">Score drop</option>
+                    <option value="question">Question</option>
+                    <option value="gear">Gear check</option>
+                  </select>
+                </label>
+              </div>
+              <div class="form-row">
+                <label>Title<input name="title" placeholder="League night recap" required></label>
+                <label>Score / stat<input name="score" placeholder="236 game, 612 set, 82% spares"></label>
+              </div>
+              <label>Post<textarea name="body" placeholder="Share what happened, what you learned, or what help you want."></textarea></label>
+              <details class="nested-disclosure">
+                <summary>Video and tags</summary>
+                <div class="form-row">
+                  <label>Shot type<input name="shot_type" placeholder="League / Practice / Tournament / Spare"></label>
+                  <label>Video link<input name="video_url" placeholder="Paste YouTube, Drive, or Hudl link"></label>
+                </div>
+                <label>Feedback request<textarea name="feedback_request" placeholder="Ask for a read, release note, ball change idea, or spare plan."></textarea></label>
+                <label>Tags<input name="tags" placeholder="league, transition, 10-pin"></label>
+              </details>
+              <button type="submit">Publish Post</button>
+              <p id="community-post-status" class="empty-state"></p>
+            </form>
+          </details>
           <div id="community-feed" class="community-feed"></div>
         </section>
         <aside class="coach-panel">
-          <p class="eyebrow">AI Coach</p>
-          <h3>Lane Coach</h3>
-          <form id="coach-form" class="note-form project-form">
-            <label>Question<textarea name="question" placeholder="What should I adjust after going high?" required></textarea></label>
-            <button type="submit">Ask Coach</button>
-            <p id="coach-status" class="empty-state"></p>
-          </form>
-          <div id="chat-list" class="project-list"></div>
-          <div class="suggested-friends">
-            <p class="eyebrow">Suggested</p>
-            <strong>Practice Circle</strong>
-            <span>League teammates, local bowlers, and coaches will appear here when account discovery is connected.</span>
-          </div>
+          <details class="workspace-disclosure" open>
+            <summary>AI Coach</summary>
+            <form id="coach-form" class="note-form project-form compact-form">
+              <label>Question<textarea name="question" placeholder="What should I adjust after going high?" required></textarea></label>
+              <button type="submit">Ask Coach</button>
+              <p id="coach-status" class="empty-state"></p>
+            </form>
+            <div id="chat-list" class="project-list"></div>
+          </details>
+          <details class="workspace-disclosure">
+            <summary>Suggested friends</summary>
+            <div class="suggested-friends">
+              <strong>Practice Circle</strong>
+              <span>League teammates, local bowlers, and coaches will appear here when account discovery is connected.</span>
+            </div>
+          </details>
         </aside>
       </div>
     `,
