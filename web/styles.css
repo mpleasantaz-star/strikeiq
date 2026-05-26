@@ -3521,7 +3521,7 @@ h1 {
 .lane-3d-pin {
   position: absolute;
   width: clamp(18px, 13.8%, 29px);
-  height: clamp(53px, 60%, 75px);
+  height: clamp(58px, 68%, 86px);
   transform: translate(-50%, -50%) translateZ(26px) rotateX(1deg);
   transform-origin: 50% 90%;
   filter:
@@ -3534,7 +3534,7 @@ h1 {
   position: absolute;
   z-index: 0;
   width: clamp(19px, 14.5%, 30px);
-  height: clamp(55px, 64%, 76px);
+  height: clamp(60px, 70%, 86px);
   opacity: 0.98;
   transform:
     translate(-50%, -50%)
@@ -3547,9 +3547,9 @@ h1 {
     drop-shadow(10px 20px 16px rgba(0, 0, 0, 0.34));
 }
 
-.lane-3d-pin[data-pin="1"] { left: 50%; top: 78%; width: clamp(22px, 16.5%, 33px); height: clamp(64px, 71%, 82px); }
-.lane-3d-pin[data-pin="2"] { left: 39%; top: 59%; width: clamp(20px, 15.4%, 31px); height: clamp(60px, 68%, 78px); }
-.lane-3d-pin[data-pin="3"] { left: 61%; top: 59%; width: clamp(20px, 15.4%, 31px); height: clamp(60px, 68%, 78px); }
+.lane-3d-pin[data-pin="1"] { left: 50%; top: 78%; width: clamp(23px, 17%, 34px); height: clamp(70px, 78%, 92px); }
+.lane-3d-pin[data-pin="2"] { left: 39%; top: 59%; width: clamp(21px, 15.8%, 32px); height: clamp(66px, 74%, 88px); }
+.lane-3d-pin[data-pin="3"] { left: 61%; top: 59%; width: clamp(21px, 15.8%, 32px); height: clamp(66px, 74%, 88px); }
 .lane-3d-pin[data-pin="4"] { left: 28%; top: 40%; }
 .lane-3d-pin[data-pin="5"] { left: 50%; top: 40%; }
 .lane-3d-pin[data-pin="6"] { left: 72%; top: 40%; }
@@ -3580,8 +3580,8 @@ h1 {
 }
 
 .pin-main-body {
-  stroke: rgba(60, 27, 10, 0.46);
-  stroke-width: 1.12;
+  stroke: rgba(42, 45, 45, 0.34);
+  stroke-width: 1.18;
 }
 
 .pin-side-shade {
@@ -3606,7 +3606,7 @@ h1 {
 }
 
 .pin-base-shadow {
-  fill: rgba(76, 35, 12, 0.16);
+  fill: #0a0d0e;
 }
 
 .pin-red-band {
