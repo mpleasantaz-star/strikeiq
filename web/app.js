@@ -2942,13 +2942,29 @@ function laneBreakdownSummaryText(fields = {}) {
   const hook = firstFilledValue(fields.hook_inches);
   const boards = firstFilledValue(fields.boards_crossed);
   const quality = firstFilledValue(fields.confidence_label, fields.analysis_source);
-  const hasPath = Boolean(release || arrows || breakpoint || entry || speed);
+  const missingPathFields = [
+    !release && "board start",
+    !arrows && "arrow start",
+    !breakpoint && "breakpoint",
+    !entry && "entry board",
+  ].filter(Boolean);
+  const hasPath = missingPathFields.length === 0;
 
   if (!hasPath) {
     const reason = firstFilledValue(fields.confidence_notes, fields.output_preview);
-    return reason
-      ? `No stable visual track is active yet. ${reason}`
-      : "No stable visual track is active yet. Analyze or correct the video path before using the shot breakdown.";
+    const available = [
+      release && `board start ${release}`,
+      arrows && `arrow start ${arrows}`,
+      breakpoint && `breakpoint ${breakpoint}`,
+      entry && `entry board ${entry}`,
+      speed && `speed ${String(speed).includes("mph") ? speed : `${speed} mph`}`,
+      pinResult && `pin fall ${pinResult}`,
+    ].filter(Boolean).join(", ");
+    return [
+      `Visual review is waiting for ${missingPathFields.join(", ")} before drawing the tracker.`,
+      available && `Detected so far: ${available}.`,
+      reason && `Analyzer note: ${reason}`,
+    ].filter(Boolean).join(" ");
   }
 
   return [
@@ -3164,18 +3180,15 @@ function renderLaneBreakdownVisual(fields = null) {
     : formFields;
   const isVideoDriven = Boolean(fields || state.laneVideoAnalysisFields);
   const laneValue = (primaryName, fallbackName = "") => laneVisualValue(sourceFields, primaryName, fallbackName, !isVideoDriven);
-  const hasTrackData = Boolean(isVideoDriven && (
-    laneValue("release_board", "feet_board") ||
-    laneValue("arrows_board") ||
-    laneValue("breakpoint") ||
-    laneValue("entry_board") ||
-    laneValue("speed_mph") ||
-    laneValue("hook_inches")
-  ));
-  const releaseBoard = laneBoardValue(laneValue("release_board", "feet_board"), laneMetricNumber(calibration.release_board_hint) ?? 17);
-  const arrowsBoard = laneBoardValue(laneValue("arrows_board"), laneMetricNumber(calibration.target_board_hint) ?? 13);
-  const breakpointBoard = laneBoardValue(laneValue("breakpoint"), laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
-  const entryBoard = laneBoardValue(laneValue("entry_board"), 17.5);
+  const sourceReleaseBoard = laneValue("release_board", "feet_board");
+  const sourceArrowsBoard = laneValue("arrows_board");
+  const sourceBreakpoint = laneValue("breakpoint");
+  const sourceEntryBoard = laneValue("entry_board");
+  const hasTrackData = Boolean(isVideoDriven && sourceReleaseBoard && sourceArrowsBoard && sourceBreakpoint && sourceEntryBoard);
+  const releaseBoard = laneBoardValue(sourceReleaseBoard, laneMetricNumber(calibration.release_board_hint) ?? 17);
+  const arrowsBoard = laneBoardValue(sourceArrowsBoard, laneMetricNumber(calibration.target_board_hint) ?? 13);
+  const breakpointBoard = laneBoardValue(sourceBreakpoint, laneMetricNumber(calibration.breakpoint_board_hint) ?? 10.5);
+  const entryBoard = laneBoardValue(sourceEntryBoard, 17.5);
   const pinResultValue = laneValue("pin_result") || laneValue("result");
   const standingPins = laneStandingPinsFromResult(pinResultValue);
   const isDevelopmentEstimate = ["development_estimator", "video_motion_estimator", "vision_review_required"].includes(laneValue("backend_status"))
@@ -3482,10 +3495,6 @@ function renderLaneBreakdownVisual(fields = null) {
   const motionPoints = laneValue("motion_points");
   const analysisSource = laneValue("analysis_source") || (hasTrackData ? "Detected video motion" : "Pending");
   const qualityLabel = laneValue("confidence_label") || (hasTrackData ? "Motion estimate" : "Needs review");
-  const sourceReleaseBoard = laneValue("release_board", "feet_board");
-  const sourceArrowsBoard = laneValue("arrows_board");
-  const sourceBreakpoint = laneValue("breakpoint");
-  const sourceEntryBoard = laneValue("entry_board");
   const syncedBreakdownFields = {
     ...sourceFields,
     release_board: sourceReleaseBoard,
