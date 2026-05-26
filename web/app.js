@@ -2873,6 +2873,99 @@ function laneVisualValue(fields, primaryName, fallbackName = "", allowFormFallba
   return fallbackField?.value || "";
 }
 
+function firstFilledValue(...values) {
+  return values.find((value) => value !== null && value !== undefined && String(value).trim() !== "") || "";
+}
+
+function laneSyncedAnalysisFields(fields = null, { includeForm = true } = {}) {
+  const form = document.querySelector("#shot-form");
+  const formFields = includeForm && form ? formPayload(form) : {};
+  const source = {
+    ...(state.laneVideoAnalysisFields || {}),
+    ...(fields || {}),
+  };
+  const merged = { ...source };
+  [
+    "video_name",
+    "lane_center",
+    "ball",
+    "feet_board",
+    "release_board",
+    "arrows_board",
+    "breakpoint",
+    "entry_board",
+    "ball_speed",
+    "speed_mph",
+    "hook_inches",
+    "boards_crossed",
+    "pocket_quality",
+    "result",
+    "pin_result",
+    "miss_direction",
+    "leave_pin",
+    "adjustment",
+    "next_move",
+  ].forEach((key) => {
+    if (formFields[key] !== undefined && String(formFields[key]).trim() !== "") {
+      merged[key] = formFields[key];
+    }
+  });
+
+  const releaseBoard = firstFilledValue(formFields.release_board, formFields.feet_board, source.release_board, source.feet_board);
+  if (releaseBoard) {
+    merged.release_board = releaseBoard;
+    merged.feet_board = releaseBoard;
+  }
+
+  const speed = firstFilledValue(formFields.speed_mph, formFields.ball_speed, source.speed_mph, source.ball_speed);
+  if (speed) {
+    merged.speed_mph = speed;
+    merged.ball_speed = String(speed).includes("mph") ? speed : `${speed} mph`;
+  }
+
+  const pinResult = firstFilledValue(formFields.pin_result, formFields.result, source.pin_result, source.result);
+  if (pinResult) {
+    merged.pin_result = pinResult;
+    merged.result = pinResult;
+  }
+
+  return merged;
+}
+
+function laneBreakdownSummaryText(fields = {}) {
+  const release = firstFilledValue(fields.release_board, fields.feet_board);
+  const arrows = firstFilledValue(fields.arrows_board);
+  const breakpoint = firstFilledValue(fields.breakpoint);
+  const entry = firstFilledValue(fields.entry_board);
+  const speed = firstFilledValue(fields.speed_mph, fields.ball_speed);
+  const pinResult = firstFilledValue(fields.pin_result, fields.result);
+  const hook = firstFilledValue(fields.hook_inches);
+  const boards = firstFilledValue(fields.boards_crossed);
+  const quality = firstFilledValue(fields.confidence_label, fields.analysis_source);
+  const hasPath = Boolean(release || arrows || breakpoint || entry || speed);
+
+  if (!hasPath) {
+    const reason = firstFilledValue(fields.confidence_notes, fields.output_preview);
+    return reason
+      ? `No stable visual track is active yet. ${reason}`
+      : "No stable visual track is active yet. Analyze or correct the video path before using the shot breakdown.";
+  }
+
+  return [
+    "Synced shot breakdown:",
+    release && `board start ${release}`,
+    arrows && `arrow start ${arrows}`,
+    breakpoint && `breakpoint ${breakpoint}`,
+    entry && `entry board ${entry}`,
+    speed && `speed ${String(speed).includes("mph") ? speed : `${speed} mph`}`,
+    hook && `${hook} in hook`,
+    boards && `${boards} boards crossed`,
+    pinResult && `pin fall ${pinResult}`,
+    quality && `quality ${quality}`,
+    "The visual review uses these same values.",
+  ].filter(Boolean).join(" ");
+}
+
 function movementStatusClass(status) {
   if (status === "match") return "is-match";
   if (status === "review") return "is-review";
@@ -3066,7 +3159,9 @@ function renderLaneBreakdownVisual(fields = null) {
   const form = document.querySelector("#shot-form");
   const calibration = laneCalibrationData();
   const formFields = form ? formPayload(form) : {};
-  const sourceFields = fields || state.laneVideoAnalysisFields || formFields;
+  const sourceFields = (fields || state.laneVideoAnalysisFields)
+    ? laneSyncedAnalysisFields(fields)
+    : formFields;
   const isVideoDriven = Boolean(fields || state.laneVideoAnalysisFields);
   const laneValue = (primaryName, fallbackName = "") => laneVisualValue(sourceFields, primaryName, fallbackName, !isVideoDriven);
   const hasTrackData = Boolean(isVideoDriven && (
@@ -3387,6 +3482,33 @@ function renderLaneBreakdownVisual(fields = null) {
   const motionPoints = laneValue("motion_points");
   const analysisSource = laneValue("analysis_source") || (hasTrackData ? "Detected video motion" : "Pending");
   const qualityLabel = laneValue("confidence_label") || (hasTrackData ? "Motion estimate" : "Needs review");
+  const sourceReleaseBoard = laneValue("release_board", "feet_board");
+  const sourceArrowsBoard = laneValue("arrows_board");
+  const sourceBreakpoint = laneValue("breakpoint");
+  const sourceEntryBoard = laneValue("entry_board");
+  const syncedBreakdownFields = {
+    ...sourceFields,
+    release_board: sourceReleaseBoard,
+    feet_board: sourceReleaseBoard,
+    arrows_board: sourceArrowsBoard,
+    breakpoint: sourceBreakpoint,
+    entry_board: sourceEntryBoard,
+    speed_mph: speed,
+    pin_result: pinResultValue,
+    result: pinResultValue,
+  };
+  const syncedSummary = laneBreakdownSummaryText(syncedBreakdownFields);
+  const outputPreviewField = form?.elements?.output_preview;
+  if (outputPreviewField && (isVideoDriven || hasAnalysis)) {
+    outputPreviewField.value = syncedSummary;
+  }
+  if (state.laneVideoAnalysisFields && (isVideoDriven || hasAnalysis)) {
+    state.laneVideoAnalysisFields = {
+      ...state.laneVideoAnalysisFields,
+      ...syncedBreakdownFields,
+      output_preview: syncedSummary,
+    };
+  }
   const metrics = [
     ["Source", escapeHtml(analysisSource)],
     ["Quality", escapeHtml(qualityLabel)],
@@ -3400,7 +3522,7 @@ function renderLaneBreakdownVisual(fields = null) {
   ];
   metricsContainer.innerHTML = `
     ${metrics.map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("")}
-    <p>${hasAnalysis ? (hasTrackData ? (isDevelopmentEstimate ? "Motion-based path mapped from the source video. Verify pin fall and correct the track if the ball was obscured." : "Video analysis mapped to the visual path and shot metrics. Open notes for the full breakdown.") : "No stable ball path was detected from this video, so StrikeIQ is not drawing a track yet. Use source video review or correction fields.") : (isVideoDriven ? "Video analysis is being prepared; detected lane values will drive this view." : "Manual preview is shown until a video analysis fills the shot data.")}</p>
+    <p>${escapeHtml(syncedSummary)}</p>
   `;
   renderLaneSourceMotionOverlay(sourceFields);
   if (idealContainer) {
@@ -6471,6 +6593,10 @@ function bindEvents() {
       renderLaneFreeSnapshot();
       renderLaneShotSavePreview();
       renderLaneBreakdownVisual();
+      if (state.laneVideoAnalysisFields) {
+        syncLaneTrackCorrectionFields(state.laneVideoAnalysisFields);
+        syncLaneAnalysisShareMessage();
+      }
     }
   });
   document.addEventListener("pointerdown", (event) => {
