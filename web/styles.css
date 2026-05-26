@@ -3041,14 +3041,14 @@ h1 {
 .lane-breakdown-3d {
   position: relative;
   min-width: 0;
-  height: clamp(430px, 64vw, 560px);
+  height: clamp(460px, 66vw, 590px);
   overflow: hidden;
   border: 1px solid rgba(76, 201, 240, 0.18);
   border-radius: 8px;
   background:
-    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.18), transparent 18%),
-    radial-gradient(circle at 50% 28%, rgba(76, 201, 240, 0.15), transparent 38%),
-    linear-gradient(180deg, #05070a, #0a1320 58%, #05070a);
+    radial-gradient(circle at 56% 15%, rgba(255, 255, 255, 0.16), transparent 16%),
+    radial-gradient(circle at 48% 30%, rgba(76, 201, 240, 0.13), transparent 38%),
+    linear-gradient(180deg, #03070d, #0a1420 56%, #03050a);
   cursor: grab;
   perspective: 980px;
   touch-action: none;
@@ -3095,8 +3095,8 @@ h1 {
 .lane-3d-table {
   position: relative;
   display: grid;
-  grid-template-columns: 30px minmax(118px, 158px) 30px;
-  height: 500px;
+  grid-template-columns: 34px minmax(132px, 174px) 34px;
+  height: 520px;
   transform:
     scale(var(--lane-3d-zoom))
     rotateX(var(--lane-3d-tilt))
@@ -3115,7 +3115,7 @@ h1 {
 
 .lane-3d-gutter {
   background:
-    linear-gradient(90deg, #020305, #10243a 42%, #020305),
+    linear-gradient(90deg, #010204, #0d1d2d 42%, #010204),
     repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0 18px, transparent 18px 38px);
   box-shadow:
     0 22px 30px rgba(0, 0, 0, 0.56),
@@ -3151,8 +3151,8 @@ h1 {
   overflow: visible;
   background:
     linear-gradient(90deg, rgba(88, 43, 14, 0.30) 1px, transparent 1px) 0 0 / 5.26% 100%,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 18%, rgba(255, 255, 255, 0.12) 54%, transparent 82%),
-    repeating-linear-gradient(90deg, #c4772f 0 8px, #e3a950 8px 18px, #f3cb74 18px 28px, #b96929 28px 38px);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.30), transparent 17%, rgba(255, 255, 255, 0.13) 55%, transparent 84%),
+    repeating-linear-gradient(90deg, #b96829 0 7px, #dc9f49 7px 16px, #f0c86f 16px 25px, #9f561f 25px 35px, #e8b75e 35px 44px);
   border-left: 2px solid rgba(76, 201, 240, 0.18);
   border-right: 2px solid rgba(76, 201, 240, 0.18);
   box-shadow:
@@ -3211,7 +3211,7 @@ h1 {
   top: 0;
   right: 0;
   left: 0;
-  height: 19%;
+  height: 20%;
   background:
     linear-gradient(180deg, rgba(5, 7, 10, 0.36), transparent 42%),
     repeating-linear-gradient(90deg, rgba(255, 250, 224, 0.16) 0 10px, rgba(89, 45, 17, 0.16) 10px 20px);
@@ -3334,7 +3334,7 @@ h1 {
   width: 0;
   height: 0;
   border-right: 5px solid transparent;
-  border-bottom: 18px solid rgba(36, 18, 8, 0.58);
+  border-bottom: 18px solid rgba(36, 18, 8, 0.46);
   border-left: 5px solid transparent;
   filter: drop-shadow(0 1px 0 rgba(255, 248, 221, 0.26));
   transform: translateZ(4px);
@@ -3348,57 +3348,106 @@ h1 {
   width: 5px;
   height: 5px;
   border-radius: 999px;
-  background: rgba(36, 18, 8, 0.64);
+  background: rgba(36, 18, 8, 0.54);
   box-shadow: 0 0 0 1px rgba(255, 248, 221, 0.20);
   transform: translateZ(4px);
 }
 
+.lane-3d-pin-spots {
+  position: absolute;
+  z-index: 2;
+  top: 2.2%;
+  left: 50%;
+  width: min(72%, 142px);
+  height: 102px;
+  transform: translateX(-50%) rotateX(calc(-1 * var(--lane-3d-tilt))) translateZ(3px);
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.lane-3d-pin-spots i {
+  position: absolute;
+  width: 14px;
+  height: 7px;
+  border: 1px solid rgba(72, 34, 12, 0.50);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 247, 218, 0.52), rgba(98, 50, 18, 0.28) 62%, rgba(22, 9, 3, 0.18) 100%);
+  box-shadow:
+    0 5px 9px rgba(0, 0, 0, 0.30),
+    inset 0 1px 2px rgba(255, 255, 255, 0.28);
+  transform: translate(-50%, -50%);
+}
+
+.lane-3d-pin-spots i.is-covered {
+  opacity: 0.28;
+}
+
+.lane-3d-pin-spots i.is-open {
+  opacity: 0.72;
+}
+
+.lane-3d-pin-spots i[data-pin="1"] { left: 50%; top: 78%; }
+.lane-3d-pin-spots i[data-pin="2"] { left: 39%; top: 59%; }
+.lane-3d-pin-spots i[data-pin="3"] { left: 61%; top: 59%; }
+.lane-3d-pin-spots i[data-pin="4"] { left: 28%; top: 40%; }
+.lane-3d-pin-spots i[data-pin="5"] { left: 50%; top: 40%; }
+.lane-3d-pin-spots i[data-pin="6"] { left: 72%; top: 40%; }
+.lane-3d-pin-spots i[data-pin="7"] { left: 17%; top: 21%; }
+.lane-3d-pin-spots i[data-pin="8"] { left: 39%; top: 21%; }
+.lane-3d-pin-spots i[data-pin="9"] { left: 61%; top: 21%; }
+.lane-3d-pin-spots i[data-pin="10"] { left: 83%; top: 21%; }
+
 .lane-3d-pins {
   position: absolute;
-  z-index: 3;
-  top: 1.4%;
+  z-index: 4;
+  top: 1.9%;
   left: 50%;
-  width: min(86%, 158px);
-  height: 84px;
-  transform: translateX(-50%) rotateX(calc(-1 * var(--lane-3d-tilt)));
+  width: min(78%, 150px);
+  height: 108px;
+  transform: translateX(-50%) rotateX(calc(-1 * var(--lane-3d-tilt))) translateZ(22px);
   transform-style: preserve-3d;
 }
 
 .lane-3d-pin {
   position: absolute;
-  width: clamp(17px, 13.5%, 27px);
-  height: clamp(45px, 58%, 63px);
-  transform: translate(-50%, -50%) translateZ(12px) rotateX(2deg);
+  width: clamp(18px, 13.8%, 29px);
+  height: clamp(53px, 60%, 75px);
+  transform: translate(-50%, -50%) translateZ(26px) rotateX(1deg);
   transform-origin: 50% 90%;
-  filter: drop-shadow(4px 12px 9px rgba(0, 0, 0, 0.38));
+  filter:
+    drop-shadow(3px 8px 5px rgba(0, 0, 0, 0.38))
+    drop-shadow(8px 18px 14px rgba(0, 0, 0, 0.28));
   transform-style: preserve-3d;
 }
 
 .lane-3d-fallen-pin {
   position: absolute;
   z-index: 0;
-  width: clamp(18px, 14.5%, 29px);
-  height: clamp(48px, 64%, 66px);
+  width: clamp(19px, 14.5%, 30px);
+  height: clamp(55px, 64%, 76px);
   opacity: 0.98;
   transform:
     translate(-50%, -50%)
-    translateZ(8px)
+    translateZ(15px)
     rotateZ(var(--fallen-angle))
     scale(var(--fallen-scale));
   transform-origin: 50% 86%;
-  filter: drop-shadow(5px 10px 9px rgba(0, 0, 0, 0.48));
+  filter:
+    drop-shadow(4px 8px 5px rgba(0, 0, 0, 0.44))
+    drop-shadow(10px 20px 16px rgba(0, 0, 0, 0.34));
 }
 
-.lane-3d-pin[data-pin="1"] { left: 50%; top: 72%; width: clamp(20px, 15.5%, 30px); height: clamp(51px, 66%, 69px); }
-.lane-3d-pin[data-pin="2"] { left: 38%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
-.lane-3d-pin[data-pin="3"] { left: 62%; top: 53%; width: clamp(19px, 14.5%, 28px); height: clamp(49px, 62%, 65px); }
-.lane-3d-pin[data-pin="4"] { left: 26%; top: 34%; }
-.lane-3d-pin[data-pin="5"] { left: 50%; top: 34%; }
-.lane-3d-pin[data-pin="6"] { left: 74%; top: 34%; }
-.lane-3d-pin[data-pin="7"] { left: 14%; top: 15%; }
-.lane-3d-pin[data-pin="8"] { left: 38%; top: 15%; }
-.lane-3d-pin[data-pin="9"] { left: 62%; top: 15%; }
-.lane-3d-pin[data-pin="10"] { left: 86%; top: 15%; }
+.lane-3d-pin[data-pin="1"] { left: 50%; top: 78%; width: clamp(22px, 16.5%, 33px); height: clamp(64px, 71%, 82px); }
+.lane-3d-pin[data-pin="2"] { left: 39%; top: 59%; width: clamp(20px, 15.4%, 31px); height: clamp(60px, 68%, 78px); }
+.lane-3d-pin[data-pin="3"] { left: 61%; top: 59%; width: clamp(20px, 15.4%, 31px); height: clamp(60px, 68%, 78px); }
+.lane-3d-pin[data-pin="4"] { left: 28%; top: 40%; }
+.lane-3d-pin[data-pin="5"] { left: 50%; top: 40%; }
+.lane-3d-pin[data-pin="6"] { left: 72%; top: 40%; }
+.lane-3d-pin[data-pin="7"] { left: 17%; top: 21%; }
+.lane-3d-pin[data-pin="8"] { left: 39%; top: 21%; }
+.lane-3d-pin[data-pin="9"] { left: 61%; top: 21%; }
+.lane-3d-pin[data-pin="10"] { left: 83%; top: 21%; }
 .lane-3d-pin[data-pin="1"] { z-index: 4; }
 .lane-3d-pin[data-pin="2"],
 .lane-3d-pin[data-pin="3"] { z-index: 3; }
@@ -3418,12 +3467,12 @@ h1 {
 }
 
 .pin-floor-shadow {
-  fill: rgba(0, 0, 0, 0.34);
+  fill: rgba(0, 0, 0, 0.42);
 }
 
 .pin-main-body {
-  stroke: rgba(78, 36, 13, 0.42);
-  stroke-width: 1.05;
+  stroke: rgba(60, 27, 10, 0.46);
+  stroke-width: 1.12;
 }
 
 .pin-side-shade {
@@ -3431,7 +3480,7 @@ h1 {
 }
 
 .pin-body-highlight {
-  opacity: 0.92;
+  opacity: 0.96;
 }
 
 .pin-base,
@@ -3440,11 +3489,11 @@ h1 {
 }
 
 .pin-top-glow {
-  opacity: 0.84;
+  opacity: 0.92;
 }
 
 .pin-base {
-  opacity: 0.92;
+  opacity: 0.96;
 }
 
 .pin-base-shadow {
@@ -3452,7 +3501,7 @@ h1 {
 }
 
 .pin-red-band {
-  stroke: rgba(255, 255, 255, 0.28);
+  stroke: rgba(255, 255, 255, 0.36);
   stroke-width: 0.25;
 }
 
@@ -3499,9 +3548,12 @@ h1 {
 .lane-3d-path {
   position: absolute;
   inset: 0;
+  z-index: 3;
   width: 100%;
   height: 100%;
   pointer-events: none;
+  transform: translateZ(12px);
+  transform-style: preserve-3d;
 }
 
 .lane-3d-marker {
@@ -3722,11 +3774,11 @@ h1 {
 .lane-breakdown-path-glow {
   fill: none;
   filter: url("#laneTrackGlow");
-  opacity: 0.54;
-  stroke: rgba(255, 45, 85, 0.50);
+  opacity: 0.52;
+  stroke: rgba(255, 23, 68, 0.64);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 5.2;
+  stroke-width: 5.4;
 }
 
 .lane-breakdown-path {
@@ -3734,18 +3786,18 @@ h1 {
   stroke: url("#laneTrackGradient");
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.85;
+  stroke-width: 1.65;
 }
 
 .lane-motion-tracker {
   fill: none;
   filter: url("#laneTrackGlow");
-  opacity: 0.88;
-  stroke: rgba(255, 23, 68, 0.96);
-  stroke-dasharray: 28 450;
+  opacity: 0.96;
+  stroke: rgba(255, 23, 68, 1);
+  stroke-dasharray: 38 450;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3.1;
+  stroke-width: 2.85;
 }
 
 .lane-sync-path-reference {
@@ -3758,13 +3810,19 @@ h1 {
 
 .lane-breakdown-ball {
   fill: url("#laneBallGradient");
-  filter: url("#laneObjectShadow") url("#laneBallShadow");
+  filter:
+    url("#laneObjectShadow")
+    url("#laneBallShadow")
+    drop-shadow(0 0 9px rgba(255, 23, 68, 0.68));
   stroke: rgba(255, 255, 255, 0.88);
   stroke-width: 0.8;
 }
 
 .lane-breakdown-ball-moving {
-  filter: url("#laneBallShadow") drop-shadow(0 0 7px rgba(255, 45, 85, 0.78));
+  filter:
+    url("#laneBallShadow")
+    drop-shadow(0 0 9px rgba(255, 23, 68, 0.82))
+    drop-shadow(5px 8px 7px rgba(0, 0, 0, 0.32));
 }
 
 .lane-breakdown-ball-start {
@@ -3775,12 +3833,12 @@ h1 {
 }
 
 .lane-breakdown-tracker-ring {
-  fill: rgba(255, 23, 68, 0.10);
+  fill: rgba(255, 23, 68, 0.08);
   filter: url("#laneTrackGlow");
-  opacity: 0.92;
+  opacity: 0.86;
   stroke: rgba(255, 45, 85, 0.98);
-  stroke-dasharray: 3 2;
-  stroke-width: 1.6;
+  stroke-dasharray: 4.5 2.5;
+  stroke-width: 1.25;
   animation: laneTrackerPulse 1.2s ease-in-out infinite;
 }
 

@@ -2900,9 +2900,9 @@ function laneSmoothMotionPath(markers) {
 
   return [
     `M ${release.x} ${release.y}`,
-    curve(release, arrows, 0.18, 0.72, -18, 26),
-    curve(arrows, breakpoint, 0.22, 0.82, -18, 34),
-    curve(breakpoint, entry, 0.20, 0.86, -26, 24),
+    curve(release, arrows, 0.24, 0.76, -11, 10),
+    curve(arrows, breakpoint, 0.28, 0.78, -12, 12),
+    curve(breakpoint, entry, 0.30, 0.82, -14, 8),
   ].join(" ");
 }
 
@@ -3124,16 +3124,16 @@ function renderLaneBreakdownVisual(fields = null) {
     { pin: 1, x: 80, y: 60, scale: 1.12 },
   ];
   const fallenPin3d = [
-    { pin: 1, left: 52, top: 70, angle: 86, scale: 1.08 },
-    { pin: 2, left: 38, top: 60, angle: -72, scale: 0.98 },
-    { pin: 3, left: 62, top: 58, angle: 74, scale: 0.98 },
-    { pin: 4, left: 22, top: 43, angle: -84, scale: 0.94 },
-    { pin: 5, left: 50, top: 42, angle: 92, scale: 0.94 },
-    { pin: 6, left: 78, top: 43, angle: 84, scale: 0.94 },
-    { pin: 7, left: 12, top: 25, angle: -76, scale: 0.88 },
-    { pin: 8, left: 38, top: 24, angle: 78, scale: 0.88 },
-    { pin: 9, left: 62, top: 24, angle: -80, scale: 0.88 },
-    { pin: 10, left: 88, top: 25, angle: 76, scale: 0.88 },
+    { pin: 1, left: 50, top: 76, angle: 86, scale: 1.10 },
+    { pin: 2, left: 39, top: 58, angle: -72, scale: 1.00 },
+    { pin: 3, left: 61, top: 58, angle: 74, scale: 1.00 },
+    { pin: 4, left: 28, top: 40, angle: -84, scale: 0.94 },
+    { pin: 5, left: 50, top: 40, angle: 92, scale: 0.94 },
+    { pin: 6, left: 72, top: 40, angle: 84, scale: 0.94 },
+    { pin: 7, left: 17, top: 22, angle: -76, scale: 0.88 },
+    { pin: 8, left: 39, top: 22, angle: 78, scale: 0.88 },
+    { pin: 9, left: 61, top: 22, angle: -80, scale: 0.88 },
+    { pin: 10, left: 83, top: 22, angle: 76, scale: 0.88 },
   ];
   const fallenPin2d = [
     { pin: 1, x: 80, y: 56, angle: 88, scale: 1.02 },
@@ -3156,6 +3156,9 @@ function renderLaneBreakdownVisual(fields = null) {
       ${lanePinSvg(pin.pin)}
     </span>
   ` : "").join("");
+  const pinSpotHtml = [7, 8, 9, 10, 4, 5, 6, 2, 3, 1]
+    .map((pin) => `<i data-pin="${pin}" class="${lanePinIsStanding(standingPins, pin) ? "is-covered" : "is-open"}"></i>`)
+    .join("");
   const standingPin2dHtml = pinRack.map((pin) => lanePinIsStanding(standingPins, pin.pin) ? `
     <g class="lane-breakdown-pin" transform="translate(${pin.x} ${pin.y}) scale(${pin.scale})">
       <ellipse class="pin-shadow" cx="0" cy="6.8" rx="6.1" ry="2.1"></ellipse>
@@ -3235,6 +3238,7 @@ function renderLaneBreakdownVisual(fields = null) {
               <div class="lane-3d-foul"></div>
               <div class="lane-3d-arrows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <div class="lane-3d-dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="lane-3d-pin-spots" aria-hidden="true">${pinSpotHtml}</div>
               <div class="lane-3d-pins">${fallenPin3dHtml}${standingPin3dHtml}</div>
               <span class="lane-3d-distance lane-3d-distance-foul">Foul line</span>
               <span class="lane-3d-distance lane-3d-distance-arrows">15 ft arrows</span>
